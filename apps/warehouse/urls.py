@@ -1,11 +1,10 @@
 # -----------------------------------#
-# root url
+# warehouse urls
 # -----------------------------------#
 
-from django.contrib import admin
 from django.urls import path, include
+from . import views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('warehouse', include('apps.warehouse.urls')),
+    path('', views.warehouse_view, name='warehouse'),
 ]

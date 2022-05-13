@@ -27,6 +27,7 @@ class Product(models.Model):
     price = models.FloatField()
     serial = models.CharField(max_length=245, unique=True)
     status = models.CharField(max_length=245, choices=choice_status)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
