@@ -12,6 +12,13 @@
 </head>
 
 <body class="container-fluid">
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
+            {% endfor %}
+    </ul>
+    {% endif %}
     {% comment %} Search Warehouse {% endcomment %}
     <form class="mb-2 mt-3 mx-2" method="get">
         {{ filter.form }}
@@ -21,16 +28,18 @@
     <table class="table table-dark table-striped table-hover shadow rounded">
         <thead>
             <tr>
-                <th colspan='7'>
-                    <a class="text-white text-decoration-none"  href="">add product</a>
+                <th colspan='9'>
+                    <a class="text-white text-decoration-none" href="{% url 'warehouse_add' %}">add product</a>
                 </th>
             </tr>
             <tr>
                 <th scope="col">sl</th>
                 <th scope="col">Name</th>
+                <th scope="col">Model</th>
                 <th scope="col">category</th>
                 <th scope="col">Serial</th>
                 <th scope="col">quantity</th>
+                <th scope="col">Price</th>
                 <th scope="col">Status</th>
                 <th scope="col">Action</th>
             </tr>
@@ -40,13 +49,15 @@
             <tr>
                 <th scope="row">{{forloop.counter}}</th>
                 <td>{{ product.name }}</td>
+                <td>{{ product.model }}</td>
                 <td>{{ product.category }}</td>
                 <td>{{ product.serial }}</td>
                 <td>{{ product.quantity }}</td>
+                <td>{{ product.price }}</td>
                 <td>{{ product.status }}</td>
                 <td>
-                    <a class="btn btn-sm btn-primary mr-3" href="">edit</a>
-                    <a class="btn btn-sm btn-danger mr-3" href="">del</a>
+                    <a class="btn btn-sm btn-primary mr-3" href="{% url 'warehouse_update' product.id %}">edit</a>
+                    <a class="btn btn-sm btn-danger mr-3" href="{% url 'warehouse_delete' product.id %}">del</a>
                 </td>
             </tr>
             {% endfor %}

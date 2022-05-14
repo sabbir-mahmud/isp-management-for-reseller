@@ -9,4 +9,5 @@ from .models import Product
 class WarehouseProductForm(ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'category', 'quantity', 'price', 'serial', 'status']
+        fields = ['name', 'model', 'category',
+                  'quantity', 'price', 'serial', 'status']

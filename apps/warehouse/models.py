@@ -22,6 +22,7 @@ class Product(models.Model):
     choice_status = (('Active', 'Active'), ('Stored', 'Stored'),
                      ('Damaged', 'Damaged'))
     name = models.CharField(max_length=245)
+    model = models.CharField(max_length=245)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     quantity = models.IntegerField(default=1)
     price = models.FloatField()
