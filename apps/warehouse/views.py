@@ -1,10 +1,10 @@
-from itertools import product
+# imports
 from django.shortcuts import render
 from django.core.paginator import Paginator
-from django.views.generic.edit import FormView, CreateView, UpdateView, DeleteView
+from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.contrib.messages.views import SuccessMessageMixin
-from .models import Product
-from .filters import WarehouseProductFilter
+from .models import Product, Onu
+from .filters import WarehouseProductFilter, WarehouseOnuFilter
 from .forms import WarehouseProductForm
 # Create your views here.
 #------------------------------------#
@@ -58,3 +58,19 @@ class WarehouseProductDeleteView(SuccessMessageMixin, DeleteView):
     success_url = '/warehouse'
     success_message = 'Product deleted successfully'
     error_message = 'Product not deleted'
+
+
+#------------------------------------#
+# Onu views
+# showing all onu
+#------------------------------------#
+
+def Onu_view(request):
+    onu = Onu.objects.all()
+    filter = WarehouseOnuFilter(request.GET, queryset=onu)
+    onu = filter.qs
+    paginator = Paginator(onu, 25)
+    page_number = request.GET.get('paginator')
+    onu = paginator.get_page(page_number)
+    context = {'onu': onu, 'filter': filter}
+    return render(request, 'onu/onu.html', context)
