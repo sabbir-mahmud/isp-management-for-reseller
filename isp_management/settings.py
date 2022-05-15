@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     # user apps
     'apps.warehouse',
     'apps.accounts',
+    'apps.accountants',
 ]
 
 MIDDLEWARE = [
