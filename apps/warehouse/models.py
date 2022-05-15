@@ -51,3 +51,16 @@ class Onu(models.Model):
 
     def __str__(self):
         return str(self.serial)
+
+# -------------------------------------------------#
+# pop model
+# -------------------------------------------------#
+
+
+class Pop(models.Model):
+    name = models.CharField(max_length=245)
+    main_pop_name = models.ForeignKey(
+        'self', on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return self.name

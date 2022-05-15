@@ -1,3 +1,7 @@
 /isp-venv
 /db.sqlite3
 /.env
+__pycache__/
+*.log
+*.pot
+*.pyc
