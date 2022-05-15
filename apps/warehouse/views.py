@@ -5,7 +5,7 @@ from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.contrib.messages.views import SuccessMessageMixin
 from .models import Product, Onu
 from .filters import WarehouseProductFilter, WarehouseOnuFilter
-from .forms import WarehouseProductForm
+from .forms import WarehouseProductForm, WarehouseOnuForm
 # Create your views here.
 #------------------------------------#
 # Warehouse products Views
@@ -65,12 +65,49 @@ class WarehouseProductDeleteView(SuccessMessageMixin, DeleteView):
 # showing all onu
 #------------------------------------#
 
-def Onu_view(request):
+def onu_view(request):
     onu = Onu.objects.all()
     filter = WarehouseOnuFilter(request.GET, queryset=onu)
-    onu = filter.qs
-    paginator = Paginator(onu, 25)
+    onus = filter.qs
+    paginator = Paginator(onus, 25)
     page_number = request.GET.get('paginator')
-    onu = paginator.get_page(page_number)
-    context = {'onu': onu, 'filter': filter}
+    onus = paginator.get_page(page_number)
+    context = {'onus': onus, 'filter': filter}
     return render(request, 'onu/onu.html', context)
+
+
+#------------------------------------#
+# Onu add views
+#------------------------------------#
+
+class WarehouseOnuAddView(SuccessMessageMixin, CreateView):
+    template_name = 'onu/onu_add.html'
+    form_class = WarehouseOnuForm
+    success_url = '/onu'
+    success_message = 'Onu added successfully'
+    error_message = 'Onu not added'
+
+
+#------------------------------------#
+# Onu update views
+#------------------------------------#
+
+class WarehouseOnuUpdateView(SuccessMessageMixin, UpdateView):
+    model = Onu
+    template_name = 'onu/onu_add.html'
+    form_class = WarehouseOnuForm
+    success_url = '/onu'
+    success_message = 'Onu added successfully'
+    error_message = 'Onu not added'
+
+#------------------------------------#
+# Onu delete views
+#------------------------------------#
+
+
+class WarehouseOnuDeleteView(SuccessMessageMixin, DeleteView):
+    model = Onu
+    template_name = 'onu/onu_delete.html'
+    success_url = '/onu'
+    success_message = 'Onu deleted successfully'
+    error_message = 'Onu not deleted'
