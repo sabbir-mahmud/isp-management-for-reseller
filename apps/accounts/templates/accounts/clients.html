@@ -52,8 +52,8 @@
                 <td>{{ client.ip }}</td>
                 <td>{{ client.status }}</td>
                 <td>
-                    <a class="btn btn-sm btn-primary mr-3" href="{% url 'warehouse_update' client.id %}">edit</a>
-                    <a class="btn btn-sm btn-danger mr-3" href="{% url 'warehouse_delete' client.id %}">del</a>
+                    <a class="btn btn-sm btn-primary mr-3" href="{% url 'clients_update' client.id %}">edit</a>
+                    <a class="btn btn-sm btn-danger mr-3" href="{% url 'clients_delete' client.id %}">del</a>
                 </td>
             </tr>
             {% endfor %}
