@@ -1,6 +1,6 @@
 from random import choices
 from django.db import models
-from apps.warehouse.models import Onu
+from apps.warehouse.models import Onu, Pop
 
 
 #-----------------------------------#
@@ -56,6 +56,7 @@ class Clients(models.Model):
     reseller = models.ForeignKey(Reseller, on_delete=models.CASCADE)
     status = models.CharField(
         max_length=50, choices=choices_select, default='active')
+    pop_name = models.ForeignKey(Pop, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
