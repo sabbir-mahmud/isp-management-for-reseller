@@ -13,7 +13,7 @@ from .forms import WarehouseProductForm, WarehouseOnuForm
 
 
 def warehouse_view(request):
-    products = Product.objects.all()
+    products = Product.objects.all().order_by('-id')
     filter = WarehouseProductFilter(request.GET, queryset=products)
     products = filter.qs
     paginator = Paginator(products, 25)
@@ -66,7 +66,7 @@ class WarehouseProductDeleteView(SuccessMessageMixin, DeleteView):
 #------------------------------------#
 
 def onu_view(request):
-    onu = Onu.objects.all()
+    onu = Onu.objects.all().order_by('-id')
     filter = WarehouseOnuFilter(request.GET, queryset=onu)
     onus = filter.qs
     paginator = Paginator(onus, 25)
