@@ -18,25 +18,6 @@ class Package(models.Model):
     def __str__(self):
         return self.name
 
-#-----------------------------------#
-# reseller model
-#-----------------------------------#
-
-
-class Reseller(models.Model):
-    choices_select = (('active', 'active'), ('inactive', 'inactive'))
-    name = models.CharField(max_length=50)
-    address = models.CharField(max_length=50)
-    phone = models.CharField(max_length=50)
-    nid = models.CharField(max_length=50)
-    commission = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(
-        max_length=50, choices=choices_select, default='active')
-
-    def __str__(self):
-        return self.name
-
-
 #-------------------------------------------------#
 # Model: clients
 #-------------------------------------------------#
@@ -53,7 +34,6 @@ class Clients(models.Model):
                           verbose_name='IP/UserName')
     pack = models.ForeignKey(Package, on_delete=models.CASCADE)
     onu = models.ForeignKey(Onu, on_delete=models.CASCADE)
-    reseller = models.ForeignKey(Reseller, on_delete=models.CASCADE)
     status = models.CharField(
         max_length=50, choices=choices_select, default='active')
     pop_name = models.ForeignKey(Pop, on_delete=models.CASCADE)

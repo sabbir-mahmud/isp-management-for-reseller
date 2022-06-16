@@ -2,10 +2,10 @@ from django.shortcuts import redirect, render
 from django.core.paginator import Paginator
 from django.contrib.messages.views import SuccessMessageMixin
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from django.contrib.auth import authenticate, login, logout
-from .models import Clients
+from django.contrib.auth import authenticate, login
+from .models import Clients, Package
 from .filters import ClientsFilter
-from .forms import ClientsForm
+from .forms import ClientsForm, PackageForm
 
 # -----------------------------------#
 # Clients views
@@ -59,9 +59,23 @@ class ClientsDeleteView(SuccessMessageMixin, DeleteView):
     success_message = 'client was deleted'
     error_message = 'client was not deleted'
 
-    # -----------------------------------#
-    # login view
-    # -----------------------------------#
+
+# -----------------------------------#
+# package views
+# -----------------------------------#
+
+def package_view(request):
+    packages = Package.objects.all().order_by('-id')
+    paginator = Paginator(packages, 25)
+    page_number = request.GET.get('paginator')
+    packages = paginator.get_page(page_number)
+    context = {'packages': packages}
+    return render(request, 'package/package.html', context)
+
+
+# -----------------------------------#
+# login view
+# -----------------------------------#
 
 
 def login_view(request):

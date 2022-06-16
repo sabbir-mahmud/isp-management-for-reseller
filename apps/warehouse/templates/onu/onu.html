@@ -1,85 +1,60 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends 'accounts/main.html' %}
+{% block title %}
+clients details
+{% endblock title %}
+{% block content %}
+{% comment %} Search Warehouse {% endcomment %}
+<form class="mb-2 mt-3 mx-2" method="get">
+    {{ filter.form }}
+    <input class="btn btn-primary px-4 ms-3" type="submit" value="search">
+</form>
 
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warehouse :onu list</title>
-    {% comment %} bootstrap css {% endcomment %}
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
-</head>
-
-<body class="container-fluid">
-    {% if messages %}
-    <ul class="messages">
-        {% for message in messages %}
-        <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
-            {% endfor %}
-    </ul>
-    {% endif %}
-    {% comment %} Search Warehouse {% endcomment %}
-    <form class="mb-2 mt-3 mx-2" method="get">
-        {{ filter.form }}
-        <input class="btn btn-primary px-4 ms-3" type="submit" value="search">
-    </form>
-
-    <table class="table table-dark table-striped table-hover shadow rounded">
-        <thead>
-            <tr>
-                <th colspan='9'>
-                    <a class="text-white text-decoration-none" href="{% url 'onu_add' %}">add onu</a>
-                </th>
-            </tr>
-            <tr>
-                <th scope="col">sl</th>
-                <th scope="col">Name</th>
-                <th scope="col">Model</th>
-                <th scope="col">Ports</th>
-                <th scope="col">Serial</th>
-                <th scope="col">Price</th>
-                <th scope="col">Status</th>
-                <th scope="col">Created</th>
-                <th scope="col">Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for product in onus %}
-            <tr>
-                <th scope="row">{{forloop.counter}}</th>
-                <td>{{ product.name }}</td>
-                <td>{{ product.model }}</td>
-                <td>{{ product.port }}</td>
-                <td>{{ product.serial }}</td>
-                <td>{{ product.price }} /tk</td>
-                <td>{{ product.status }}</td>
-                <td>{{ product.created_at }}</td>
-                <td>
-                    <a class="btn btn-sm btn-primary mr-3" href="{% url 'onu_edit' product.id %}">edit</a>
-                    <a class="btn btn-sm btn-danger mr-3" href="{% url 'onu_del' product.id %}">del</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<table class="table table-striped table-hover ">
+    <thead>
+        <tr>
+            <th colspan='9'>
+                <a class="text-decoration-none" href="{% url 'onu_add' %}">add onu</a>
+            </th>
+        </tr>
+        <tr>
+            <th scope="col">sl</th>
+            <th scope="col">Name</th>
+            <th scope="col">Model</th>
+            <th scope="col">Ports</th>
+            <th scope="col">Serial</th>
+            <th scope="col">Price</th>
+            <th scope="col">Status</th>
+            <th scope="col">Created</th>
+            <th scope="col">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in onus %}
+        <tr>
+            <th scope="row">{{forloop.counter}}</th>
+            <td>{{ product.name }}</td>
+            <td>{{ product.model }}</td>
+            <td>{{ product.port }}</td>
+            <td>{{ product.serial }}</td>
+            <td>{{ product.price }} /tk</td>
+            <td>{{ product.status }}</td>
+            <td>{{ product.created_at }}</td>
+            <td>
+                <a class="btn btn-sm btn-primary mr-3" href="{% url 'onu_edit' product.id %}">edit</a>
+                <a class="btn btn-sm btn-danger mr-3" href="{% url 'onu_del' product.id %}">del</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
 
-    {% if onus.has_previous %}
-    <a class="btn prev-btn btn-success mb-3" href="?p={{onus.previous_page_number}}">previous</a>
-    {% endif %}
-    {{onus.number}}
-    {% if onus.has_next %}
-    <a class="btn next-btn btn-success mb-3" href="?p={{onus.next_page_number}}">next</a>
-    {% endif %}
+{% if onus.has_previous %}
+<a class="btn prev-btn btn-success mb-3" href="?p={{onus.previous_page_number}}">previous</a>
+{% endif %}
+{{onus.number}}
+{% if onus.has_next %}
+<a class="btn next-btn btn-success mb-3" href="?p={{onus.next_page_number}}">next</a>
+{% endif %}
 
-</body>
-{% comment %} Bootstrap js {% endcomment %}
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"
-    integrity="sha384-7+zCNj/IqJ95wo16oMtfsKbZ9ccEh31eOz1HGyDuCQ6wgnyJNSYdrPa03rtR1zdB" crossorigin="anonymous">
-</script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"
-    integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13" crossorigin="anonymous">
-</script>
-
-</html>
+{% endblock content %}

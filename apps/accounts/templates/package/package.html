@@ -1,0 +1,45 @@
+{% extends 'accounts/main.html' %}
+{% block title %}Packages{% endblock title %}
+{% block content %}
+<table class="table table-striped table-hover  rounded">
+    <thead>
+        <tr>
+            <th colspan='9'>
+                <a class="text-dark text-decoration-none" href="{% url 'clients_add' %}">add client</a>
+            </th>
+        </tr>
+        <tr>
+            <th scope="col">sl</th>
+            <th scope="col">Name</th>
+            <th scope="col">Speed</th>
+            <th scope="col">Status</th>
+            <th scope="col">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for package in packages %}
+        <tr>
+            <th scope="row">{{forloop.counter}}</th>
+            <td>{{ package.name }}</td>
+            <td>{{ package.speed }}Mb/s</td>
+            <td>
+                {% if package.active %}Active {% else %}Deactive{% endif %}
+            </td>
+            <td>
+                <a class="btn btn-sm btn-primary mr-3" href="{% url 'clients_update' package.id %}">edit</a>
+                <a class="btn btn-sm btn-danger mr-3" href="{% url 'clients_delete' package.id %}">del</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if packages.has_previous %}
+<a class="btn prev-btn btn-success mb-3" href="?p={{packages.previous_page_number}}">previous</a>
+{% endif %}
+{{packages.number}}
+{% if packages.has_next %}
+<a class="btn next-btn btn-success mb-3" href="?p={{packages.next_page_number}}">next</a>
+{% endif %}
+
+{% endblock content %}
