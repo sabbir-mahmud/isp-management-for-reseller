@@ -1,16 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accounts form</title>
-</head>
-<body>
-    <form method="post">
+{% extends 'accounts/main.html' %}
+{% block title%}Clients{% endblock title%}
+{% block content %}
+{% load crispy_forms_tags %}
+<div class="container-fluid">
+    <form class="forms" method="post">
         {% csrf_token %}
-        {{ form.as_p }}
-        <input type="submit" value="Submit">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="form-group col-md-6 mb-2">
+                    {{ form.name|as_crispy_field }}
+                </div>
+                <div class="form-group col-lg-6 mb-2">
+                    {{ form.email|as_crispy_field }}
+                </div>
+                <div class="form-group col-md-6 mb-2">
+                    {{ form.phone|as_crispy_field }}
+                </div>
+                <div class="form-group col-md-6 mb-2">
+                    {{ form.nid|as_crispy_field }}
+                </div>
+                <div class="form-group col-md-6 mb-2">
+                    {{ form.address|as_crispy_field }}
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="form-group col-md-6 mb-2">
+                    {{ form.ip|as_crispy_field }}
+                </div>
+                <div class="form-group col-md-6 mb-2">
+                    {{ form.pack|as_crispy_field }}
+                </div>
+                <div class="form-group col-md-6 mb-2">
+                    {{ form.onu|as_crispy_field }}
+                </div>
+                <div class="form-group col-md-6 mb-2">
+                    {{ form.status|as_crispy_field }}
+                </div>
+                <div class="form-group col-md-6 mb-2">
+                    {{ form.pop_name|as_crispy_field }}
+                </div>
+            </div>
+        </div>
+        <input class="my-3 btn btn-primary" type="submit" value="Submit">
     </form>
-</body>
-</html>
+</div>
+{% endblock content %}

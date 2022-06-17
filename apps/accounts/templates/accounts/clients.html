@@ -23,6 +23,7 @@ clients details
             <th scope="col">Phone</th>
             <th scope="col">Address</th>
             <th scope="col">IP</th>
+            <th scope="col">Pop</th>
             <th scope="col">Status</th>
             <th scope="col">Action</th>
         </tr>
@@ -35,6 +36,7 @@ clients details
             <td>{{ client.phone }}</td>
             <td>{{ client.address }}</td>
             <td>{{ client.ip }}</td>
+            <td>{{ client.pop_name }}</td>
             <td>{{ client.status }}</td>
             <td>
                 <a class="btn btn-sm btn-primary mr-3" href="{% url 'clients_update' client.id %}">edit</a>

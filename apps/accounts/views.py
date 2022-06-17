@@ -72,6 +72,42 @@ def package_view(request):
     context = {'packages': packages}
     return render(request, 'package/package.html', context)
 
+# -----------------------------------#
+# package create view
+# -----------------------------------#
+
+
+class Package_CreateView(SuccessMessageMixin, CreateView):
+    template_name = 'package/package_form.html'
+    form_class = PackageForm
+    success_url = '/package'
+    success_message = 'package was created'
+    error_message = 'client was not created'
+
+
+# -----------------------------------#
+# package update view
+# -----------------------------------#
+
+class Package_UpdateView(SuccessMessageMixin, UpdateView):
+    model = Package
+    template_name = 'package/package_form.html'
+    form_class = PackageForm
+    success_url = '/package'
+    success_message = 'package was updated'
+    error_message = 'package was not updated'
+
+# -----------------------------------#
+# package delete view
+# -----------------------------------#
+
+
+class Package_DeleteView(SuccessMessageMixin, DeleteView):
+    model = Package
+    template_name = 'package/package_delete.html'
+    success_url = '/package'
+    success_message = 'package was deleted'
+    error_message = 'package was not deleted'
 
 # -----------------------------------#
 # login view

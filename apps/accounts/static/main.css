@@ -1,0 +1,41 @@
+/* font-family: 'Tiro Devanagari Marathi', serif;  */
+@import url('https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Marathi:ital@0;1&display=swap');
+
+*{
+    font-family: 'Tiro Devanagari Marathi', serif;
+}
+
+/* table design */
+table {
+    box-shadow: 0px 0px 5px -1px black;
+}
+
+/* form design */
+.forms {
+    box-shadow: 0px 0px 5px -1px black;
+    padding-left: 5%;
+    padding-top: 2%;
+    padding-bottom: 2%;
+    margin-bottom: 15px;
+    border-radius: 10px;
+}
+
+.forms input {
+    width: 500px;
+    margin-top: 5px;
+    padding: 5px 15px;
+}
+
+.forms input[type='checkbox']{
+    margin-top: 5px;
+    padding: 5px 15px;
+    width: 20px;
+}
+
+.forms label{
+    margin-top: 5px;
+}
+
+.forms select {
+    padding: 8px 25px;
+}

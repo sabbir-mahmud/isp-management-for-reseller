@@ -5,7 +5,7 @@
     <thead>
         <tr>
             <th colspan='9'>
-                <a class="text-dark text-decoration-none" href="{% url 'clients_add' %}">add client</a>
+                <a class="text-dark text-decoration-none" href="{% url 'package-add' %}">add package</a>
             </th>
         </tr>
         <tr>
@@ -26,8 +26,8 @@
                 {% if package.active %}Active {% else %}Deactive{% endif %}
             </td>
             <td>
-                <a class="btn btn-sm btn-primary mr-3" href="{% url 'clients_update' package.id %}">edit</a>
-                <a class="btn btn-sm btn-danger mr-3" href="{% url 'clients_delete' package.id %}">del</a>
+                <a class="btn btn-sm btn-primary mr-3" href="{% url 'package-update' package.id %}">edit</a>
+                <a class="btn btn-sm btn-danger mr-3" href="{% url 'package-delete' package.id %}">del</a>
             </td>
         </tr>
         {% endfor %}
