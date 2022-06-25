@@ -3,10 +3,11 @@
 onu
 {% endblock title %}
 {% block content %}
-<form method="post">
+<form class="forms" method="post">
+    {% load crispy_forms_tags %}
     {% csrf_token %}
-    {{form.as_p}}
-    <input type="submit" value="save">
+    {{form|crispy}}
+    <input class="my-2 btn btn-primary" type="submit" value="save">
 </form>
 
 {% endblock content %}

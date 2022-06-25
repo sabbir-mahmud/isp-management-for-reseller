@@ -1,0 +1,38 @@
+{% extends 'dashboard/main.html' %}
+{% block title %}Dashboard{% endblock title %}
+{% block content %}
+<section>
+    <div class="row gap-3">
+        <div class="col-lg-7 shadow rounded-3 p-3 mx-3">
+            <h5>All Clients: {{clients}}</h5>
+            <h5>Active Clients: {{activeClients}}</h5>
+            <h5>Inactive Clients: {{activeClients}}</h5>
+            <h5>All Onu: {{onu}}</h5>
+            <h5>Active Onu: {{activeOnu}}</h5>
+            <h5>Stored Onu: {{storedOnu}}</h5>
+            <h5>Damaged Onu: {{damagedOnu}}</h5>
+            <h5>Collected Bill: {{collected_bill}}</h5>
+            <h5>Upsteam Bill: {{upsteam_bill}}</h5>
+            <h5>Profit By Bill: {{profit_via_bill}}</h5>
+            
+
+        </div>
+        <div class="col-lg-4 shadow rounded-3 p-3">
+            <h3>important links</h3>
+            <nav>
+                <ul>
+                    <li><a href="">packages</a></li>
+                    <li><a href="">warehouse</a></li>
+                    <li><a href="">onu</a></li>
+                    <li><a href="">month</a></li>
+                    <li><a href="">year</a></li>
+                    <li><a href="">earn</a></li>
+                    <li><a href="">invets</a></li>
+                </ul>
+            </nav>
+    
+        </div>
+    </div>
+    
+</section>
+{% endblock content %}

@@ -1,13 +1,11 @@
 {% extends 'accounts/main.html' %}
-{% block title %}
-warehouse: delete a product
-{% endblock title %}
+{% block title %}Delete Confirm{% endblock title %}
 {% block content %}
-<form method="post">
+<form class="delete-form" method="post">
     {% csrf_token %}
     <p>Are you sure you want to delete "{{ object }}"?</p>
     {{ form }}
-    <input type="submit" value="Confirm">
+    <input class="btn btn-primary" type="submit" value="Confirm">
+    <a class="btn btn-primary" href="{% url 'warehouse' %}">Cancel</a>
 </form>
-
 {% endblock content %}

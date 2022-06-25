@@ -3,6 +3,8 @@ from django.shortcuts import render
 from django.core.paginator import Paginator
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.contrib.messages.views import SuccessMessageMixin
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 from .models import Product, Onu
 from .filters import WarehouseProductFilter, WarehouseOnuFilter
 from .forms import WarehouseProductForm, WarehouseOnuForm
@@ -12,6 +14,7 @@ from .forms import WarehouseProductForm, WarehouseOnuForm
 #------------------------------------#
 
 
+@login_required(login_url='login')
 def warehouse_view(request):
     products = Product.objects.all().order_by('-id')
     filter = WarehouseProductFilter(request.GET, queryset=products)
@@ -26,7 +29,7 @@ def warehouse_view(request):
 #------------------------------------#
 # Warehouse product add Views
 #------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class WarehouseProductAddView(SuccessMessageMixin, CreateView):
     template_name = 'warehouse/warehouse_add.html'
     form_class = WarehouseProductForm
@@ -38,7 +41,7 @@ class WarehouseProductAddView(SuccessMessageMixin, CreateView):
 #------------------------------------#
 # Warehouse product update Views
 #------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class WarehouseProductUpdateView(SuccessMessageMixin, UpdateView):
     model = Product
     template_name = 'warehouse/warehouse_add.html'
@@ -51,7 +54,7 @@ class WarehouseProductUpdateView(SuccessMessageMixin, UpdateView):
 #------------------------------------#
 # Warehouse product delete Views
 #------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class WarehouseProductDeleteView(SuccessMessageMixin, DeleteView):
     model = Product
     template_name = 'warehouse/warehouse_delete.html'
@@ -64,7 +67,7 @@ class WarehouseProductDeleteView(SuccessMessageMixin, DeleteView):
 # Onu views
 # showing all onu
 #------------------------------------#
-
+@login_required(login_url='login')
 def onu_view(request):
     onu = Onu.objects.all().order_by('-id')
     filter = WarehouseOnuFilter(request.GET, queryset=onu)
@@ -79,7 +82,7 @@ def onu_view(request):
 #------------------------------------#
 # Onu add views
 #------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class WarehouseOnuAddView(SuccessMessageMixin, CreateView):
     template_name = 'onu/onu_add.html'
     form_class = WarehouseOnuForm
@@ -91,7 +94,7 @@ class WarehouseOnuAddView(SuccessMessageMixin, CreateView):
 #------------------------------------#
 # Onu update views
 #------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class WarehouseOnuUpdateView(SuccessMessageMixin, UpdateView):
     model = Onu
     template_name = 'onu/onu_add.html'
@@ -105,6 +108,7 @@ class WarehouseOnuUpdateView(SuccessMessageMixin, UpdateView):
 #------------------------------------#
 
 
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class WarehouseOnuDeleteView(SuccessMessageMixin, DeleteView):
     model = Onu
     template_name = 'onu/onu_delete.html'

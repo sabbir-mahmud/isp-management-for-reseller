@@ -1,19 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clients Delete</title>
-</head>
-<body>
-    <form method="post">
-        {% csrf_token %}
-        <p>Are you sure you want to delete "{{ object }}"?</p>
-        {{ form }}
-        <input type="submit" value="Confirm">
-        <a href="{% url 'clients' %}">Cancel</a>
-    </form>
-    
-</body>
-</html>
+{% extends 'accounts/main.html' %}
+{% block title %}Delete Confirm{% endblock title %}
+{% block content %}
+<form class="delete-form" method="post">
+    {% csrf_token %}
+    <p>Are you sure you want to delete "{{ object }}"?</p>
+    {{ form }}
+    <input class="btn btn-primary" type="submit" value="Confirm">
+    <a class="btn btn-primary" href="{% url 'clients' %}">Cancel</a>
+</form>
+{% endblock content %}

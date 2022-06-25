@@ -53,3 +53,15 @@ class Earn(models.Model):
 
     def __str__(self):
         return self.earn_details
+
+#------------------------------------#
+# commission model
+#------------------------------------#
+
+
+class Commission(models.Model):
+    commission = models.DecimalField(
+        default=20, max_digits=4, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.commission}"

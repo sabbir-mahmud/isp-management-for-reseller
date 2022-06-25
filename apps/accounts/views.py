@@ -3,6 +3,8 @@ from django.core.paginator import Paginator
 from django.contrib.messages.views import SuccessMessageMixin
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 from .models import Clients, Package
 from .filters import ClientsFilter
 from .forms import ClientsForm, PackageForm
@@ -12,6 +14,7 @@ from .forms import ClientsForm, PackageForm
 # -----------------------------------#
 
 
+@login_required(login_url='login')
 def clients_view(request):
     clients = Clients.objects.all().order_by('-id')
     filter = ClientsFilter(request.GET, queryset=clients)
@@ -27,6 +30,7 @@ def clients_view(request):
 # -----------------------------------#
 
 
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class ClientsCreateView(SuccessMessageMixin, CreateView):
     template_name = 'accounts/clients_form.html'
     form_class = ClientsForm
@@ -39,6 +43,7 @@ class ClientsCreateView(SuccessMessageMixin, CreateView):
 # -----------------------------------#
 
 
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class ClientsUpdateView(SuccessMessageMixin, UpdateView):
     model = Clients
     template_name = 'accounts/clients_form.html'
@@ -51,7 +56,7 @@ class ClientsUpdateView(SuccessMessageMixin, UpdateView):
 # -----------------------------------#
 # clients delete view
 # -----------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class ClientsDeleteView(SuccessMessageMixin, DeleteView):
     model = Clients
     template_name = 'accounts/clients_delete.html'
@@ -63,7 +68,7 @@ class ClientsDeleteView(SuccessMessageMixin, DeleteView):
 # -----------------------------------#
 # package views
 # -----------------------------------#
-
+@login_required(login_url='login')
 def package_view(request):
     packages = Package.objects.all().order_by('-id')
     paginator = Paginator(packages, 25)
@@ -77,6 +82,7 @@ def package_view(request):
 # -----------------------------------#
 
 
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class Package_CreateView(SuccessMessageMixin, CreateView):
     template_name = 'package/package_form.html'
     form_class = PackageForm
@@ -88,7 +94,7 @@ class Package_CreateView(SuccessMessageMixin, CreateView):
 # -----------------------------------#
 # package update view
 # -----------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class Package_UpdateView(SuccessMessageMixin, UpdateView):
     model = Package
     template_name = 'package/package_form.html'
@@ -102,6 +108,7 @@ class Package_UpdateView(SuccessMessageMixin, UpdateView):
 # -----------------------------------#
 
 
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class Package_DeleteView(SuccessMessageMixin, DeleteView):
     model = Package
     template_name = 'package/package_delete.html'
