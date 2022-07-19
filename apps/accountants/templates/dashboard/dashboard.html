@@ -3,7 +3,7 @@
 {% block content %}
 <section>
     <div class="row gap-3">
-        <div class="col-lg-7 shadow rounded-3 p-3 mx-3">
+        <div class="col-lg-8 shadow rounded-3 p-3 mx-3">
             <h5>All Clients: {{clients}}</h5>
             <h5>Active Clients: {{activeClients}}</h5>
             <h5>Inactive Clients: {{activeClients}}</h5>
@@ -17,14 +17,14 @@
             
 
         </div>
-        <div class="col-lg-4 shadow rounded-3 p-3">
+        <div class="col-lg-3 shadow rounded-3 p-3">
             <h3>important links</h3>
             <nav>
                 <ul>
-                    <li><a href="">packages</a></li>
-                    <li><a href="">warehouse</a></li>
-                    <li><a href="">onu</a></li>
-                    <li><a href="">month</a></li>
+                    <li><a href="{% url 'package' %}">packages</a></li>
+                    <li><a href="{% url 'warehouse' %}">warehouse</a></li>
+                    <li><a href="{% url 'onu' %}">onu</a></li>
+                    <li><a href="{% url 'months' %}">month</a></li>
                     <li><a href="">year</a></li>
                     <li><a href="">earn</a></li>
                     <li><a href="">invets</a></li>
@@ -32,7 +32,6 @@
             </nav>
     
         </div>
-    </div>
-    
+    </div>    
 </section>
 {% endblock content %}

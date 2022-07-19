@@ -1,9 +1,13 @@
 from django.shortcuts import render
 from django.db.models import Sum
+from django.contrib.messages.views import SuccessMessageMixin
+from django.views.generic.edit import CreateView, UpdateView, DeleteView
+from django.core.paginator import Paginator
 from apps.accounts.models import Clients
 from apps.warehouse.models import Onu
 from apps.accountants.models import Commission
 from .models import Month, Year, Invest, Earn, Commission
+from .forms import MonthForm, YearForm, InvestForm, EarnForm, CommissionForm
 
 # Create your views here.
 
@@ -47,3 +51,53 @@ def dashboard(request):
 
     }
     return render(request, 'dashboard/dashboard.html', context)
+
+
+#----------------------------#
+# Months
+#----------------------------#
+def months(request):
+    months = Month.objects.all()
+    paginator = Paginator(months, 25)
+    page_number = request.GET.get('paginator')
+    months = paginator.get_page(page_number)
+    context = {'months': months}
+    return render(request, 'accountants/months.html', context)
+
+# ----------------------------#
+# Month Create View
+# ----------------------------#
+
+
+class MonthAddView(SuccessMessageMixin, CreateView):
+    form_class = MonthForm
+    template_name = 'accountants/month_form.html'
+    success_url = '/dashboard/months'
+    success_message = 'month was created'
+    error_message = 'month was not created'
+
+
+# ----------------------------#
+# Month Update View
+# ----------------------------#
+
+
+class MonthUpdateView(SuccessMessageMixin, UpdateView):
+    model = Month
+    form_class = MonthForm
+    template_name = 'accountants/month_form.html'
+    success_url = '/dashboard/months'
+    success_message = 'Month was updated'
+    error_message = 'Month was not updated'
+
+
+#---------------------------#
+# Month delete
+#---------------------------#
+
+class MonthDelete(SuccessMessageMixin, DeleteView):
+    model = Month
+    template_name = 'accountants/month_delete_confirm.html'
+    success_url = '/dashboard/months'
+    success_message = 'Month was deleted'
+    error_message = 'Month was not deleted'
