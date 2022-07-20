@@ -101,3 +101,55 @@ class MonthDelete(SuccessMessageMixin, DeleteView):
     success_url = '/dashboard/months'
     success_message = 'Month was deleted'
     error_message = 'Month was not deleted'
+
+# --------------------------------#
+# Year
+#---------------------------------#
+
+
+def yearView(request):
+    years = Year.objects.all()
+    paginator = Paginator(years, 25)
+    page = request.GET.get('paginator')
+    years = paginator.get_page(page)
+    context = {
+        'years': years
+    }
+    return render(request, 'accountants/year.html', context)
+
+
+#----------------------------------#
+# Year add View
+#----------------------------------#
+
+class YearAddView(SuccessMessageMixin, CreateView):
+    form_class = YearForm
+    template_name = 'accountants/year_form.html'
+    success_url = '/dashboard/years'
+    success_message = 'Year was created'
+    error_message = 'Year was not created'
+
+
+#-----------------------------------#
+# Year update view
+#-----------------------------------#
+
+class YearUpdateView(SuccessMessageMixin, UpdateView):
+    model = Year
+    form_class = YearForm
+    template_name = 'accountants/year_form.html'
+    success_url = '/dashboard/years'
+    success_message = 'Year was updated'
+    error_message = 'Year was not updated'
+
+
+#------------------------------------#
+# Year delete view
+#------------------------------------#
+
+class YearDeleteView(SuccessMessageMixin, DeleteView):
+    model = Year
+    template_name = 'accountants/year_confirm_delete.html'
+    success_url = '/dashboard/years'
+    success_message = 'Year was deleted'
+    error_message = 'Year was not deleted'

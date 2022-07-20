@@ -1,0 +1,42 @@
+{% extends 'dashboard/main.html' %}
+{% block title %}Months{% endblock title %}
+{% block content %}
+<table class="table table-striped table-hover  rounded">
+    <thead>
+        <tr>
+            <th colspan='9'>
+                <a class="text-dark text-decoration-none" href="{% url 'years-add' %}">add Year</a>
+            </th>
+        </tr>
+        <tr>
+            <th scope="col">sl</th>
+            <th scope="col">Name</th>
+            <th scope="col">Status</th>
+            <th scope="col">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for year in years %}
+        <tr>
+            <th scope="row">{{forloop.counter}}</th>
+            <td>{{ year.name }}</td>
+            <td>
+                {% if year.active %}Active {% else %}Deactive{% endif %}
+            </td>
+            <td>
+                <a class="btn btn-sm btn-primary mr-3" href="{% url 'years-update' year.id %}">edit</a>
+                <a class="btn btn-sm btn-danger mr-3" href="{% url 'years-delete' year.id %}">del</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if years.has_previous %}
+<a class="btn prev-btn btn-success mb-3" href="?p={{years.previous_page_number}}">previous</a>
+{% endif %}
+{{years.number}}
+{% if years.has_next %}
+<a class="btn next-btn btn-success mb-3" href="?p={{years.next_page_number}}">next</a>
+{% endif %}
+{% endblock %}
