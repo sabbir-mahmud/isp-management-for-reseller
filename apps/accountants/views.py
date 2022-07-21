@@ -153,3 +153,18 @@ class YearDeleteView(SuccessMessageMixin, DeleteView):
     success_url = '/dashboard/years'
     success_message = 'Year was deleted'
     error_message = 'Year was not deleted'
+
+
+#--------------------------------------#
+# invest view
+#--------------------------------------#
+
+def investView(request):
+    invests = Invest.objects.all()
+    paginator = Paginator(invests, 25)
+    page = request.GET.get('paginator')
+    invests = paginator.get_page(page)
+    context = {
+        "invests": invests
+    }
+    return render(request, 'accountants/invest.html', context)

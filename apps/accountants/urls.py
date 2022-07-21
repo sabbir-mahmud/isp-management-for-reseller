@@ -12,5 +12,7 @@ urlpatterns = [
     path('years/add', views.YearAddView.as_view(), name='years-add'),
     path('years/update/<str:pk>',
          views.YearUpdateView.as_view(), name='years-update'),
-    path('years/delete/<str:pk>', views.YearDeleteView.as_view(), name='years-delete')
+    path('years/delete/<str:pk>',
+         views.YearDeleteView.as_view(), name='years-delete'),
+    path('invests/', views.investView, name='invests')
 ]
