@@ -17,6 +17,11 @@ from .forms import MonthForm, YearForm, InvestForm, EarnForm, CommissionForm
 
 
 def dashboard(request):
+    # automation commission
+    if Commission.objects.filter(id=1):
+        pass
+    else:
+        Commission.objects.create()
     # clients list details
     clients = Clients.objects.all().count()
     activeClients = Clients.objects.filter(status='active').count()
@@ -33,9 +38,21 @@ def dashboard(request):
         Sum('pack__price'))['pack__price__sum'] if Clients.objects.filter(status='active').exists() else 0
 
     # commission details
-    commission = Commission.objects.get(id=1)
-    profit_via_bill = (collected_bill * commission.commission)/100
+    commission = Commission.objects.get(
+        id=1).commission if Commission.objects.filter(id=1).exists() else 20
+    profit_via_bill = (collected_bill * commission)/100
     upsteam_bill = collected_bill - profit_via_bill
+
+    # profit details
+    earn = Earn.objects.all().aggregate(Sum('earn_amount'))[
+        'earn_amount__sum'] if Earn.objects.all().exists() else 0
+    invest = Invest.objects.all().aggregate(Sum('invest_amount'))[
+        'invest_amount__sum'] if Invest.objects.all().exists() else 0
+    profit = None
+    if earn < invest:
+        profit = f'loss {invest - earn}'
+    else:
+        profit = earn - invest
 
     context = {
         "clients": clients,
@@ -47,8 +64,10 @@ def dashboard(request):
         "damagedOnu": damagedOnu,
         "collected_bill": collected_bill,
         "profit_via_bill": profit_via_bill,
-        "upsteam_bill": upsteam_bill
-
+        "upsteam_bill": upsteam_bill,
+        "earn": earn,
+        "invest": invest,
+        "profit": profit
     }
     return render(request, 'dashboard/dashboard.html', context)
 
