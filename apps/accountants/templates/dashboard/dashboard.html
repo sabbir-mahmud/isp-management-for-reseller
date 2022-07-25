@@ -1,24 +1,67 @@
 {% extends 'dashboard/main.html' %}
 {% block title %}Dashboard{% endblock title %}
 {% block content %}
+<style>
+    .w-30{
+        width: 32%;
+    }
+</style>
 <section>
     <div class="row gap-3">
-        <div class="col-lg-8 shadow rounded-3 p-3 mx-3">
-            <h5>All Clients: {{clients}}</h5>
-            <h5>Active Clients: {{activeClients}}</h5>
-            <h5>Inactive Clients: {{activeClients}}</h5>
-            <h5>All Onu: {{onu}}</h5>
-            <h5>Active Onu: {{activeOnu}}</h5>
-            <h5>Stored Onu: {{storedOnu}}</h5>
-            <h5>Damaged Onu: {{damagedOnu}}</h5>
-            <h5>Collected Bill: {{collected_bill}}</h5>
-            <h5>Upsteam Bill: {{upsteam_bill}}</h5>
-            <h5>Profit By Bill: {{profit_via_bill}}</h5>
-            <h5>invest: {{invest}}</h5>
-            <h5>earn: {{earn}}</h5>
-            <h5>Profit: {{profit}}</h5>
+        <div class="col-lg-8 shadow rounded-3 p-3 mx-3 ">
+            <div class="mt-3 mb-4">
+                <h3 >Welcome to Dashboard </h3>
+            </div>
+            <div class="row justify-content-between">
+                <div class="col-lg-4 p-3 shadow rounded-3 w-30">
+                    <h3>Client Area:</h3>
+                    <hr>
+                    <h5>Total Clients: {{clients}}</h5>
+                    <h5>Active Clients: {{activeClients}}</h5>
+                    <h5>Inactive Clients: {{activeClients}}</h5>
+                </div>
+                <div class="col-lg-4 p-3 shadow rounded-3 w-30">
+                    <h3>Onu Area:</h3>
+                    <hr>
+                    <h5>Total Onu: {{onu}}</h5>
+                    <h5>Active Onu: {{activeOnu}}</h5>
+                    <h5>Stored Onu: {{storedOnu}}</h5>
+                </div>
+                <div class="col-lg-4 p-3 shadow rounded-3 w-30">
+                    <h3>Monthly Bill Area:</h3>
+                    <hr>
+                    <h5>Collected Bill: {{collected_bill}}</h5>
+                    <h5>Upsteam Bill: {{upsteam_bill}}</h5>
+                    <h5>Profit By Bill: {{profit_via_bill}}</h5>
+                    
+                </div>
+            </div>
+            <div class="row justify-content-between mt-4">
+                <div class="col-lg-4 p-3 shadow rounded-3 w-30">
+                    <h3>Profit Area:</h3>
+                    <hr>
+                    <h5>invest: {{invest}}</h5>
+                    <h5>earn: {{earn}}</h5>
+                    <h5>Profit: {{profit}}</h5>
+                </div>
+                <div class="col-lg-4 p-3 shadow rounded-3 w-30">
+                    <h3>This Month:</h3>
+                    <hr>
+                    <h5>Total Onu: {{onu}}</h5>
+                    <h5>Active Onu: {{activeOnu}}</h5>
+                    <h5>Stored Onu: {{storedOnu}}</h5>
+                </div>
+                <div class="col-lg-4 p-3 shadow rounded-3 w-30">
+                    <h3>Previous Month:</h3>
+                    <hr>
+                    <h5>Collected Bill: {{collected_bill}}</h5>
+                    <h5>Upsteam Bill: {{upsteam_bill}}</h5>
+                    <h5>Profit By Bill: {{profit_via_bill}}</h5>
+                    
+                </div>
+            </div>
             
-
+                    
         </div>
         <div class="col-lg-3 shadow rounded-3 p-3">
             <h3>important links</h3>
@@ -34,8 +77,8 @@
                     <li><a href="{% url 'onu' %}">onu</a></li>
                 </ul>
             </nav>
-    
+
         </div>
-    </div>    
+    </div>
 </section>
 {% endblock content %}
