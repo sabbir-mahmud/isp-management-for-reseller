@@ -1,0 +1,42 @@
+{% extends 'dashboard/main.html' %}
+{% block title %}Earnings{% endblock title %}
+{% block content %}
+<table class="table table-striped table-hover  rounded">
+    <thead>
+        <tr>
+            <th colspan='9'>
+                <a class="text-dark text-decoration-none" href="{% url 'earnings-add' %}">add Earn</a>
+            </th>
+        </tr>
+        <tr>
+            <th scope="col">sl</th>
+            <th scope="col">Earning details</th>
+            <th scope="col">Earning Amount</th>
+            <th scope="col">Date</th>
+            <th scope="col">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for earn in earnings %}
+        <tr>
+            <th scope="row">{{forloop.counter}}</th>
+            <td>{{ earn.earn_details }}</td>
+            <td>{{ earn.earn_amount }}</td>
+            <td>{{ earn.created }}</td>
+            <td>
+                <a class="btn btn-sm btn-primary mr-3" href="{% url 'earnings-update' earn.id %}">edit</a>
+                <a class="btn btn-sm btn-danger mr-3" href="{% url 'earnings-delete' earn.id %}">del</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if earnings.has_previous %}
+<a class="btn prev-btn btn-success mb-3" href="?p={{earnings.previous_page_number}}">previous</a>
+{% endif %}
+{{earnings.number}}
+{% if earnings.has_next %}
+<a class="btn next-btn btn-success mb-3" href="?p={{earnings.next_page_number}}">next</a>
+{% endif %}
+{% endblock %}

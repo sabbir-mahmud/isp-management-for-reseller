@@ -5,7 +5,7 @@
     <thead>
         <tr>
             <th colspan='9'>
-                <a class="text-dark text-decoration-none" href="{% url 'years-add' %}">add invest</a>
+                <a class="text-dark text-decoration-none" href="{% url 'invests-add' %}">add invest</a>
             </th>
         </tr>
         <tr>
@@ -24,8 +24,8 @@
             <td>{{ invest.invest_amount }}</td>
             <td>{{ invest.created }}</td>
             <td>
-                <a class="btn btn-sm btn-primary mr-3" href="">edit</a>
-                <a class="btn btn-sm btn-danger mr-3" href="">del</a>
+                <a class="btn btn-sm btn-primary mr-3" href="{% url 'invests-update' invest.id %}">edit</a>
+                <a class="btn btn-sm btn-danger mr-3" href="{% url 'invests-delete' invest.id %}">del</a>
             </td>
         </tr>
         {% endfor %}

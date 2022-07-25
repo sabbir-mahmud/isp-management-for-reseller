@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.db.models import Sum
 from django.contrib.messages.views import SuccessMessageMixin
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
@@ -168,3 +168,114 @@ def investView(request):
         "invests": invests
     }
     return render(request, 'accountants/invest.html', context)
+
+
+#---------------------------------------#
+# invest add view
+#---------------------------------------#
+
+class InvestAddView(SuccessMessageMixin, CreateView):
+    form_class = InvestForm
+    template_name = 'accountants/invest_form.html'
+    success_url = '/dashboard/invests'
+    success_message = 'Invest Details was created'
+    error_message = 'Invest Details was not created'
+
+
+#-----------------------------------------#
+# invest update view
+#-----------------------------------------#
+
+class InvestUpdateView(SuccessMessageMixin, UpdateView):
+    model = Invest
+    form_class = InvestForm
+    template_name = 'accountants/invest_form.html'
+    success_url = '/dashboard/invests'
+    success_message = 'Invest Details was updated'
+    error_message = 'Invest Details was not updated'
+
+
+#------------------------------------------#
+# invest delete from
+#------------------------------------------#
+
+class InvestDeleteView(SuccessMessageMixin, DeleteView):
+    model = Invest
+    template_name = 'accountants/invest_delete_confirm.html'
+    success_url = '/dashboard/invests'
+    success_message = 'Invest Details was deleted'
+    error_message = 'Invest Details was not deleted'
+
+
+#-----------------------------------------#
+# Earning views
+#-----------------------------------------#
+
+def earningView(request):
+    earnings = Earn.objects.all()
+    paginator = Paginator(earnings, 25)
+    page = request.GET.get('paginator')
+    earnings = paginator.get_page(page)
+    context = {
+        "earnings": earnings
+    }
+    return render(request, 'accountants/earning.html', context)
+
+
+#-----------------------------------------#
+# Earning add view
+#-----------------------------------------#
+
+class EarningAddView(SuccessMessageMixin, CreateView):
+    form_class = EarnForm
+    template_name = 'accountants/earn_form.html'
+    success_url = '/dashboard/earnings'
+    success_message = 'Earning details was created'
+    error_message = 'Earning details was not created'
+
+
+#------------------------------------------#
+# Earning update view
+#------------------------------------------#
+
+class EarningUpdateView(SuccessMessageMixin, UpdateView):
+    model = Earn
+    form_class = EarnForm
+    template_name = 'accountants/earn_form.html'
+    success_url = '/dashboard/earnings'
+    success_message = 'Earning details was updated'
+    error_message = 'Earning details was not updated'
+
+
+#--------------------------------------------#
+# Earning delete view
+#--------------------------------------------#
+
+class EarningDeleteView(SuccessMessageMixin, DeleteView):
+    model = Earn
+    template_name = 'accountants/earn_delete_confirm.html'
+    success_url = '/dashboard/earnings'
+    success_message = 'Earnings details was deleted'
+    error_message = 'Earning details was not deleted'
+
+
+#--------------------------------------------#
+# commission view
+#--------------------------------------------#
+
+def commissionView(request):
+    commission = Commission.objects.get(id=1)
+    form = CommissionForm(instance=commission)
+    context = {
+        "commission": commission,
+        "form": form
+    }
+    if request.method == "POST":
+        form = CommissionForm(request.POST, instance=commission)
+        if form.is_valid():
+            form.save()
+            return redirect('dashboard')
+        else:
+            return render(request, 'accountants/commission.html', context)
+
+    return render(request, 'accountants/commission.html', context)

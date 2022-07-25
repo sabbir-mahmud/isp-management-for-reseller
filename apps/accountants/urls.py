@@ -14,5 +14,17 @@ urlpatterns = [
          views.YearUpdateView.as_view(), name='years-update'),
     path('years/delete/<str:pk>',
          views.YearDeleteView.as_view(), name='years-delete'),
-    path('invests/', views.investView, name='invests')
+    path('invests/', views.investView, name='invests'),
+    path('invests/add', views.InvestAddView.as_view(), name='invests-add'),
+    path('invests/update/<str:pk>',
+         views.InvestUpdateView.as_view(), name='invests-update'),
+    path('invests/delete/<str:pk>',
+         views.InvestDeleteView.as_view(), name='invests-delete'),
+    path('earnings/', views.earningView, name='earnings'),
+    path('earnings/add', views.EarningAddView.as_view(), name='earnings-add'),
+    path('earnings/update/<str:pk>',
+         views.EarningUpdateView.as_view(), name='earnings-update'),
+    path('earnings/delete/<str:pk>',
+         views.EarningDeleteView.as_view(), name='earnings-delete'),
+    path('commission/', views.commissionView, name='commission')
 ]
