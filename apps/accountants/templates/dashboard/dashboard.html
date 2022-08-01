@@ -8,7 +8,7 @@
 </style>
 <section>
     <div class="row gap-3">
-        <div class="col-lg-8 shadow rounded-3 p-3 mx-3 ">
+        <div class="col-lg-9 shadow rounded-3 p-3 mx-3 ">
             <div class="mt-3 mb-4">
                 <h3 >Welcome to Dashboard </h3>
             </div>
@@ -30,9 +30,9 @@
                 <div class="col-lg-4 p-3 shadow rounded-3 w-30">
                     <h3>Monthly Bill Area:</h3>
                     <hr>
-                    <h5>Collected Bill: {{collected_bill}}</h5>
-                    <h5>Upsteam Bill: {{upsteam_bill}}</h5>
-                    <h5>Profit By Bill: {{profit_via_bill}}</h5>
+                    <h5>Collected Bill: {{collected_bill}} TK/=</h5>
+                    <h5>Upsteam Bill: {{upsteam_bill}} TK/=</h5>
+                    <h5>Profit By Bill: {{profit_via_bill}} TK/=</h5>
                     
                 </div>
             </div>
@@ -40,31 +40,26 @@
                 <div class="col-lg-4 p-3 shadow rounded-3 w-30">
                     <h3>Profit Area:</h3>
                     <hr>
-                    <h5>invest: {{invest}}</h5>
-                    <h5>earn: {{earn}}</h5>
-                    <h5>Profit: {{profit}}</h5>
+                    <h5>invest: {{invest}} TK/=</h5>
+                    <h5>earn: {{earn}} TK/=</h5>
+                    <h5>Profit: {{profit}} TK/=</h5>
                 </div>
                 <div class="col-lg-4 p-3 shadow rounded-3 w-30">
                     <h3>This Month:</h3>
                     <hr>
-                    <h5>Total Onu: {{onu}}</h5>
-                    <h5>Active Onu: {{activeOnu}}</h5>
-                    <h5>Stored Onu: {{storedOnu}}</h5>
+                    <h5>Total Invest: {{this_month_invest}} TK/=</h5>
+                    <h5>Total Earn: {{this_month_earn}} TK/=</h5>
                 </div>
                 <div class="col-lg-4 p-3 shadow rounded-3 w-30">
                     <h3>Previous Month:</h3>
                     <hr>
-                    <h5>Collected Bill: {{collected_bill}}</h5>
-                    <h5>Upsteam Bill: {{upsteam_bill}}</h5>
-                    <h5>Profit By Bill: {{profit_via_bill}}</h5>
-                    
+                    <h5>Total Invest: {{previous_month_invest}} TK/=</h5>
+                    <h5>Total Earn: {{previous_month_earn}} TK/=</h5>                   
                 </div>
-            </div>
-            
-                    
-        </div>
-        <div class="col-lg-3 shadow rounded-3 p-3">
-            <h3>important links</h3>
+            </div>          
+       </div>
+        <div class="col-lg-2 shadow rounded-3 p-3">
+            <h4>important links</h4>
             <nav>
                 <ul>
                     <li><a href="{% url 'invests' %}">invets</a></li>

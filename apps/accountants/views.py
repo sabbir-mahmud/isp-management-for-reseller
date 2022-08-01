@@ -3,12 +3,14 @@ from django.db.models import Sum
 from django.contrib.messages.views import SuccessMessageMixin
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.core.paginator import Paginator
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 from apps.accounts.models import Clients
 from apps.warehouse.models import Onu
 from apps.accountants.models import Commission
 from .models import Month, Year, Invest, Earn, Commission
 from .forms import MonthForm, YearForm, InvestForm, EarnForm, CommissionForm
-
+import datetime
 # Create your views here.
 
 #----------------------------#
@@ -16,12 +18,44 @@ from .forms import MonthForm, YearForm, InvestForm, EarnForm, CommissionForm
 #----------------------------#
 
 
+@login_required(login_url='login')
 def dashboard(request):
+    #----------------------------#
+    # Active Months and Years
+    #----------------------------#
+
+    def activeDate(monthID, year):
+        # active month
+        month = Month.objects.get(id=monthID)
+        month.active = True
+        month.save()
+        # deactivate other months
+        months = Month.objects.all().exclude(id=monthID)
+        for month in months:
+            month.active = False
+            month.save()
+
+        # active year
+        year = Year.objects.get(name=year)
+        year.active = True
+        year.save()
+        # deactivate other years
+        years = Year.objects.all().exclude(name=year)
+        for year in years:
+            year.active = False
+            year.save()
+
+    # Get Month
+    currentMonth = datetime.datetime.now().month
+    currentYear = datetime.datetime.now().year
+    activeDate(monthID=currentMonth, year=currentYear)
+
     # automation commission
     if Commission.objects.filter(id=1):
         pass
     else:
         Commission.objects.create()
+
     # clients list details
     clients = Clients.objects.all().count()
     activeClients = Clients.objects.filter(status='active').count()
@@ -54,6 +88,20 @@ def dashboard(request):
     else:
         profit = earn - invest
 
+    # this month details
+    this_month_invest = Invest.objects.filter(
+        month=currentMonth, year=currentYear).aggregate(Sum('invest_amount'))['invest_amount__sum'] if Invest.objects.filter(month=currentMonth, year=currentYear).exists() else 0
+
+    this_month_earn = Earn.objects.filter(
+        month=currentMonth, year=currentYear).aggregate(Sum('earn_amount'))['earn_amount__sum'] if Earn.objects.filter(month=currentMonth, year=currentYear).exists() else 0
+
+    # previous month details
+    previous_month_invest = Invest.objects.filter(
+        month=currentMonth-1, year=currentYear).aggregate(Sum('invest_amount'))['invest_amount__sum'] if Invest.objects.filter(month=currentMonth-1, year=currentYear).exists() else 0
+
+    previous_month_earn = Earn.objects.filter(
+        month=currentMonth-1, year=currentYear).aggregate(Sum('earn_amount'))['earn_amount__sum'] if Earn.objects.filter(month=currentMonth-1, year=currentYear).exists() else 0
+
     context = {
         "clients": clients,
         "activeClients": activeClients,
@@ -67,7 +115,12 @@ def dashboard(request):
         "upsteam_bill": upsteam_bill,
         "earn": earn,
         "invest": invest,
-        "profit": profit
+        "profit": profit,
+        "this_month_invest": this_month_invest,
+        "this_month_earn": this_month_earn,
+        "previous_month_invest": previous_month_invest,
+        "previous_month_earn": previous_month_earn,
+
     }
     return render(request, 'dashboard/dashboard.html', context)
 
@@ -75,6 +128,7 @@ def dashboard(request):
 #----------------------------#
 # Months
 #----------------------------#
+@login_required(login_url='login')
 def months(request):
     months = Month.objects.all()
     paginator = Paginator(months, 25)
@@ -88,6 +142,7 @@ def months(request):
 # ----------------------------#
 
 
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class MonthAddView(SuccessMessageMixin, CreateView):
     form_class = MonthForm
     template_name = 'accountants/month_form.html'
@@ -100,7 +155,7 @@ class MonthAddView(SuccessMessageMixin, CreateView):
 # Month Update View
 # ----------------------------#
 
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class MonthUpdateView(SuccessMessageMixin, UpdateView):
     model = Month
     form_class = MonthForm
@@ -113,7 +168,7 @@ class MonthUpdateView(SuccessMessageMixin, UpdateView):
 #---------------------------#
 # Month delete
 #---------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class MonthDelete(SuccessMessageMixin, DeleteView):
     model = Month
     template_name = 'accountants/month_delete_confirm.html'
@@ -126,6 +181,7 @@ class MonthDelete(SuccessMessageMixin, DeleteView):
 #---------------------------------#
 
 
+@login_required(login_url='login')
 def yearView(request):
     years = Year.objects.all()
     paginator = Paginator(years, 25)
@@ -140,7 +196,7 @@ def yearView(request):
 #----------------------------------#
 # Year add View
 #----------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class YearAddView(SuccessMessageMixin, CreateView):
     form_class = YearForm
     template_name = 'accountants/year_form.html'
@@ -152,7 +208,7 @@ class YearAddView(SuccessMessageMixin, CreateView):
 #-----------------------------------#
 # Year update view
 #-----------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class YearUpdateView(SuccessMessageMixin, UpdateView):
     model = Year
     form_class = YearForm
@@ -165,7 +221,7 @@ class YearUpdateView(SuccessMessageMixin, UpdateView):
 #------------------------------------#
 # Year delete view
 #------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class YearDeleteView(SuccessMessageMixin, DeleteView):
     model = Year
     template_name = 'accountants/year_confirm_delete.html'
@@ -178,6 +234,7 @@ class YearDeleteView(SuccessMessageMixin, DeleteView):
 # invest view
 #--------------------------------------#
 
+@login_required(login_url='login')
 def investView(request):
     invests = Invest.objects.all()
     paginator = Paginator(invests, 25)
@@ -192,7 +249,7 @@ def investView(request):
 #---------------------------------------#
 # invest add view
 #---------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class InvestAddView(SuccessMessageMixin, CreateView):
     form_class = InvestForm
     template_name = 'accountants/invest_form.html'
@@ -204,7 +261,7 @@ class InvestAddView(SuccessMessageMixin, CreateView):
 #-----------------------------------------#
 # invest update view
 #-----------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class InvestUpdateView(SuccessMessageMixin, UpdateView):
     model = Invest
     form_class = InvestForm
@@ -217,7 +274,7 @@ class InvestUpdateView(SuccessMessageMixin, UpdateView):
 #------------------------------------------#
 # invest delete from
 #------------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class InvestDeleteView(SuccessMessageMixin, DeleteView):
     model = Invest
     template_name = 'accountants/invest_delete_confirm.html'
@@ -229,7 +286,7 @@ class InvestDeleteView(SuccessMessageMixin, DeleteView):
 #-----------------------------------------#
 # Earning views
 #-----------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 def earningView(request):
     earnings = Earn.objects.all()
     paginator = Paginator(earnings, 25)
@@ -244,7 +301,7 @@ def earningView(request):
 #-----------------------------------------#
 # Earning add view
 #-----------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class EarningAddView(SuccessMessageMixin, CreateView):
     form_class = EarnForm
     template_name = 'accountants/earn_form.html'
@@ -256,7 +313,7 @@ class EarningAddView(SuccessMessageMixin, CreateView):
 #------------------------------------------#
 # Earning update view
 #------------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class EarningUpdateView(SuccessMessageMixin, UpdateView):
     model = Earn
     form_class = EarnForm
@@ -269,7 +326,7 @@ class EarningUpdateView(SuccessMessageMixin, UpdateView):
 #--------------------------------------------#
 # Earning delete view
 #--------------------------------------------#
-
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class EarningDeleteView(SuccessMessageMixin, DeleteView):
     model = Earn
     template_name = 'accountants/earn_delete_confirm.html'
@@ -281,7 +338,7 @@ class EarningDeleteView(SuccessMessageMixin, DeleteView):
 #--------------------------------------------#
 # commission view
 #--------------------------------------------#
-
+@login_required(login_url='login')
 def commissionView(request):
     commission = Commission.objects.get(id=1)
     form = CommissionForm(instance=commission)
