@@ -286,7 +286,7 @@ class InvestDeleteView(SuccessMessageMixin, DeleteView):
 #-----------------------------------------#
 # Earning views
 #-----------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
+@login_required(login_url='login')
 def earningView(request):
     earnings = Earn.objects.all()
     paginator = Paginator(earnings, 25)

@@ -44,7 +44,7 @@ class WarehouseProductAddView(SuccessMessageMixin, CreateView):
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class WarehouseProductUpdateView(SuccessMessageMixin, UpdateView):
     model = Product
-    template_name = 'warehouse/warehouse_add.html'
+    template_name = 'warehouse/warehouse_update.html'
     form_class = WarehouseProductForm
     success_url = '/warehouse'
     success_message = 'Product added successfully'
@@ -97,7 +97,7 @@ class WarehouseOnuAddView(SuccessMessageMixin, CreateView):
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class WarehouseOnuUpdateView(SuccessMessageMixin, UpdateView):
     model = Onu
-    template_name = 'onu/onu_add.html'
+    template_name = 'onu/onu_update.html'
     form_class = WarehouseOnuForm
     success_url = '/onu'
     success_message = 'Onu added successfully'

@@ -4,9 +4,10 @@ Add New Packages
 {% endblock title %}
 {% block content %}
 <section>
-    <div class="title">
-        <h3 class="my-2 ms-2">Add New Packages:</h3>      
+    <div class="form-wrapper">
+        <h3 class="my-2">create new packages:</h3> 
+        {% include 'package/form.html' %}     
     </div>
 </section>
-{% include 'package/form.html' %}
+
 {% endblock content %}

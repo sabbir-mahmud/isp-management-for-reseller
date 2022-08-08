@@ -1,0 +1,6 @@
+{% load crispy_forms_tags %}
+<form class="forms" method="post">
+    {% csrf_token %}
+    {{form|crispy}}
+    <input class="my-2 btn btn-primary" type="submit" value="save">
+</form>

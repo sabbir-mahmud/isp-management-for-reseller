@@ -59,3 +59,7 @@ table {
 .forms select {
     padding: 8px 25px;
 }
+
+select {
+    padding: 5px 10px;
+}
