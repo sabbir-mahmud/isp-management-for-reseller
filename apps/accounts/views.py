@@ -32,7 +32,7 @@ def clients_view(request):
 
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class ClientsCreateView(SuccessMessageMixin, CreateView):
-    template_name = 'accounts/clients_form.html'
+    template_name = 'accounts/clients_add.html'
     form_class = ClientsForm
     success_url = '/accounts'
     success_message = 'client was created'
@@ -46,7 +46,7 @@ class ClientsCreateView(SuccessMessageMixin, CreateView):
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class ClientsUpdateView(SuccessMessageMixin, UpdateView):
     model = Clients
-    template_name = 'accounts/clients_form.html'
+    template_name = 'accounts/clients_update.html'
     form_class = ClientsForm
     success_url = '/accounts'
     success_message = 'client was updated'
@@ -84,7 +84,7 @@ def package_view(request):
 
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class Package_CreateView(SuccessMessageMixin, CreateView):
-    template_name = 'package/package_form.html'
+    template_name = 'package/package_add_form.html'
     form_class = PackageForm
     success_url = '/package'
     success_message = 'package was created'
@@ -97,7 +97,7 @@ class Package_CreateView(SuccessMessageMixin, CreateView):
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class Package_UpdateView(SuccessMessageMixin, UpdateView):
     model = Package
-    template_name = 'package/package_form.html'
+    template_name = 'package/package_update_form.html'
     form_class = PackageForm
     success_url = '/package'
     success_message = 'package was updated'
@@ -128,7 +128,10 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect('clients')
+            if "next" in request.POST:
+                return redirect(request.POST['next'])
+            else:
+                return redirect('clients')
         else:
 
             render(request, 'accounts/login.html',

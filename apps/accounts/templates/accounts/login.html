@@ -2,7 +2,7 @@
 {% block title %}Login{% endblock title %}
 {% block content %}
 <form class="login-form" method="post">
-    <h3>Log in</h3>
+    <h3>Log in to Server.</h3>
     {% csrf_token %}
     <div class="mb-3">
         <label for="username" class="form-label">username</label>
@@ -12,6 +12,9 @@
         <label for="password" class="form-label">Password</label>
         <input type="password" name="password" class="form-control" id="password">
     </div>
+    {% if request.GET.next %}
+    <input type="hidden" name="next" value="{{request.GET.next}}">
+    {% endif %}
     <input type="submit" class="btn btn-primary" value="login">
 </form>
 

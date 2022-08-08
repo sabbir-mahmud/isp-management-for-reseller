@@ -1,47 +1,41 @@
-{% extends 'accounts/main.html' %}
-{% block title%}Clients{% endblock title%}
-{% block content %}
 {% load crispy_forms_tags %}
-<div class="container-fluid">
-    <form class="forms" method="post">
-        {% csrf_token %}
-        <div class="row">
-            <div class="col-lg-6">
-                <div class="form-group col-md-6 mb-2">
-                    {{ form.name|as_crispy_field }}
-                </div>
-                <div class="form-group col-lg-6 mb-2">
-                    {{ form.email|as_crispy_field }}
-                </div>
-                <div class="form-group col-md-6 mb-2">
-                    {{ form.phone|as_crispy_field }}
-                </div>
-                <div class="form-group col-md-6 mb-2">
-                    {{ form.nid|as_crispy_field }}
-                </div>
-                <div class="form-group col-md-6 mb-2">
-                    {{ form.address|as_crispy_field }}
-                </div>
+<form class="forms" method="post">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="form-group col-md-6 mb-2">
+                {{ form.name|as_crispy_field }}
             </div>
-            <div class="col-lg-6">
-                <div class="form-group col-md-6 mb-2">
-                    {{ form.ip|as_crispy_field }}
-                </div>
-                <div class="form-group col-md-6 mb-2">
-                    {{ form.pack|as_crispy_field }}
-                </div>
-                <div class="form-group col-md-6 mb-2">
-                    {{ form.onu|as_crispy_field }}
-                </div>
-                <div class="form-group col-md-6 mb-2">
-                    {{ form.status|as_crispy_field }}
-                </div>
-                <div class="form-group col-md-6 mb-2">
-                    {{ form.pop_name|as_crispy_field }}
-                </div>
+            <div class="form-group col-lg-6 mb-2">
+                {{ form.email|as_crispy_field }}
+            </div>
+            <div class="form-group col-md-6 mb-2">
+                {{ form.phone|as_crispy_field }}
+            </div>
+            <div class="form-group col-md-6 mb-2">
+                {{ form.nid|as_crispy_field }}
+            </div>
+            <div class="form-group col-md-6 mb-2">
+                {{ form.address|as_crispy_field }}
             </div>
         </div>
-        <input class="my-3 btn btn-primary" type="submit" value="Submit">
-    </form>
-</div>
-{% endblock content %}
+        <div class="col-lg-6">
+            <div class="form-group col-md-6 mb-2">
+                {{ form.ip|as_crispy_field }}
+            </div>
+            <div class="form-group col-md-6 mb-2">
+                {{ form.pack|as_crispy_field }}
+            </div>
+            <div class="form-group col-md-6 mb-2">
+                {{ form.onu|as_crispy_field }}
+            </div>
+            <div class="form-group col-md-6 mb-2">
+                {{ form.status|as_crispy_field }}
+            </div>
+            <div class="form-group col-md-6 mb-2">
+                {{ form.pop_name|as_crispy_field }}
+            </div>
+        </div>
+    </div>
+    <input class="my-3 btn btn-primary" type="submit" value="Submit">
+</form>
