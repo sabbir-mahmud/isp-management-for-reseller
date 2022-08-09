@@ -159,7 +159,7 @@ class MonthAddView(SuccessMessageMixin, CreateView):
 class MonthUpdateView(SuccessMessageMixin, UpdateView):
     model = Month
     form_class = MonthForm
-    template_name = 'accountants/month_form.html'
+    template_name = 'accountants/month_update.html'
     success_url = '/dashboard/months'
     success_message = 'Month was updated'
     error_message = 'Month was not updated'
@@ -252,7 +252,7 @@ def investView(request):
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class InvestAddView(SuccessMessageMixin, CreateView):
     form_class = InvestForm
-    template_name = 'accountants/invest_form.html'
+    template_name = 'accountants/invest_add_form.html'
     success_url = '/dashboard/invests'
     success_message = 'Invest Details was created'
     error_message = 'Invest Details was not created'
@@ -265,7 +265,7 @@ class InvestAddView(SuccessMessageMixin, CreateView):
 class InvestUpdateView(SuccessMessageMixin, UpdateView):
     model = Invest
     form_class = InvestForm
-    template_name = 'accountants/invest_form.html'
+    template_name = 'accountants/invest_update_form.html'
     success_url = '/dashboard/invests'
     success_message = 'Invest Details was updated'
     error_message = 'Invest Details was not updated'
@@ -304,7 +304,7 @@ def earningView(request):
 @method_decorator(login_required(login_url='login'), name='dispatch')
 class EarningAddView(SuccessMessageMixin, CreateView):
     form_class = EarnForm
-    template_name = 'accountants/earn_form.html'
+    template_name = 'accountants/earn_add_form.html'
     success_url = '/dashboard/earnings'
     success_message = 'Earning details was created'
     error_message = 'Earning details was not created'
@@ -317,7 +317,7 @@ class EarningAddView(SuccessMessageMixin, CreateView):
 class EarningUpdateView(SuccessMessageMixin, UpdateView):
     model = Earn
     form_class = EarnForm
-    template_name = 'accountants/earn_form.html'
+    template_name = 'accountants/earn_add_form.html'
     success_url = '/dashboard/earnings'
     success_message = 'Earning details was updated'
     error_message = 'Earning details was not updated'

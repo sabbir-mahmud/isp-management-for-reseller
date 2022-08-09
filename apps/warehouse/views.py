@@ -5,10 +5,59 @@ from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
-from .models import Product, Onu
+from .models import Category, Product, Onu
 from .filters import WarehouseProductFilter, WarehouseOnuFilter
-from .forms import WarehouseProductForm, WarehouseOnuForm
+from .forms import WarehouseProductForm, WarehouseOnuForm, CategoryForm
 # Create your views here.
+
+# -------------------------------------------------#
+# Warehouse product category view
+# -------------------------------------------------#
+
+
+@login_required(login_url='login')
+def category_list(request):
+    category = Category.objects.all()
+    context = {'category': category}
+    return render(request, 'warehouse/category_list.html', context)
+
+
+#---------------------------------------------------#
+# Category create view
+#---------------------------------------------------#
+class CategoryCreateView(SuccessMessageMixin, CreateView):
+    form_class = CategoryForm
+    template_name = 'warehouse/category_add_form.html'
+    success_url = '/warehouse/category'
+    success_message = 'category was created'
+    error_message = 'category was not created'
+
+#---------------------------------------------------#
+# Category update view
+#---------------------------------------------------#
+
+
+class CategoryUpdateView(SuccessMessageMixin, UpdateView):
+    model = Category
+    form_class = CategoryForm
+    template_name = 'warehouse/category_update_form.html'
+    success_url = '/warehouse/category'
+    success_message = 'category was updated'
+    error_message = 'category was not updated'
+
+
+#---------------------------------------------#
+# Category delete view
+#---------------------------------------------#
+
+class CategoryDeleteView(SuccessMessageMixin, DeleteView):
+    model = Category
+    template_name = 'warehouse/category_delete_confirm.html'
+    success_url = '/warehouse/category'
+    success_message = 'category was deleted'
+    error_message = 'category was not deleted'
+
+
 #------------------------------------#
 # Warehouse products Views
 #------------------------------------#
