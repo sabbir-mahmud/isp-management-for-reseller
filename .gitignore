@@ -1,6 +1,8 @@
 /venv
+/static
 /db.sqlite3
 /.env
+/readme.txt
 /.vscode
 __pycache__/
 *.log
