@@ -1,13 +1,15 @@
 # imports
-from django.shortcuts import render
-from django.core.paginator import Paginator
-from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.auth.decorators import login_required
+from django.contrib.messages.views import SuccessMessageMixin
+from django.core.paginator import Paginator
+from django.shortcuts import render
 from django.utils.decorators import method_decorator
-from .models import Category, Product, Onu
-from .filters import WarehouseProductFilter, WarehouseOnuFilter
-from .forms import WarehouseProductForm, WarehouseOnuForm, CategoryForm
+from django.views.generic.edit import CreateView, DeleteView, UpdateView
+
+from .filters import WarehouseOnuFilter, WarehouseProductFilter
+from .forms import CategoryForm, WarehouseOnuForm, WarehouseProductForm
+from .models import Category, Onu, Product
+
 # Create your views here.
 
 # -------------------------------------------------#
@@ -25,6 +27,7 @@ def category_list(request):
 #---------------------------------------------------#
 # Category create view
 #---------------------------------------------------#
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class CategoryCreateView(SuccessMessageMixin, CreateView):
     form_class = CategoryForm
     template_name = 'warehouse/category_add_form.html'
@@ -37,6 +40,7 @@ class CategoryCreateView(SuccessMessageMixin, CreateView):
 #---------------------------------------------------#
 
 
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class CategoryUpdateView(SuccessMessageMixin, UpdateView):
     model = Category
     form_class = CategoryForm
@@ -50,6 +54,7 @@ class CategoryUpdateView(SuccessMessageMixin, UpdateView):
 # Category delete view
 #---------------------------------------------#
 
+@method_decorator(login_required(login_url='login'), name='dispatch')
 class CategoryDeleteView(SuccessMessageMixin, DeleteView):
     model = Category
     template_name = 'warehouse/category_delete_confirm.html'

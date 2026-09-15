@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import Package, Clients
+
+from .models import Clients, Package
+
 # Register your models here.
 
 admin.site.register(Package)

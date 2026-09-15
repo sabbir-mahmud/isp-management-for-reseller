@@ -1,4 +1,5 @@
 from django.forms import ModelForm
+
 from .models import Clients, Package
 
 # -----------------------------------#
@@ -9,10 +10,11 @@ from .models import Clients, Package
 class ClientsForm(ModelForm):
     class Meta:
         model = Clients
-        fields = '__all__'
+        fields = ['name', 'email', 'phone', 'nid', 'address', 'ip',
+                  'pack', 'onu', 'status', 'pop_name']
 
 
 class PackageForm(ModelForm):
     class Meta:
         model = Package
-        fields = '__all__'
+        fields = ['name', 'speed', 'ggc', 'fna', 'price', 'active']

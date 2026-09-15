@@ -1,17 +1,63 @@
-from django.shortcuts import redirect, render
-from django.db.models import Sum
-from django.contrib.messages.views import SuccessMessageMixin
-from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from django.core.paginator import Paginator
+import calendar
+
 from django.contrib.auth.decorators import login_required
+from django.contrib.messages.views import SuccessMessageMixin
+from django.core.paginator import Paginator
+from django.db.models import Count, Q, Sum
+from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.views.generic.edit import CreateView, DeleteView, UpdateView
+
 from apps.accounts.models import Clients
 from apps.warehouse.models import Onu
-from apps.accountants.models import Commission
-from .models import Month, Year, Invest, Earn, Commission
-from .forms import MonthForm, YearForm, InvestForm, EarnForm, CommissionForm
-import datetime
-# Create your views here.
+
+from .forms import CommissionForm, EarnForm, InvestForm, MonthForm, YearForm
+from .models import Commission, Earn, Invest, Month, Year
+
+#----------------------------#
+# Period helpers
+#----------------------------#
+
+def current_period():
+    """Return the (Month, Year) rows for today, creating them if missing.
+
+    Month/Year are user-managed lookup tables, so a fresh install has none.
+    Creating on demand keeps the dashboard from 500ing on first load.
+    """
+    today = timezone.localdate()
+    month, _ = Month.objects.get_or_create(name=calendar.month_name[today.month])
+    year, _ = Year.objects.get_or_create(name=str(today.year))
+    return month, year
+
+
+def mark_active(month, year):
+    """Flag the given rows active and clear the flag everywhere else."""
+    Month.objects.exclude(pk=month.pk).filter(active=True).update(active=False)
+    Month.objects.filter(pk=month.pk, active=False).update(active=True)
+    Year.objects.exclude(pk=year.pk).filter(active=True).update(active=False)
+    Year.objects.filter(pk=year.pk, active=False).update(active=True)
+
+
+def previous_period(month, year):
+    """Return the (Month, Year) preceding the given pair, or (None, None)."""
+    today = timezone.localdate()
+    prev_month_no = today.month - 1 or 12
+    prev_year_no = today.year - 1 if today.month == 1 else today.year
+    return (
+        Month.objects.filter(name=calendar.month_name[prev_month_no]).first(),
+        Year.objects.filter(name=str(prev_year_no)).first(),
+    )
+
+
+def period_total(model, field, month, year):
+    """Sum `field` over the rows of `model` in the given period (0 when empty)."""
+    if month is None or year is None:
+        return 0
+    return model.objects.filter(month=month, year=year).aggregate(
+        total=Sum(field)
+    )["total"] or 0
+
 
 #----------------------------#
 # ISP Owner Dashboard
@@ -20,107 +66,62 @@ import datetime
 
 @login_required(login_url='login')
 def dashboard(request):
-    #----------------------------#
-    # Active Months and Years
-    #----------------------------#
+    month, year = current_period()
+    mark_active(month, year)
 
-    def activeDate(monthID, year):
-        # active month
-        month = Month.objects.get(id=monthID)
-        month.active = True
-        month.save()
-        # deactivate other months
-        months = Month.objects.all().exclude(id=monthID)
-        for month in months:
-            month.active = False
-            month.save()
+    # A single Commission row drives the reseller's cut; seed it on first load.
+    commission_row, _ = Commission.objects.get_or_create(pk=1)
+    commission = commission_row.commission
 
-        # active year
-        year = Year.objects.get(name=year)
-        year.active = True
-        year.save()
-        # deactivate other years
-        years = Year.objects.all().exclude(name=year)
-        for year in years:
-            year.active = False
-            year.save()
+    # client counts, in one query instead of three
+    client_counts = Clients.objects.aggregate(
+        total=Count('pk'),
+        active=Count('pk', filter=Q(status='active')),
+        inactive=Count('pk', filter=Q(status='inactive')),
+    )
 
-    # Get Month
-    currentMonth = datetime.datetime.now().month
-    currentYear = datetime.datetime.now().year
-    activeDate(monthID=currentMonth, year=currentYear)
+    # onu counts, likewise
+    onu_counts = Onu.objects.aggregate(
+        total=Count('pk'),
+        active=Count('pk', filter=Q(status='Active')),
+        stored=Count('pk', filter=Q(status='Stored')),
+        damaged=Count('pk', filter=Q(status='Damaged')),
+    )
 
-    # automation commission
-    if Commission.objects.filter(id=1):
-        pass
-    else:
-        Commission.objects.create()
-
-    # clients list details
-    clients = Clients.objects.all().count()
-    activeClients = Clients.objects.filter(status='active').count()
-    inactiveClients = Clients.objects.filter(status='inactive').count()
-
-    # onu list
-    onu = Onu.objects.all().count()
-    activeOnu = Onu.objects.filter(status="Active").count()
-    storedOnu = Onu.objects.filter(status="Active").count()
-    damagedOnu = Onu.objects.filter(status="Active").count()
-
-    # earing details
+    # billing
     collected_bill = Clients.objects.filter(status='active').aggregate(
-        Sum('pack__price'))['pack__price__sum'] if Clients.objects.filter(status='active').exists() else 0
+        total=Sum('pack__price')
+    )['total'] or 0
+    profit_via_bill = (collected_bill * commission) / 100
+    upstream_bill = collected_bill - profit_via_bill
 
-    # commission details
-    commission = Commission.objects.get(
-        id=1).commission if Commission.objects.filter(id=1).exists() else 20
-    profit_via_bill = (collected_bill * commission)/100
-    upsteam_bill = collected_bill - profit_via_bill
+    # lifetime profit
+    earn = Earn.objects.aggregate(total=Sum('earn_amount'))['total'] or 0
+    invest = Invest.objects.aggregate(total=Sum('invest_amount'))['total'] or 0
+    profit = f'loss {invest - earn}' if earn < invest else earn - invest
 
-    # profit details
-    earn = Earn.objects.all().aggregate(Sum('earn_amount'))[
-        'earn_amount__sum'] if Earn.objects.all().exists() else 0
-    invest = Invest.objects.all().aggregate(Sum('invest_amount'))[
-        'invest_amount__sum'] if Invest.objects.all().exists() else 0
-    profit = None
-    if earn < invest:
-        profit = f'loss {invest - earn}'
-    else:
-        profit = earn - invest
-
-    # this month details
-    this_month_invest = Invest.objects.filter(
-        month=currentMonth, year=currentYear).aggregate(Sum('invest_amount'))['invest_amount__sum'] if Invest.objects.filter(month=currentMonth, year=currentYear).exists() else 0
-
-    this_month_earn = Earn.objects.filter(
-        month=currentMonth, year=currentYear).aggregate(Sum('earn_amount'))['earn_amount__sum'] if Earn.objects.filter(month=currentMonth, year=currentYear).exists() else 0
-
-    # previous month details
-    previous_month_invest = Invest.objects.filter(
-        month=currentMonth-1, year=currentYear).aggregate(Sum('invest_amount'))['invest_amount__sum'] if Invest.objects.filter(month=currentMonth-1, year=currentYear).exists() else 0
-
-    previous_month_earn = Earn.objects.filter(
-        month=currentMonth-1, year=currentYear).aggregate(Sum('earn_amount'))['earn_amount__sum'] if Earn.objects.filter(month=currentMonth-1, year=currentYear).exists() else 0
+    prev_month, prev_year = previous_period(month, year)
 
     context = {
-        "clients": clients,
-        "activeClients": activeClients,
-        "inactiveClients": inactiveClients,
-        "onu": onu,
-        "activeOnu": activeOnu,
-        "storedOnu": storedOnu,
-        "damagedOnu": damagedOnu,
+        "clients": client_counts['total'],
+        "activeClients": client_counts['active'],
+        "inactiveClients": client_counts['inactive'],
+        "onu": onu_counts['total'],
+        "activeOnu": onu_counts['active'],
+        "storedOnu": onu_counts['stored'],
+        "damagedOnu": onu_counts['damaged'],
         "collected_bill": collected_bill,
         "profit_via_bill": profit_via_bill,
-        "upsteam_bill": upsteam_bill,
+        "upsteam_bill": upstream_bill,
         "earn": earn,
         "invest": invest,
         "profit": profit,
-        "this_month_invest": this_month_invest,
-        "this_month_earn": this_month_earn,
-        "previous_month_invest": previous_month_invest,
-        "previous_month_earn": previous_month_earn,
-
+        "this_month_invest": period_total(Invest, 'invest_amount', month, year),
+        "this_month_earn": period_total(Earn, 'earn_amount', month, year),
+        "previous_month_invest": period_total(
+            Invest, 'invest_amount', prev_month, prev_year),
+        "previous_month_earn": period_total(
+            Earn, 'earn_amount', prev_month, prev_year),
     }
     return render(request, 'dashboard/dashboard.html', context)
 
@@ -340,7 +341,7 @@ class EarningDeleteView(SuccessMessageMixin, DeleteView):
 #--------------------------------------------#
 @login_required(login_url='login')
 def commissionView(request):
-    commission = Commission.objects.get(id=1)
+    commission, _ = Commission.objects.get_or_create(pk=1)
     form = CommissionForm(instance=commission)
     context = {
         "commission": commission,

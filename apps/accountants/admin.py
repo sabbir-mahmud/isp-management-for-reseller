@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Month, Year, Invest, Earn, Commission
+
+from .models import Commission, Earn, Invest, Month, Year
 
 # Register your models here.
 admin.site.register(Month)

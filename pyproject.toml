@@ -1,0 +1,11 @@
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["venv", "*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "DJ", "C4"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "isp_management"]

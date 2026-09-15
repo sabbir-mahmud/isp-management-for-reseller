@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Lint + format (replaces the old autopep8/pycodestyle pair).
+ruff==0.15.4

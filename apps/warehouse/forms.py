@@ -1,5 +1,6 @@
 from django.forms import ModelForm
-from .models import Product, Onu, Category
+
+from .models import Category, Onu, Product
 
 # -------------------------------------------------#
 # Warehouse product category form

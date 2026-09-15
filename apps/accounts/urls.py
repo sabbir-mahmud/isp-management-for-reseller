@@ -1,7 +1,8 @@
 #-----------------------------------#
 # accounts urls
 #-----------------------------------#
-from django.urls import path, include
+from django.urls import path
+
 from . import views
 
 urlpatterns = [
@@ -20,4 +21,5 @@ urlpatterns = [
 
     # login urls
     path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
 ]

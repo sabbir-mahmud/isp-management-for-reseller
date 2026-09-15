@@ -1,7 +1,6 @@
-from random import choices
 from django.db import models
-from apps.warehouse.models import Onu, Pop
 
+from apps.warehouse.models import Onu, Pop
 
 #-----------------------------------#
 # package model

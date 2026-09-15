@@ -1,13 +1,16 @@
-from django.shortcuts import redirect, render
-from django.core.paginator import Paginator
-from django.contrib.messages.views import SuccessMessageMixin
-from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.messages.views import SuccessMessageMixin
+from django.core.paginator import Paginator
+from django.shortcuts import redirect, render
 from django.utils.decorators import method_decorator
-from .models import Clients, Package
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
+from django.views.generic.edit import CreateView, DeleteView, UpdateView
+
 from .filters import ClientsFilter
 from .forms import ClientsForm, PackageForm
+from .models import Clients, Package
 
 # -----------------------------------#
 # Clients views
@@ -122,18 +125,40 @@ class Package_DeleteView(SuccessMessageMixin, DeleteView):
 
 
 def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('clients')
+
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+        username = request.POST.get('username', '')
+        password = request.POST.get('password', '')
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            if "next" in request.POST:
-                return redirect(request.POST['next'])
-            else:
-                return redirect('clients')
-        else:
+            # Only follow `next` when it points back at this site, otherwise a
+            # crafted link could bounce a freshly-authenticated user off-site.
+            next_url = request.POST.get('next') or request.GET.get('next')
+            if next_url and url_has_allowed_host_and_scheme(
+                next_url,
+                allowed_hosts={request.get_host()},
+                require_https=request.is_secure(),
+            ):
+                return redirect(next_url)
+            return redirect('clients')
+        # Fall through and re-render with an error (the original dropped this
+        # response on the floor, showing a blank form on bad credentials).
+        return render(request, 'accounts/login.html',
+                      {'error': 'username or password is incorrect'})
 
-            render(request, 'accounts/login.html',
-                   {'error': 'username or password is incorrect'})
     return render(request, 'accounts/login.html')
+
+
+# -----------------------------------#
+# logout view
+# -----------------------------------#
+
+
+@require_POST
+@login_required(login_url='login')
+def logout_view(request):
+    logout(request)
+    return redirect('login')

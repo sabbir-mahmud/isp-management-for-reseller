@@ -40,6 +40,12 @@
                 <a class="nav-link" href="{% url 'onu' %}">Onu</a>
               </li>
             </ul>
+            {% if user.is_authenticated %}
+            <form class="d-flex ms-auto" method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Log out</button>
+            </form>
+            {% endif %}
           </div>
         </div>
       </nav>

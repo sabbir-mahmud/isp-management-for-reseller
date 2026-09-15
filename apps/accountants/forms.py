@@ -1,6 +1,7 @@
 # imports
 from django.forms import ModelForm
-from .models import Month, Year, Invest, Earn, Commission
+
+from .models import Commission, Earn, Invest, Month, Year
 
 # -----------------------------------#
 # Month create form
@@ -10,7 +11,7 @@ from .models import Month, Year, Invest, Earn, Commission
 class MonthForm(ModelForm):
     class Meta:
         model = Month
-        fields = '__all__'
+        fields = ['name', 'active']
 
 
 # -----------------------------------#
@@ -19,7 +20,7 @@ class MonthForm(ModelForm):
 class YearForm(ModelForm):
     class Meta:
         model = Year
-        fields = '__all__'
+        fields = ['name', 'active']
 
 
 # -----------------------------------#
@@ -28,7 +29,7 @@ class YearForm(ModelForm):
 class InvestForm(ModelForm):
     class Meta:
         model = Invest
-        fields = '__all__'
+        fields = ['invest_details', 'invest_amount', 'month', 'year']
 
 
 # -----------------------------------#
@@ -37,7 +38,7 @@ class InvestForm(ModelForm):
 class EarnForm(ModelForm):
     class Meta:
         model = Earn
-        fields = '__all__'
+        fields = ['earn_details', 'earn_amount', 'month', 'year']
 
 
 # -----------------------------------#
@@ -46,4 +47,4 @@ class EarnForm(ModelForm):
 class CommissionForm(ModelForm):
     class Meta:
         model = Commission
-        fields = '__all__'
+        fields = ['commission']

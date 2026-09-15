@@ -1,5 +1,6 @@
 import django_filters
-from .models import Product, Onu
+
+from .models import Onu, Product
 
 # -------------------------------------------------#
 # Warehouse product filter

@@ -4,6 +4,9 @@
 <form class="login-form" method="post">
     <h3>Log in to Server.</h3>
     {% csrf_token %}
+    {% if error %}
+    <div class="alert alert-danger" role="alert">{{ error }}</div>
+    {% endif %}
     <div class="mb-3">
         <label for="username" class="form-label">username</label>
         <input type="text" name="username" class="form-control" id="username">
