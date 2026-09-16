@@ -24,6 +24,7 @@ register = template.Library()
 SERIES_COLORS = {
     "revenue": "#0d9488",
     "expenses": "#ea580c",
+    "income": "#059669",
 }
 
 # Rounded step sizes, in units of the leading power of ten.

@@ -184,18 +184,84 @@ class PaymentForm(BootstrapFormMixin, forms.ModelForm):
         return amount
 
 
-class ExpenseForm(BootstrapFormMixin, forms.ModelForm):
+class LedgerForm(BootstrapFormMixin, forms.ModelForm):
+    """The shared shape of the expense and income forms.
+
+    Each ledger names the choice field its entries are grouped by (`kind`),
+    and the sections, tiles and prompts follow from that.
+    """
+
+    kind_field = ""
+    kind_caption = ""
+    description_placeholder = ""
+    amount_caption = ""
+
+    wide_fields = frozenset({"description", "category", "source", "note"})
+    compact_fields = frozenset({"amount", "occurred_on"})
+    field_prefixes = {"amount": "৳"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fieldsets = (
+            {
+                "title": "What it was",
+                "caption": self.kind_caption,
+                "fields": ["description", self.kind_field],
+            },
+            {
+                "title": "Amount",
+                "caption": self.amount_caption,
+                "fields": ["amount", "occurred_on"],
+            },
+            {
+                "title": "Note",
+                "caption": "An invoice or receipt number, a name, anything that explains it later.",
+                "fields": ["note"],
+            },
+        )
+        self.fields["description"].widget.attrs.setdefault(
+            "placeholder", self.description_placeholder
+        )
+        self.fields["amount"].widget.attrs.update({"inputmode": "decimal", "step": "0.01"})
+        self.fields["note"].label = ""
+        self.fields["note"].widget.attrs.setdefault("placeholder", "Optional")
+
+
+class ExpenseForm(LedgerForm):
+    kind_field = "category"
+    kind_caption = "A line you will recognise on the report, and the category it is totalled under."
+    description_placeholder = "e.g. September bandwidth bill"
+    amount_caption = (
+        "What was paid, and the day it was paid. The date decides which month's report it lands in."
+    )
+
     class Meta:
         model = Expense
         fields = ["description", "category", "amount", "occurred_on", "note"]
-        widgets = {"occurred_on": forms.DateInput(attrs={"type": "date"})}
+        widgets = {
+            "category": forms.RadioSelect,
+            "occurred_on": forms.DateInput(attrs={"type": "date"}),
+        }
+        labels = {"occurred_on": "Paid on"}
 
 
-class IncomeForm(BootstrapFormMixin, forms.ModelForm):
+class IncomeForm(LedgerForm):
+    kind_field = "source"
+    kind_caption = "A line you will recognise on the report, and where the money came from."
+    description_placeholder = "e.g. Installation, Karim Road"
+    amount_caption = (
+        "What was received, and the day it came in. The date decides which month's "
+        "report it lands in."
+    )
+
     class Meta:
         model = Income
         fields = ["description", "source", "amount", "occurred_on", "note"]
-        widgets = {"occurred_on": forms.DateInput(attrs={"type": "date"})}
+        widgets = {
+            "source": forms.RadioSelect,
+            "occurred_on": forms.DateInput(attrs={"type": "date"}),
+        }
+        labels = {"occurred_on": "Received on"}
 
 
 class SettlementForm(BootstrapFormMixin, forms.ModelForm):

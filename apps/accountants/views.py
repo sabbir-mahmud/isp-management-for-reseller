@@ -4,7 +4,8 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Case, Count, DecimalField, F, Q, Value, When
+from django.db.models import Case, Count, DecimalField, F, Max, Q, Value, When
+from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -17,9 +18,16 @@ from apps.core.chips import build_chips
 from apps.core.choices import CollectionMode
 from apps.core.mixins import CrudViewMixin, PageTitleMixin, SortableListMixin, StaffViewMixin
 from apps.core.templatetags.ui import money
-from apps.core.utils import month_start
+from apps.core.utils import filtered_url, month_end, month_range, month_start
 
-from .filters import ExpenseFilter, IncomeFilter, InvoiceFilter, PaymentFilter, SettlementFilter
+from .filters import (
+    ExpenseFilter,
+    IncomeFilter,
+    InvoiceFilter,
+    PaymentFilter,
+    SettlementFilter,
+    date_window,
+)
 from .forms import (
     BillingSettingsForm,
     ExpenseForm,
@@ -344,8 +352,7 @@ class PaymentListView(SortableListMixin, FilteredListView):
         stay usable for choosing between windows.
         """
         windows = {
-            key: Q(received_on__range=PaymentFilter.window(key))
-            for key, _ in PaymentFilter.WHEN_CHOICES
+            key: Q(received_on__range=date_window(key)) for key, _ in PaymentFilter.WHEN_CHOICES
         }
         sums = Payment.objects.aggregate(
             all=money_sum("amount"),
@@ -692,21 +699,203 @@ class SettlementDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
 # ---------------------------------------------------------------------------#
 
 
-class ExpenseListView(FilteredListView):
-    permission_required = "accountants.view_expense"
-    model = Expense
-    filterset_class = ExpenseFilter
-    template_name = "accountants/expense_list.html"
-    context_object_name = "expenses"
-    page_title = "Expenses"
-    page_subtitle = "Money out: bandwidth, salaries, hardware"
+class LedgerListView(SortableListMixin, FilteredListView):
+    """One screen for both manual ledgers, expenses and other income.
+
+    They differ only in which way the money goes and what the entries are
+    grouped by (`kind_field`), so the page is written once and each ledger
+    fills in the words. Everything the template needs to tell them apart is
+    in the `ledger` context entry.
+    """
+
+    template_name = "accountants/ledger_list.html"
+    htmx_template_name = "accountants/partials/ledger_rows.html"
+
+    #: The choice field the breakdown groups by: `category` or `source`.
+    kind_field = ""
+    #: Months in the trend chart, the current one included.
+    TREND_MONTHS = 6
+    #: Words and routes the shared template fills in; see subclasses.
+    ledger: dict = {}
+
+    @property
+    def sort_fields(self):
+        return {"date": "occurred_on", "kind": self.kind_field, "amount": "amount"}
+
+    def get_queryset(self):
+        queryset = self.model.objects.select_related("created_by")
+        self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        return self.apply_sort(self.filterset.qs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["totals"] = self.filterset.qs.aggregate(
-            count=Count("pk"), amount=money_sum("amount")
+        filtered = self.filterset.qs
+        # `sum_total`, not `amount`: an alias named after the column makes the
+        # `Max("amount")` beside it refer to the aggregate instead.
+        context["totals"] = filtered.aggregate(
+            count=Count("pk"), sum_total=money_sum("amount"), largest=Max("amount")
         )
+        context["breakdown"] = self.kind_breakdown(filtered)
+        context.update(self.month_comparison())
+        context["chips"] = self.window_chips()
+        context["chip_group"] = "time"
+        context["ledger"] = self.ledger
+        context["row_noun"] = self.ledger["noun"]
+        context["row_noun_plural"] = self.ledger["noun_plural"]
+        context["group_by_month"] = self.attach_month_totals(context["object_list"])
         return context
+
+    def kind_breakdown(self, queryset):
+        """The current search split by `kind_field`, largest first.
+
+        Each row links to the same search narrowed to that kind, or back out
+        of it when it is the one already applied.
+        """
+        field = self.kind_field
+        labels = dict(self.model._meta.get_field(field).choices)
+        rows = list(
+            queryset.order_by()
+            .values(field)
+            .annotate(total=money_sum("amount"), count=Count("pk"))
+            .order_by("-total")
+        )
+        grand = sum((row["total"] for row in rows), Decimal("0.00"))
+        current = self.request.GET.get(field, "")
+        for row in rows:
+            key = row[field]
+            row["key"] = key
+            row["label"] = labels.get(key, key.title())
+            row["share"] = _share(row["total"], grand)
+            row["is_active"] = key == current
+            row["url"] = filtered_url(self.request, **{field: None if row["is_active"] else key})
+        return rows
+
+    def month_comparison(self):
+        """This month against last month, and the trend they sit in.
+
+        Always the whole ledger: "is this more than usual" is a question
+        about the business, not about the current search.
+        """
+        periods = month_range(months=self.TREND_MONTHS)
+        rows = (
+            self.model.objects.filter(occurred_on__gte=periods[0])
+            .annotate(month=TruncMonth("occurred_on"))
+            .order_by()
+            .values("month")
+            .annotate(total=money_sum("amount"))
+        )
+        by_month = {_as_date(row["month"]): row["total"] for row in rows}
+        series_key = self.ledger["series"][0]
+        trend = [
+            {"label": f"{period:%b}", series_key: by_month.get(period, Decimal("0.00"))}
+            for period in periods
+        ]
+
+        this_month, last_month = trend[-1][series_key], trend[-2][series_key]
+        earlier = [row[series_key] for row in trend[:-1]]
+        return {
+            "trend": trend,
+            "trend_series": [self.ledger["series"]],
+            "this_month": this_month,
+            "last_month": last_month,
+            "month_delta": this_month - last_month,
+            # Unsigned: `month_delta` carries the direction.
+            "month_delta_percent": (
+                abs(round((this_month - last_month) / last_month * 100)) if last_month else None
+            ),
+            # The current month is still running, so it would drag the
+            # average down; the average is of the finished months only.
+            "monthly_average": (
+                (sum(earlier, Decimal("0.00")) / len(earlier)).quantize(Decimal("0.01"))
+                if earlier
+                else Decimal("0.00")
+            ),
+            "average_months": len(earlier),
+        }
+
+    def window_chips(self):
+        choices = self.filterset_class.WHEN_CHOICES
+        windows = {key: date_window(key) for key, _ in choices}
+        sums = self.model.objects.aggregate(
+            all=money_sum("amount"),
+            **{
+                key: money_sum(_when(Q(occurred_on__range=bounds), F("amount")))
+                for key, bounds in windows.items()
+            },
+        )
+        rows = [{"label": "All time", "value": money(sums["all"]), "match": None}]
+        rows += [
+            {"label": label, "value": money(sums[key]), "match": key} for key, label in choices
+        ]
+        return build_chips(self.request, "when", rows)
+
+    def attach_month_totals(self, entries):
+        """Give each row its month's total, for the month headers in the table.
+
+        As with payments, only in date order, and the total is for the whole
+        month under the current search rather than the part on this page.
+        """
+        if self.get_sort_key() not in ("", "-date"):
+            return False
+        # Evaluating the page caches its rows, so the attributes set below are
+        # on the same objects the template iterates.
+        rows = list(entries)
+        if not rows:
+            return False
+        months = (
+            self.filterset.qs.filter(
+                occurred_on__gte=min(row.period for row in rows),
+                occurred_on__lte=month_end(max(row.period for row in rows)),
+            )
+            .annotate(month=TruncMonth("occurred_on"))
+            .order_by()
+            .values("month")
+            .annotate(month_total=money_sum("amount"), month_count=Count("pk"))
+        )
+        by_month = {_as_date(row["month"]): row for row in months}
+        for row in rows:
+            month = by_month.get(row.period, {})
+            row.month_total = month.get("month_total")
+            row.month_count = month.get("month_count")
+        return True
+
+
+class ExpenseListView(LedgerListView):
+    permission_required = "accountants.view_expense"
+    model = Expense
+    filterset_class = ExpenseFilter
+    context_object_name = "expenses"
+    page_title = "Expenses"
+    page_subtitle = "Money out: bandwidth, salaries, hardware"
+    kind_field = "category"
+    ledger = {
+        "noun": "expense",
+        "noun_plural": "expenses",
+        "series": ("expenses", "Expenses"),
+        "total_label": "Spent",
+        "kind_label": "Category",
+        "breakdown_title": "Where it went",
+        "biggest_label": "Biggest category",
+        "share_note": "of the spending shown",
+        # More spending than last month is the bad direction.
+        "up_is_good": False,
+        "tone": "expense",
+        "export": "expenses",
+        "add_url": "expense_add",
+        "add_label": "Add expense",
+        "add_perm": "accountants.add_expense",
+        "edit_url": "expense_edit",
+        "edit_perm": "accountants.change_expense",
+        "delete_url": "expense_delete",
+        "delete_perm": "accountants.delete_expense",
+        "empty_title": "No expenses match",
+        "empty_hint": "Bandwidth bills, salaries and hardware purchases go here.",
+    }
+
+
+def _as_date(value):
+    """TruncMonth yields a datetime on some backends and a date on others."""
+    return value.date() if hasattr(value, "date") else value
 
 
 class ExpenseCreateView(CrudViewMixin, CreateView):
@@ -717,6 +906,17 @@ class ExpenseCreateView(CrudViewMixin, CreateView):
     success_url = reverse_lazy("expense_list")
     success_message = "Expense recorded."
     page_title = "Add expense"
+    page_subtitle = "Money that left the business"
+    submit_label = "Record expense"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["submit_label"] = self.submit_label
+        context["notice"] = (
+            "Remitting the upstream operator's share is not an expense — record that on "
+            "the Upstream page, or it is deducted twice."
+        )
+        return context
 
 
 class ExpenseUpdateView(CrudViewMixin, UpdateView):
@@ -728,6 +928,11 @@ class ExpenseUpdateView(CrudViewMixin, UpdateView):
     success_message = "Expense updated."
     page_title = "Edit expense"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_subtitle"] = f"{self.object.description} · {self.object.occurred_on:%d %b %Y}"
+        return context
+
 
 class ExpenseDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
     permission_required = "accountants.delete_expense"
@@ -737,21 +942,41 @@ class ExpenseDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
     page_title = "Delete expense"
 
 
-class IncomeListView(FilteredListView):
+class IncomeListView(LedgerListView):
     permission_required = "accountants.view_income"
     model = Income
     filterset_class = IncomeFilter
-    template_name = "accountants/income_list.html"
     context_object_name = "incomes"
     page_title = "Other income"
     page_subtitle = "Installations, hardware sales, repairs — not subscriptions"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["totals"] = self.filterset.qs.aggregate(
-            count=Count("pk"), amount=money_sum("amount")
-        )
-        return context
+    kind_field = "source"
+    ledger = {
+        "noun": "entry",
+        "noun_plural": "entries",
+        "series": ("income", "Other income"),
+        "total_label": "Received",
+        "kind_label": "Source",
+        "breakdown_title": "Where it came from",
+        "biggest_label": "Biggest source",
+        "share_note": "of the income shown",
+        "up_is_good": True,
+        "tone": "income",
+        "export": "",
+        "add_url": "income_add",
+        "add_label": "Add income",
+        "add_perm": "accountants.add_income",
+        "edit_url": "income_edit",
+        "edit_perm": "accountants.change_income",
+        "delete_url": "income_delete",
+        "delete_perm": "accountants.delete_income",
+        "empty_title": "No income matches",
+        "empty_hint": "Installation fees, hardware sales and repairs go here.",
+        # Subscription money is a payment against an invoice; entering it here
+        # as well would count it twice on the report.
+        "notice": "Subscription payments are recorded against invoices, not here. "
+        "This page is for installation fees, hardware sales and repairs, so the "
+        "two never double count.",
+    }
 
 
 class IncomeCreateView(CrudViewMixin, CreateView):
@@ -762,6 +987,16 @@ class IncomeCreateView(CrudViewMixin, CreateView):
     success_url = reverse_lazy("income_list")
     success_message = "Income recorded."
     page_title = "Add income"
+    page_subtitle = "Money in that is not a subscription payment"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["submit_label"] = "Record income"
+        context["notice"] = (
+            "Subscription payments belong on their invoice, not here, or the report "
+            "counts them twice."
+        )
+        return context
 
 
 class IncomeUpdateView(CrudViewMixin, UpdateView):
@@ -772,6 +1007,11 @@ class IncomeUpdateView(CrudViewMixin, UpdateView):
     success_url = reverse_lazy("income_list")
     success_message = "Income updated."
     page_title = "Edit income"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_subtitle"] = f"{self.object.description} · {self.object.occurred_on:%d %b %Y}"
+        return context
 
 
 class IncomeDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):

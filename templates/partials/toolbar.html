@@ -3,24 +3,50 @@
 The index toolbar: search, the narrowing selects, what is currently applied,
 and how many rows came back. Identical on every index page.
 
-The first field of a filterset is always the free-text search, so it gets the
-wide treatment and the rest sit beside it.
+`toolbar_fields` decides how each field is drawn: the first is always the
+wide search box, a date range is one "from → to" control, and the rest are
+labelled inputs. Selects apply the moment they change; the search and the
+dates wait for Apply (or Enter), since they are typed a piece at a time.
 {% endcomment %}
+{% toolbar_fields filter as fields %}
 <div class="toolbar">
-  <form method="get" class="toolbar-form">
-    {% for field in filter.form %}
-      {% if forloop.first %}
+  <form method="get" class="toolbar-form" data-toolbar>
+    {# Sorting survives a new search; the page number deliberately does not. #}
+    {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+
+    {% for item in fields %}
+      {% if item.kind == "search" %}
         <div class="toolbar-search">
           <span class="toolbar-search-icon">{% icon "search" 16 %}</span>
-          {{ field }}
+          {{ item.field }}
+        </div>
+      {% elif item.kind == "range" %}
+        <div class="toolbar-field toolbar-range" id="{{ item.id }}_group"
+             {% if item.controlled_by %}data-range-for="{{ item.controlled_by }}"{% endif %}
+             {% if item.hidden %}hidden{% endif %}>
+          <span class="toolbar-label" id="{{ item.id }}_label">{{ item.label }}</span>
+          <div class="range-control" role="group" aria-labelledby="{{ item.id }}_label">
+            {% for part in item.parts %}
+              {% if not forloop.first %}<span class="range-sep" aria-hidden="true">→</span>{% endif %}
+              <input type="{{ item.input_type }}" class="range-input" name="{{ part.name }}"
+                     value="{{ part.value }}" aria-label="{{ item.label }}: {{ part.caption }}"
+                     {% if forloop.first %}id="{{ item.id }}"{% endif %}
+                     {% if item.hidden %}disabled{% endif %}>
+            {% endfor %}
+          </div>
         </div>
       {% else %}
         <div class="toolbar-field">
-          <label class="toolbar-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
+          <label class="toolbar-label" for="{{ item.field.id_for_label }}">{{ item.label }}</label>
+          {% if item.autosubmit %}
+            <div class="toolbar-select" data-autosubmit{% if item.controls %} data-range-trigger{% endif %}>{{ item.field }}</div>
+          {% else %}
+            {{ item.field }}
+          {% endif %}
         </div>
       {% endif %}
     {% endfor %}
+
     {% comment %}
     Reset stays in the row whether or not it can do anything, so applying a
     filter never shifts Apply sideways under the reader's cursor.
@@ -45,3 +71,47 @@ wide treatment and the rest sit beside it.
     </span>
   </div>
 </div>
+
+<script>
+  // Selects apply on change. A period select that controls a date range
+  // shows the range for "custom" (and waits for dates), and otherwise clears
+  // it before submitting — a preset and stale dates would silently combine.
+  (function () {
+    const form = document.currentScript.previousElementSibling.querySelector('[data-toolbar]');
+    if (!form || form.dataset.ready) { return; }
+    form.dataset.ready = '1';
+
+    const setRange = (group, open) => {
+      group.hidden = !open;
+      group.querySelectorAll('input').forEach((input) => {
+        input.disabled = !open;
+        if (!open) { input.value = ''; }
+      });
+    };
+
+    form.querySelectorAll('[data-autosubmit] select').forEach((select) => {
+      const group = select.closest('[data-range-trigger]')
+        ? form.querySelector('[data-range-for="' + select.id + '"]')
+        : null;
+
+      select.addEventListener('change', () => {
+        if (group) {
+          const custom = select.value === 'custom';
+          setRange(group, custom);
+          if (custom) {
+            group.querySelector('input').focus();
+            return;
+          }
+        }
+        form.requestSubmit();
+      });
+    });
+
+    // Empty inputs add nothing to the URL but `?q=&status=`; leave them out.
+    form.addEventListener('formdata', (event) => {
+      for (const [key, value] of [...event.formData.entries()]) {
+        if (value === '') { event.formData.delete(key); }
+      }
+    });
+  })();
+</script>

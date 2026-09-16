@@ -1,0 +1,51 @@
+{% load ui %}
+{% comment %}
+Rows for either manual ledger. `ledger` (from the view) supplies the routes
+and permissions; `entry.kind` is the category or the source.
+{% endcomment %}
+{% for entry in object_list %}
+  {% comment %}
+  In date order the rows fall under a header per month with that month's
+  total — the figure the P&L statement will show for it.
+  {% endcomment %}
+  {% if group_by_month %}
+    {% ifchanged entry.period %}
+      <tr class="day-row">
+        <td colspan="3">
+          <span class="day-name">{{ entry.period|date:"F Y" }}</span>
+          <span class="day-count">{{ entry.month_count }} {% if entry.month_count == 1 %}{{ ledger.noun }}{% else %}{{ ledger.noun_plural }}{% endif %}</span>
+        </td>
+        <td class="numeric">{{ entry.month_total|money }}</td>
+        <td></td>
+      </tr>
+    {% endifchanged %}
+  {% endif %}
+  <tr>
+    <td>
+      <span class="fw-semibold">{{ entry.occurred_on|date:"d M Y" }}</span>
+      <span class="cell-sub">
+        {% if entry.created_by %}by {{ entry.created_by.get_full_name|default:entry.created_by.username }}{% else %}—{% endif %}
+      </span>
+    </td>
+    <td class="col-text col-text-wide">
+      <span class="fw-semibold" title="{{ entry.description }}">{{ entry.description }}</span>
+      {% if entry.note %}<span class="cell-sub" title="{{ entry.note }}">{{ entry.note }}</span>{% endif %}
+    </td>
+    <td><span class="category-tag cat-{{ entry.kind }}">{{ entry.kind_label }}</span></td>
+    <td class="numeric col-money fw-semibold ledger-amount">{{ entry.amount|money }}</td>
+    <td class="col-actions">
+      <div class="row-actions">
+        {% if ledger.edit_perm in perms %}
+          <a class="row-action" href="{% url ledger.edit_url entry.pk %}">Edit</a>
+        {% endif %}
+        {% if ledger.delete_perm in perms %}
+          <a class="row-action row-action-danger" href="{% url ledger.delete_url entry.pk %}">Delete</a>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr><td colspan="5">
+    {% include "partials/empty.html" with title=ledger.empty_title hint=ledger.empty_hint %}
+  </td></tr>
+{% endfor %}

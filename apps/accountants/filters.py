@@ -1,13 +1,40 @@
+from datetime import timedelta
+
 import django_filters
 from django import forms
+from django.db.models import Q
+from django.utils import timezone
 
 from apps.core.choices import CollectionMode
+from apps.core.utils import add_months, month_start, previous_month
 
 from .models import Expense, Income, Invoice, Payment, UpstreamSettlement
 
 #: `<input type="month">` posts `YYYY-MM`, which a plain DateField rejects —
 #: and a rejected filter is silently dropped, showing every month instead.
 MONTH_FORMATS = ["%Y-%m", "%Y-%m-%d"]
+
+
+def date_window(key, today=None):
+    """`(first, last)` dates, both inclusive, of a named window — or None.
+
+    Shared by the `when` filters and the summary chips built from them, so a
+    chip and the filter it applies can never disagree about a boundary.
+    """
+    today = today or timezone.localdate()
+    if key == "today":
+        return today, today
+    if key == "7d":
+        return today - timedelta(days=6), today
+    if key == "month":
+        return month_start(today), today
+    if key == "last_month":
+        return previous_month(today), month_start(today) - timedelta(days=1)
+    if key == "3m":
+        return add_months(month_start(today), -2), today
+    if key == "year":
+        return today.replace(month=1, day=1), today
+    return None
 
 
 class InvoiceFilter(django_filters.FilterSet):
@@ -46,8 +73,6 @@ class InvoiceFilter(django_filters.FilterSet):
         fields = ["q", "status", "collection_mode", "period"]
 
     def search(self, queryset, name, value):
-        from django.db.models import Q
-
         value = value.strip()
         if not value:
             return queryset
@@ -110,8 +135,6 @@ class PaymentFilter(django_filters.FilterSet):
         fields = ["q", "when", "method", "collection_mode", "received_on"]
 
     def search(self, queryset, name, value):
-        from django.db.models import Q
-
         value = value.strip()
         if not value:
             return queryset
@@ -123,29 +146,8 @@ class PaymentFilter(django_filters.FilterSet):
             | Q(reference__icontains=value)
         )
 
-    @staticmethod
-    def window(key, today=None):
-        """`(first, last)` dates of a `when` window, both inclusive."""
-        from datetime import timedelta
-
-        from django.utils import timezone
-
-        from apps.core.utils import month_start, previous_month
-
-        today = today or timezone.localdate()
-        if key == "today":
-            return today, today
-        if key == "7d":
-            return today - timedelta(days=6), today
-        if key == "month":
-            return month_start(today), today
-        if key == "last_month":
-            first = previous_month(today)
-            return first, month_start(today) - timedelta(days=1)
-        return None
-
     def by_when(self, queryset, name, value):
-        bounds = self.window(value)
+        bounds = date_window(value)
         return queryset.filter(received_on__range=bounds) if bounds else queryset
 
 
@@ -180,8 +182,6 @@ class SettlementFilter(django_filters.FilterSet):
         fields = ["q", "kind", "period", "settled_on"]
 
     def search(self, queryset, name, value):
-        from django.db.models import Q
-
         value = value.strip()
         if not value:
             return queryset
@@ -192,16 +192,49 @@ class SettlementFilter(django_filters.FilterSet):
 
 
 class LedgerFilter(django_filters.FilterSet):
-    """Shared date-range + text filter for the expense and income ledgers."""
+    """Shared search, time window and date range for the two manual ledgers."""
 
+    WHEN_CHOICES = [
+        ("month", "This month"),
+        ("last_month", "Last month"),
+        ("3m", "Last 3 months"),
+        ("year", "This year"),
+    ]
+
+    # Named `description` for the links that already use it; it searches the
+    # note as well, which is where the detail usually is.
     description = django_filters.CharFilter(
-        lookup_expr="icontains",
-        widget=forms.TextInput(attrs={"placeholder": "Description", "class": "form-control"}),
+        method="search",
+        label="Search",
+        widget=forms.TextInput(
+            attrs={"placeholder": "Search by description or note", "class": "form-control"}
+        ),
+    )
+    #: Choosing Custom in `when` reveals the `occurred_on` range in the toolbar.
+    custom_range = ("when", "occurred_on")
+
+    when = django_filters.ChoiceFilter(
+        # Custom filters nothing itself; it hands over to the date range.
+        choices=[*WHEN_CHOICES, ("custom", "Custom dates…")],
+        label="Period",
+        empty_label="Any time",
+        method="by_when",
+        widget=forms.Select(attrs={"class": "form-select"}),
     )
     occurred_on = django_filters.DateFromToRangeFilter(
-        label="Between",
+        label="Dates",
         widget=django_filters.widgets.RangeWidget(attrs={"type": "date", "class": "form-control"}),
     )
+
+    def search(self, queryset, name, value):
+        value = value.strip()
+        if not value:
+            return queryset
+        return queryset.filter(Q(description__icontains=value) | Q(note__icontains=value))
+
+    def by_when(self, queryset, name, value):
+        bounds = date_window(value)
+        return queryset.filter(occurred_on__range=bounds) if bounds else queryset
 
 
 class ExpenseFilter(LedgerFilter):
@@ -213,7 +246,7 @@ class ExpenseFilter(LedgerFilter):
 
     class Meta:
         model = Expense
-        fields = ["description", "category", "occurred_on"]
+        fields = ["description", "when", "category", "occurred_on"]
 
 
 class IncomeFilter(LedgerFilter):
@@ -225,4 +258,4 @@ class IncomeFilter(LedgerFilter):
 
     class Meta:
         model = Income
-        fields = ["description", "source", "occurred_on"]
+        fields = ["description", "when", "source", "occurred_on"]

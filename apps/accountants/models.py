@@ -435,6 +435,18 @@ class LedgerEntry(ActorStampedModel):
     def period(self):
         return month_start(self.occurred_on)
 
+    #: The choice field an entry is grouped by; set on each ledger.
+    kind_field = ""
+
+    @property
+    def kind(self) -> str:
+        """The entry's category or source, whichever this ledger uses."""
+        return getattr(self, self.kind_field)
+
+    @property
+    def kind_label(self) -> str:
+        return getattr(self, f"get_{self.kind_field}_display")()
+
 
 class Expense(LedgerEntry):
     """Money out: upstream bandwidth bills, salaries, fuel, hardware purchases.
@@ -454,6 +466,7 @@ class Expense(LedgerEntry):
     category = models.CharField(
         max_length=20, choices=Category.choices, default=Category.OTHER, db_index=True
     )
+    kind_field = "category"
 
     class Meta(LedgerEntry.Meta):
         abstract = False
@@ -479,6 +492,7 @@ class Income(LedgerEntry):
     source = models.CharField(
         max_length=20, choices=Source.choices, default=Source.OTHER, db_index=True
     )
+    kind_field = "source"
 
     class Meta(LedgerEntry.Meta):
         abstract = False

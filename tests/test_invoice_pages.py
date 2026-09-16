@@ -327,3 +327,211 @@ def test_the_month_filter_accepts_what_a_month_input_sends(owner_client, two_inv
     )
     assert len(this_month.context["invoices"]) == 2
     assert len(last_month.context["invoices"]) == 0
+
+
+# ---------------------------------------------------------------------------#
+# Expenses
+# ---------------------------------------------------------------------------#
+
+
+@pytest.fixture
+def some_expenses(db, period):
+    from apps.accountants.models import Expense
+    from apps.core.utils import add_months
+
+    last_month = add_months(period, -1)
+    Expense.objects.create(
+        description="Bandwidth bill", category="bandwidth", amount="600", occurred_on=period
+    )
+    Expense.objects.create(
+        description="Tech salary",
+        category="salary",
+        amount="300",
+        occurred_on=period,
+        note="Rahim, September",
+    )
+    Expense.objects.create(
+        description="Old salary", category="salary", amount="450", occurred_on=last_month
+    )
+
+
+def test_expenses_compare_this_month_with_last(owner_client, some_expenses):
+    context = owner_client.get(reverse("expense_list")).context
+    assert context["this_month"] == Decimal("900.00")
+    assert context["last_month"] == Decimal("450.00")
+    assert context["month_delta"] > 0
+    assert context["month_delta_percent"] == 100
+    assert len(context["trend"]) == 6
+
+
+def test_the_category_breakdown_follows_the_search_and_toggles(owner_client, some_expenses):
+    context = owner_client.get(reverse("expense_list"), {"when": "month"}).context
+    breakdown = {row["category"]: row for row in context["breakdown"]}
+
+    assert breakdown["bandwidth"]["total"] == Decimal("600.00")
+    assert breakdown["salary"]["total"] == Decimal("300.00")  # last month's is outside
+    assert breakdown["bandwidth"]["share"] == 67
+    assert "category=salary" in breakdown["salary"]["url"]
+
+    context = owner_client.get(reverse("expense_list"), {"category": "salary"}).context
+    (salary,) = context["breakdown"]
+    assert salary["is_active"]
+    assert "category" not in salary["url"]  # clicking it again clears the filter
+
+
+def test_expense_search_covers_the_note(owner_client, some_expenses):
+    response = owner_client.get(reverse("expense_list"), {"description": "rahim"})
+    assert [e.description for e in response.context["expenses"]] == ["Tech salary"]
+
+
+def test_expenses_are_grouped_by_month_in_date_order(owner_client, some_expenses):
+    response = owner_client.get(reverse("expense_list"))
+    assert response.context["group_by_month"]
+    assert response.content.count(b'class="day-row"') == 2
+    assert response.context["expenses"][0].month_total == Decimal("900.00")
+
+    response = owner_client.get(reverse("expense_list"), {"sort": "amount"})
+    assert b'class="day-row"' not in response.content
+
+
+def test_the_expense_form_is_sectioned_with_category_tiles(owner_client):
+    body = owner_client.get(reverse("expense_add")).content.decode()
+    assert "is-sectioned" in body
+    assert body.count('class="choice-tile"') == 6
+    assert 'class="input-prefix"' in body
+
+
+# ---------------------------------------------------------------------------#
+# Toolbar
+# ---------------------------------------------------------------------------#
+
+
+def _range_group(body):
+    import re
+
+    return re.search(r'<div class="toolbar-field toolbar-range"[^>]*>', body).group(0)
+
+
+def test_the_expense_date_range_waits_for_custom(owner_client, some_expenses):
+    body = owner_client.get(reverse("expense_list")).content.decode()
+    assert "hidden" in _range_group(body)
+    assert 'value="custom"' in body  # offered in the Period select
+
+    body = owner_client.get(reverse("expense_list"), {"when": "custom"}).content.decode()
+    assert "hidden" not in _range_group(body)
+
+
+def test_a_range_in_the_url_is_shown_even_without_custom(owner_client, some_expenses, period):
+    import re
+
+    body = owner_client.get(
+        reverse("expense_list"), {"occurred_on_min": f"{period:%Y-%m-%d}"}
+    ).content.decode()
+    assert "hidden" not in _range_group(body)
+    assert re.search(rf'name="occurred_on_min"\s+value="{period:%Y-%m-%d}"', body)
+
+
+def test_custom_period_has_no_pill_of_its_own(owner_client, some_expenses, period):
+    response = owner_client.get(
+        reverse("expense_list"), {"when": "custom", "occurred_on_min": f"{period:%Y-%m-%d}"}
+    )
+    body = response.content.decode()
+    assert "Custom dates" not in body.split('class="toolbar-status"')[1]
+    assert "Dates" in body.split('class="toolbar-status"')[1]
+    # Custom filters nothing itself: the range alone decides.
+    assert len(response.context["expenses"]) == 2
+
+
+def test_ranges_without_a_trigger_are_always_shown(owner_client, two_payments):
+    body = owner_client.get(reverse("payment_list")).content.decode()
+    assert "hidden" not in _range_group(body)
+    assert "data-range-for" not in _range_group(body)
+
+
+def test_a_new_search_keeps_the_sort(owner_client, some_expenses):
+    body = owner_client.get(reverse("expense_list"), {"sort": "-amount"}).content.decode()
+    assert '<input type="hidden" name="sort" value="-amount">' in body
+
+
+# ---------------------------------------------------------------------------#
+# Other income (shares the ledger page with expenses)
+# ---------------------------------------------------------------------------#
+
+
+@pytest.fixture
+def some_income(db, period):
+    from apps.accountants.models import Income
+    from apps.core.utils import add_months
+
+    Income.objects.create(
+        description="Fibre install", source="installation", amount="1500", occurred_on=period
+    )
+    Income.objects.create(
+        description="ONU sold",
+        source="hardware",
+        amount="500",
+        occurred_on=period,
+        note="Karim, spare unit",
+    )
+    Income.objects.create(
+        description="Old repair",
+        source="service",
+        amount="1000",
+        occurred_on=add_months(period, -1),
+    )
+
+
+def test_income_uses_the_ledger_page(owner_client, some_income):
+    response = owner_client.get(reverse("income_list"))
+    context = response.context
+
+    assert response.status_code == 200
+    assert context["ledger"]["total_label"] == "Received"
+    assert context["totals"]["sum_total"] == Decimal("3000.00")
+    assert context["this_month"] == Decimal("2000.00")
+    assert context["trend"][-1]["income"] == Decimal("2000.00")
+    assert context["group_by_month"]
+    # More income than last month is good news, so it is coloured as such.
+    assert b"delta-good" in response.content
+    assert b"not here" in response.content  # the subscription warning
+
+
+def test_income_breaks_down_by_source(owner_client, some_income):
+    context = owner_client.get(reverse("income_list"), {"when": "month"}).context
+    breakdown = {row["key"]: row for row in context["breakdown"]}
+    assert set(breakdown) == {"installation", "hardware"}
+    assert breakdown["installation"]["share"] == 75
+    assert "source=hardware" in breakdown["hardware"]["url"]
+
+
+def test_income_sorts_by_source_and_searches_notes(owner_client, some_income):
+    response = owner_client.get(reverse("income_list"), {"sort": "kind"})
+    assert [i.source for i in response.context["incomes"]] == [
+        "hardware",
+        "installation",
+        "service",
+    ]
+    assert not response.context["group_by_month"]
+
+    response = owner_client.get(reverse("income_list"), {"description": "karim"})
+    assert [i.description for i in response.context["incomes"]] == ["ONU sold"]
+
+
+def test_more_spending_is_coloured_as_bad_news(owner_client, some_expenses):
+    assert b"delta-bad" in owner_client.get(reverse("expense_list")).content
+
+
+def test_the_income_form_is_sectioned_with_source_tiles(owner_client):
+    body = owner_client.get(reverse("income_add")).content.decode()
+    assert "is-sectioned" in body
+    assert body.count('class="choice-tile"') == 4
+    assert "Received on" in body
+    assert "Record income" in body
+
+
+def test_the_htmx_rows_render_for_both_ledgers(owner_client, some_income, some_expenses):
+    for name in ("income_list", "expense_list"):
+        response = owner_client.get(reverse(name), HTTP_HX_REQUEST="true")
+        assert response.status_code == 200
+        assert b"<html" not in response.content
+        assert b"category-tag" in response.content

@@ -886,14 +886,49 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
 }
 .toolbar-field .form-select,
 .toolbar-field .form-control { height: 38px; }
-/* A range filter posts two inputs under one label; they sit side by side. */
-.toolbar-field:has(> input + input) {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 0.35rem;
-  min-width: 290px;
+/* A date range is one control: two borderless inputs sharing a box, with an
+   arrow between them, so it reads as "from → to" rather than two unrelated
+   dates. The box takes the focus ring when either input has focus. */
+.toolbar-range { min-width: 300px; }
+.toolbar-range[hidden] { display: none; }
+.range-control {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.toolbar-field:has(> input + input) > .toolbar-label { grid-column: 1 / -1; }
+.range-control:focus-within {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+.range-input {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0 0.6rem;
+  font-size: 0.875rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.range-input:focus { outline: none; }
+.range-sep { color: var(--muted); font-size: 0.8125rem; padding: 0 0.1rem; }
+
+/* A select that applies itself. Nothing to see; the class is for the script. */
+.toolbar-select { display: contents; }
+
+/* A revealed range arrives with a short fade instead of a jump. */
+@media (prefers-reduced-motion: no-preference) {
+  .toolbar-range:not([hidden]) { animation: toolbar-reveal 0.16s ease-out; }
+}
+@keyframes toolbar-reveal {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: none; }
+}
 
 /* Apply and Reset are a pair and sit at the input height, so the row of
    controls has one baseline instead of a button floating in it. */
@@ -1390,6 +1425,58 @@ a.fact-link:hover { color: var(--brand-dark); text-decoration: underline; }
   .net-value { font-size: 1.6rem; }
 }
 
+/* ---- Expenses ---------------------------------------------------------- */
+
+/* One hue per category, used by the tag, the dot and the bar alike, so the
+   breakdown and the table can be read against each other. */
+.cat-bandwidth { --cat: #0891b2; --cat-bg: #cffafe; --cat-ink: #0e7490; }
+.cat-salary { --cat: #7c3aed; --cat-bg: #ede9fe; --cat-ink: #6d28d9; }
+.cat-equipment { --cat: #ea580c; --cat-bg: #ffedd5; --cat-ink: #c2410c; }
+.cat-maintenance { --cat: #ca8a04; --cat-bg: #fef9c3; --cat-ink: #a16207; }
+.cat-rent { --cat: #db2777; --cat-bg: #fce7f3; --cat-ink: #be185d; }
+.cat-other { --cat: #64748b; --cat-bg: #f1f5f9; --cat-ink: #475569; }
+/* Other income, by source. */
+.cat-installation { --cat: #0d9488; --cat-bg: #ccfbf1; --cat-ink: #0f766e; }
+.cat-hardware { --cat: #2563eb; --cat-bg: #dbeafe; --cat-ink: #1d4ed8; }
+.cat-service { --cat: #d97706; --cat-bg: #fef3c7; --cat-ink: #b45309; }
+
+/* Income figures read as money coming in. */
+.ledger-income .summary-total,
+.ledger-income .ledger-amount { color: #047857; }
+
+.dot[class*="cat-"] { background: var(--cat); }
+.breakdown-fill[class*="cat-"] { background: var(--cat); }
+
+.category-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  padding: 0.18rem 0.5rem;
+  border-radius: 5px;
+  background: var(--cat-bg, #f1f5f9);
+  color: var(--cat-ink, #475569);
+  white-space: nowrap;
+}
+
+.category-list { display: flex; flex-direction: column; gap: 0.25rem; }
+.category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.3rem 0.75rem;
+  padding: 0.5rem 0.6rem;
+  margin: 0 -0.6rem;
+  border-radius: 0.5rem;
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.12s ease;
+}
+.category-row:hover { background: #f6f8fa; }
+.category-row.is-on { background: #f0fdfa; box-shadow: inset 0 0 0 1px #99f6e4; }
+.category-row:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.category-name { display: flex; align-items: center; font-size: 0.8125rem; font-weight: 600; min-width: 0; }
+.category-figure { font-size: 0.8125rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.category-share { color: var(--muted); font-weight: 500; margin-left: 0.5rem; display: inline-block; min-width: 2.6rem; text-align: right; }
+
 /* ---- Period stepper ---------------------------------------------------- */
 
 .period-nav { display: inline-flex; align-items: center; gap: 0.25rem; }
@@ -1883,6 +1970,7 @@ fieldset > legend.form-label { float: none; width: auto; padding: 0; font-size: 
   .toolbar-form { padding: 0.7rem; gap: 0.5rem; }
   .toolbar-search { flex-basis: 100%; }
   .toolbar-field { flex: 1 1 140px; min-width: 0; }
+  .toolbar-range { flex-basis: 100%; min-width: 0; }
   .toolbar-actions { margin-left: 0; width: 100%; }
   .toolbar-status { padding: 0 0.7rem 0.6rem; }
   .toolbar-count { margin-left: 0; width: 100%; }

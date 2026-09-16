@@ -50,6 +50,63 @@ def _query_keys(name, field):
     return [f"{name}{suffix}" for suffix in names] if names else [name]
 
 
+#: The `when` value that hands over to a filterset's date range.
+CUSTOM_RANGE = "custom"
+
+
+@register.simple_tag(takes_context=True)
+def toolbar_fields(context, filterset):
+    """The filterset's fields, each tagged with how the toolbar draws it.
+
+    * `search` — the first field, always: the wide box with the icon.
+    * `range` — a two-part date range, drawn as one "from → to" control
+      with its inputs named the way the filter reads them.
+    * `field` — everything else, labelled above its input. A select also
+      applies as soon as it changes (`autosubmit`).
+
+    A filterset may declare `custom_range = ("when", "occurred_on")`: the
+    range then stays out of the way until the `when` select is set to
+    Custom, or a range is already in the URL.
+    """
+    from django import forms
+
+    request = context["request"]
+    trigger, ranged = getattr(filterset, "custom_range", (None, None))
+    choosing_custom = bool(trigger) and request.GET.get(trigger) == CUSTOM_RANGE
+
+    items = []
+    for index, bound in enumerate(filterset.form):
+        name, field = bound.name, bound.field
+        keys = _query_keys(name, field)
+        item = {"field": bound, "name": name, "label": field.label or name.title()}
+
+        if index == 0:
+            item["kind"] = "search"
+        elif len(keys) > 1:
+            values = [request.GET.get(key, "") for key in keys]
+            parts = getattr(field.widget, "widgets", [])
+            input_type = parts[0].attrs.get("type", "text") if parts else "text"
+            item.update(
+                kind="range",
+                id=f"id_{name}",
+                parts=[
+                    {"name": key, "value": value, "caption": caption}
+                    for key, value, caption in zip(keys, values, ("From", "To"), strict=False)
+                ],
+                input_type=input_type,
+                controlled_by=f"id_{trigger}" if name == ranged else "",
+                hidden=name == ranged and not choosing_custom and not any(values),
+            )
+        else:
+            item.update(
+                kind="field",
+                autosubmit=isinstance(field.widget, forms.Select),
+                controls=bound.auto_id if name == trigger else "",
+            )
+        items.append(item)
+    return items
+
+
 @register.simple_tag(takes_context=True)
 def has_active_filters(context, filterset):
     """Whether any of the filterset's own fields is currently applied.
@@ -93,6 +150,9 @@ def active_filters(context, filterset):
 
         raw = request.GET.get(name)
         if not raw:
+            continue
+        if raw == CUSTOM_RANGE and name == getattr(filterset, "custom_range", (None,))[0]:
+            # The range's own pill already says which dates.
             continue
 
         label = field.label or name.replace("_", " ").title()
