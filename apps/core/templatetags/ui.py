@@ -92,3 +92,39 @@ def subtract(value, arg):
         return Decimal(value or 0) - Decimal(arg or 0)
     except TypeError, ValueError, InvalidOperation:
         return value
+
+
+@register.filter
+def age(value, today=None):
+    """How long ago a date was, in the one or two units that matter.
+
+    "12 days", "5 months", "2 years 3 months". `timesince` says the same but
+    joins its parts with non-breaking spaces and commas that are awkward to
+    trim, and never says "today".
+    """
+    import datetime as dt
+
+    from django.utils import timezone
+
+    if not isinstance(value, dt.date):
+        return ""
+    if isinstance(value, dt.datetime):
+        value = value.date()
+    today = today or timezone.localdate()
+    days = (today - value).days
+    if days < 1:
+        return "today"
+    if days < 31:
+        return f"{days} day{'s' if days != 1 else ''}"
+
+    months = (today.year - value.year) * 12 + today.month - value.month
+    if today.day < value.day:
+        months -= 1
+    months = max(months, 1)
+    years, months = divmod(months, 12)
+    parts = []
+    if years:
+        parts.append(f"{years} year{'s' if years != 1 else ''}")
+    if months:
+        parts.append(f"{months} month{'s' if months != 1 else ''}")
+    return " ".join(parts)

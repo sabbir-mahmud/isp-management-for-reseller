@@ -1477,6 +1477,76 @@ a.fact-link:hover { color: var(--brand-dark); text-decoration: underline; }
 .category-figure { font-size: 0.8125rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 .category-share { color: var(--muted); font-weight: 500; margin-left: 0.5rem; display: inline-block; min-width: 2.6rem; text-align: right; }
 
+/* ---- ONUs -------------------------------------------------------------- */
+
+/* Out of spares is the one state on this page that stops work, so it is
+   said above everything else rather than left for a zero to imply. */
+.stock-alert {
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  background: #fef2f2;
+  color: #7f1d1d;
+  border-radius: 0.6rem;
+  padding: 0.7rem 0.95rem;
+  font-size: 0.8125rem;
+}
+.stock-alert a { color: #b91c1c; font-weight: 650; margin-left: 0.35rem; }
+
+/* Where each model's units are: installed, spare, out of service. */
+.dot-installed, .seg-installed { background: #0f766e; }
+.dot-stock, .seg-stock { background: #5eead4; }
+.dot-out, .seg-out { background: #f87171; }
+
+.model-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.35rem 1.5rem; }
+.model-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem 0.75rem;
+  padding: 0.55rem 0.65rem;
+  margin: 0 -0.65rem;
+  border-radius: 0.5rem;
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.12s ease;
+}
+a.model-row:hover { background: #f6f8fa; }
+.model-row.is-on { background: #f0fdfa; box-shadow: inset 0 0 0 1px #99f6e4; }
+a.model-row:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.model-name { font-size: 0.875rem; font-weight: 650; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-counts { font-size: 0.75rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.model-counts b { color: var(--ink); }
+
+.fleet-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  background: #eef2f6;
+  overflow: hidden;
+}
+.fleet-seg { display: block; height: 100%; }
+
+/* The device's status, at a glance, before the badge is read. */
+.device-mark {
+  flex: 0 0 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+.device-mark.status-in_stock { background: #ccfbf1; color: #0f766e; }
+.device-mark.status-assigned { background: #e0f2fe; color: #0369a1; }
+.device-mark.status-faulty { background: #fee2e2; color: #b91c1c; }
+
+/* A serial is read character by character, so it gets fixed-width digits. */
+.cell-mono-strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+}
+
 /* ---- Period stepper ---------------------------------------------------- */
 
 .period-nav { display: inline-flex; align-items: center; gap: 0.25rem; }

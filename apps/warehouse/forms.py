@@ -33,6 +33,30 @@ class ProductForm(BootstrapFormMixin, forms.ModelForm):
 
 
 class OnuForm(BootstrapFormMixin, forms.ModelForm):
+    fieldsets = (
+        {
+            "title": "Device",
+            "caption": "The serial on the label, and what the unit is. The serial "
+            "is how it is found again when it comes back.",
+            "fields": ["serial", "model", "name", "port"],
+        },
+        {
+            "title": "Purchase",
+            "caption": "What it cost and when it was bought, for the stock value "
+            "and the age of the fleet.",
+            "fields": ["purchase_price", "purchased_on"],
+        },
+        {
+            "title": "Condition",
+            "caption": "Whether it can go to a client. Installing and removing a "
+            "unit is done from the client's record, which keeps this in step.",
+            "fields": ["status", "note"],
+        },
+    )
+    wide_fields = frozenset({"status", "note"})
+    compact_fields = frozenset({"port", "purchase_price", "purchased_on"})
+    field_prefixes = {"purchase_price": "৳"}
+
     class Meta:
         model = Onu
         fields = [
@@ -45,7 +69,54 @@ class OnuForm(BootstrapFormMixin, forms.ModelForm):
             "status",
             "note",
         ]
-        widgets = {"purchased_on": forms.DateInput(attrs={"type": "date"})}
+        widgets = {
+            "status": forms.RadioSelect,
+            "purchased_on": forms.DateInput(attrs={"type": "date"}),
+        }
+        labels = {
+            "name": "Label",
+            "port": "LAN ports",
+            "purchase_price": "Cost",
+            "purchased_on": "Bought on",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["serial"].widget.attrs.update(
+            {"placeholder": "e.g. VSOL24A1B2C3", "autocomplete": "off", "spellcheck": "false"}
+        )
+        self.fields["model"].widget.attrs.setdefault("placeholder", "e.g. VSOL V2802")
+        self.fields["name"].widget.attrs.setdefault("placeholder", "Optional")
+        self.fields["name"].help_text = "A nickname, if the serial is not enough."
+        self.fields["note"].widget.attrs.setdefault(
+            "placeholder", "e.g. Returned with a bad PON port"
+        )
+
+        # Offer the models already in the fleet as suggestions, so one model
+        # is not spelled three ways across the stock.
+        self.fields["model"].widget.attrs["list"] = "onu-models"
+        self.model_suggestions = list(
+            Onu.objects.exclude(model="")
+            .order_by("model")
+            .values_list("model", flat=True)
+            .distinct()
+        )
+
+        status = self.fields["status"]
+        client = self.instance.assigned_client if self.instance.pk else None
+        if client is not None:
+            # Installed units change status through the client, never here:
+            # editing it alone is how a device ended up "in stock" in a home.
+            status.disabled = True
+            status.help_text = (
+                f"Installed at {client.name} ({client.client_code}). Remove it from "
+                "their record to change this."
+            )
+        else:
+            status.choices = [
+                choice for choice in Onu.Status.choices if choice[0] != Onu.Status.ASSIGNED
+            ]
+            status.help_text = "Assigned is set by installing it on a client."
 
 
 class StockMovementForm(BootstrapFormMixin, forms.ModelForm):

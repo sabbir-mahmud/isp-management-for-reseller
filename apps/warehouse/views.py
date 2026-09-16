@@ -1,14 +1,16 @@
 """Inventory screens: stock, serialised ONUs and the movement ledger."""
 
 from django.contrib import messages
-from django.db.models import Count, F, Q, Sum, Value
+from django.db.models import Case, Count, DecimalField, F, Q, Sum, Value, When
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from apps.accounts.views import FilteredListView
 from apps.core.aggregates import money_sum
-from apps.core.mixins import CrudViewMixin, PageTitleMixin, StaffViewMixin
+from apps.core.chips import build_chips
+from apps.core.mixins import CrudViewMixin, PageTitleMixin, SortableListMixin, StaffViewMixin
+from apps.core.utils import filtered_url
 
 from .filters import OnuFilter, ProductFilter, StockMovementFilter
 from .forms import CategoryForm, OnuForm, ProductForm, StockMovementForm
@@ -139,7 +141,7 @@ class CategoryDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
 # ---------------------------------------------------------------------------#
 
 
-class OnuListView(FilteredListView):
+class OnuListView(SortableListMixin, FilteredListView):
     permission_required = "warehouse.view_onu"
     model = Onu
     filterset_class = OnuFilter
@@ -149,40 +151,140 @@ class OnuListView(FilteredListView):
     page_title = "ONUs"
     page_subtitle = "Serialised devices, in stock and in the field"
 
+    sort_fields = {
+        "serial": "serial",
+        "model": "model",
+        "cost": "purchase_price",
+        "bought": "purchased_on",
+        "status": "status",
+        "client": "client__name",
+    }
+
     def get_queryset(self):
         queryset = Onu.objects.select_related("client")
         self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
-        return self.filterset.qs
+        return self.apply_sort(self.filterset.qs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["totals"] = Onu.objects.aggregate(
+        status = Onu.Status
+        by_status = {
+            value: Q(status=value)
+            for value in (status.IN_STOCK, status.ASSIGNED, status.FAULTY, status.RETIRED)
+        }
+
+        # The fleet as a whole, whatever the search: these answer "can we do
+        # the next install" and double as the status chips.
+        fleet = Onu.objects.aggregate(
             total=Count("pk"),
-            in_stock=Count("pk", filter=Q(status=Onu.Status.IN_STOCK)),
-            assigned=Count("pk", filter=Q(status=Onu.Status.ASSIGNED)),
-            faulty=Count("pk", filter=Q(status=Onu.Status.FAULTY)),
+            value=money_sum("purchase_price"),
+            **{f"{key}_count": Count("pk", filter=match) for key, match in by_status.items()},
+            **{
+                f"{key}_value": money_sum(
+                    Case(
+                        When(match, then=F("purchase_price")),
+                        output_field=DecimalField(max_digits=14, decimal_places=2),
+                    )
+                )
+                for key, match in by_status.items()
+            },
         )
+        fleet["out_of_service"] = fleet["faulty_count"] + fleet["retired_count"]
+        fleet["out_of_service_value"] = fleet["faulty_value"] + fleet["retired_value"]
+        fleet["deployed_percent"] = (
+            round(fleet["assigned_count"] / fleet["total"] * 100) if fleet["total"] else 0
+        )
+        context["fleet"] = fleet
+        context["models"] = self.model_breakdown()
+
+        context["chips"] = build_chips(
+            self.request,
+            "status",
+            [
+                {"label": "All ONUs", "value": fleet["total"], "match": None},
+                {
+                    "label": "In stock",
+                    "value": fleet["in_stock_count"],
+                    "match": status.IN_STOCK,
+                    "tone": "success",
+                },
+                {"label": "Installed", "value": fleet["assigned_count"], "match": status.ASSIGNED},
+                {
+                    "label": "Faulty",
+                    "value": fleet["faulty_count"],
+                    "match": status.FAULTY,
+                    "tone": "danger",
+                },
+                {
+                    "label": "Retired",
+                    "value": fleet["retired_count"],
+                    "match": status.RETIRED,
+                    "tone": "muted",
+                },
+            ],
+        )
+        context["row_noun"], context["row_noun_plural"] = "ONU", "ONUs"
         return context
+
+    def model_breakdown(self):
+        """Each model's units split by where they are, busiest model first.
+
+        What a purchasing decision needs: which model is running out, and
+        which one is failing. Each row filters the table to that model.
+        """
+        status = Onu.Status
+        rows = list(
+            Onu.objects.order_by()
+            .values("model")
+            .annotate(
+                total=Count("pk"),
+                in_stock=Count("pk", filter=Q(status=status.IN_STOCK)),
+                assigned=Count("pk", filter=Q(status=status.ASSIGNED)),
+                out=Count("pk", filter=Q(status__in=[status.FAULTY, status.RETIRED])),
+            )
+            .order_by("-total", "model")
+        )
+        current = self.request.GET.get("model", "")
+        for row in rows:
+            total = row["total"] or 1
+            row["label"] = row["model"] or "Unspecified model"
+            row["assigned_percent"] = row["assigned"] / total * 100
+            row["in_stock_percent"] = row["in_stock"] / total * 100
+            row["out_percent"] = row["out"] / total * 100
+            row["is_active"] = bool(row["model"]) and row["model"] == current
+            row["url"] = (
+                filtered_url(self.request, model=None if row["is_active"] else row["model"])
+                if row["model"]
+                else ""
+            )
+        return rows
 
 
 class OnuCreateView(CrudViewMixin, CreateView):
     permission_required = "warehouse.add_onu"
     model = Onu
     form_class = OnuForm
-    template_name = "form.html"
     success_url = reverse_lazy("onu_list")
     success_message = "ONU %(serial)s was added."
     page_title = "Add ONU"
+    page_subtitle = "A device bought into stock"
+    template_name = "warehouse/onu_form.html"
 
 
 class OnuUpdateView(CrudViewMixin, UpdateView):
     permission_required = "warehouse.change_onu"
     model = Onu
     form_class = OnuForm
-    template_name = "form.html"
     success_url = reverse_lazy("onu_list")
     success_message = "ONU %(serial)s was updated."
     page_title = "Edit ONU"
+    template_name = "warehouse/onu_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        onu = self.object
+        context["page_subtitle"] = " · ".join(filter(None, [onu.serial, onu.model]))
+        return context
 
 
 class OnuDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
