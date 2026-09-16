@@ -9,7 +9,20 @@ from .models import Client, Package, Subscription
 
 
 class BootstrapFormMixin:
-    """Apply Bootstrap classes once, instead of in every template."""
+    """Apply Bootstrap classes once, instead of in every template.
+
+    Also carries the optional layout declaration that `{% form_sections %}`
+    reads. A form that says nothing renders exactly as it always did: one
+    labelled field after another. Declaring `fieldsets` opts it into the
+    sectioned two-column layout instead.
+    """
+
+    #: Sections, as `{"title", "caption", "fields"}`. Empty means one plain stack.
+    fieldsets: tuple[dict, ...] = ()
+    #: Fields that need the full width of the grid (an address, a long note).
+    wide_fields: frozenset[str] = frozenset()
+    #: Fields holding a handful of characters, given an input to match.
+    compact_fields: frozenset[str] = frozenset()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -26,6 +39,36 @@ class BootstrapFormMixin:
 
 
 class PackageForm(BootstrapFormMixin, forms.ModelForm):
+    fieldsets = (
+        {
+            "title": "Plan",
+            "caption": "What you call it, and the line a client sees beside the name.",
+            "fields": ["name", "description"],
+        },
+        {
+            "title": "Bandwidth",
+            "caption": "The speed you sell, and how much of it is cached traffic "
+            "rather than upstream you pay for.",
+            "fields": ["bandwidth_mbps", "ggc_mbps", "fna_mbps"],
+        },
+        {
+            "title": "Price",
+            "caption": "The list price for the plan. A client can still be put on a "
+            "price agreed with them instead.",
+            "fields": ["monthly_price", "commission_percent"],
+        },
+        {
+            "title": "Availability",
+            "caption": "Retiring a plan stops it being offered to new clients. "
+            "Anyone already on it stays on it.",
+            "fields": ["is_active"],
+        },
+    )
+    wide_fields = frozenset({"description"})
+    compact_fields = frozenset(
+        {"bandwidth_mbps", "ggc_mbps", "fna_mbps", "monthly_price", "commission_percent"}
+    )
+
     class Meta:
         model = Package
         fields = [
@@ -38,12 +81,39 @@ class PackageForm(BootstrapFormMixin, forms.ModelForm):
             "description",
             "is_active",
         ]
+        # Presentation only, so the labels read like the column headings on the
+        # list rather than like field names. Changing the model's verbose names
+        # would mean a migration for a piece of wording.
+        labels = {
+            "bandwidth_mbps": "Speed (Mbps)",
+            "commission_percent": "Commission %",
+            "description": "Description",
+            "is_active": "On sale",
+        }
 
 
 class PopForm(BootstrapFormMixin, forms.ModelForm):
+    fieldsets = (
+        {
+            "title": "Identity",
+            "caption": "What this POP is called, the short code that stands in for "
+            "it on reports, and where the equipment sits.",
+            "fields": ["name", "code", "address"],
+        },
+        {
+            "title": "Network",
+            "caption": "Which POP feeds this one, and whether it is in service. "
+            "Leave the upstream blank for a POP fed directly.",
+            "fields": ["parent", "is_active"],
+        },
+    )
+    wide_fields = frozenset({"address"})
+    compact_fields = frozenset({"code"})
+
     class Meta:
         model = Pop
         fields = ["name", "code", "address", "parent", "is_active"]
+        labels = {"is_active": "In service"}
 
     def clean_parent(self):
         parent = self.cleaned_data.get("parent")
@@ -82,6 +152,43 @@ class ClientForm(BootstrapFormMixin, forms.ModelForm):
         help_text="Leave blank to use the package's rate, or the one in billing settings.",
     )
 
+    # Seventeen fields in one column is a scroll, not a form. Grouped, it is
+    # four short questions: who they are, where the line goes, what they pay,
+    # and when you invoice them.
+    fieldsets = (
+        {
+            "title": "Identity",
+            "caption": "Who they are, and how you reach them.",
+            "fields": ["name", "username", "phone", "email", "nid"],
+        },
+        {
+            "title": "Connection",
+            "caption": "Where the line lands, and the hardware on the end of it.",
+            "fields": ["address", "pop", "onu", "connection_date", "status"],
+        },
+        {
+            "title": "Plan & price",
+            "caption": "The package, and what this client actually pays for it. "
+            "The price and commission are agreed per client; leave them blank "
+            "to follow the package.",
+            "fields": ["package", "monthly_price", "discount", "commission_percent"],
+        },
+        {
+            "title": "Billing",
+            "caption": "When the invoice goes out, and who collects it.",
+            "fields": ["billing_day", "collection_mode"],
+        },
+        {
+            "title": "Notes",
+            "caption": "Anything the next person answering the phone should know.",
+            "fields": ["notes"],
+        },
+    )
+    wide_fields = frozenset({"address"})
+    compact_fields = frozenset(
+        {"monthly_price", "discount", "commission_percent", "billing_day", "connection_date"}
+    )
+
     class Meta:
         model = Client
         fields = [
@@ -101,7 +208,7 @@ class ClientForm(BootstrapFormMixin, forms.ModelForm):
         ]
         widgets = {
             "connection_date": forms.DateInput(attrs={"type": "date"}),
-            "notes": forms.Textarea(attrs={"rows": 2}),
+            "notes": forms.Textarea(attrs={"rows": 3}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -121,6 +228,9 @@ class ClientForm(BootstrapFormMixin, forms.ModelForm):
             ("", "Use the billing-settings default"),
             *CollectionMode.choices,
         ]
+
+        # The "Notes" section heading names this field already.
+        self.fields["notes"].label = ""
 
         subscription = self.instance.subscription if self.instance.pk else None
         if subscription:

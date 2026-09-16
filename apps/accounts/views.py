@@ -146,6 +146,8 @@ class ClientCreateView(CrudViewMixin, CreateView):
     template_name = "form.html"
     success_message = "Client %(name)s was added."
     page_title = "Add client"
+    page_subtitle = "Their details, their plan and their billing day, in one pass"
+    cancel_url = reverse_lazy("client_list")
 
     @transaction.atomic
     def form_valid(self, form):
@@ -177,6 +179,13 @@ class ClientUpdateView(ClientCreateView, UpdateView):
 
     def get_queryset(self):
         return Client.objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Whose record this is, so a form reached from a list of 200 names
+        # says which one you opened.
+        context["page_subtitle"] = f"{self.object.name} · {self.object.client_code}"
+        return context
 
 
 class ClientDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
@@ -292,6 +301,7 @@ class PackageCreateView(CrudViewMixin, CreateView):
     success_url = reverse_lazy("package_list")
     success_message = "Package %(name)s was created."
     page_title = "Add package"
+    page_subtitle = "Speed, price and commission for a plan you sell"
 
 
 class PackageUpdateView(CrudViewMixin, UpdateView):
@@ -305,6 +315,7 @@ class PackageUpdateView(CrudViewMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["page_subtitle"] = str(self.object)
         context["notice"] = (
             "Changing the price here affects new subscriptions only. Existing clients "
             "keep the price agreed with them until you change it on their record."
@@ -434,6 +445,7 @@ class PopCreateView(CrudViewMixin, CreateView):
     success_url = reverse_lazy("pop_list")
     success_message = "POP %(name)s was created."
     page_title = "Add POP"
+    page_subtitle = "A point of presence, and the POP it takes its feed from"
 
 
 class PopUpdateView(CrudViewMixin, UpdateView):
@@ -444,6 +456,11 @@ class PopUpdateView(CrudViewMixin, UpdateView):
     success_url = reverse_lazy("pop_list")
     success_message = "POP %(name)s was updated."
     page_title = "Edit POP"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_subtitle"] = self.object.name
+        return context
 
 
 class PopDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):

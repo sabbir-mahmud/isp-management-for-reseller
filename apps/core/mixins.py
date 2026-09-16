@@ -91,3 +91,25 @@ class SortableListMixin:
 
 class CrudViewMixin(StaffViewMixin, PageTitleMixin, SuccessMessageMixin, ActorFormMixin):
     """The full stack every create/update view needs, in one name."""
+
+    #: Where Cancel goes. Falling back to the referer sent people wherever they
+    #: happened to come from, and to `/` when the browser sent no referer at
+    #: all — so a view that knows the answer should say so.
+    cancel_url = ""
+
+    def get_cancel_url(self):
+        if self.cancel_url:
+            return str(self.cancel_url)
+        obj = getattr(self, "object", None)
+        if obj is not None and obj.pk and hasattr(obj, "get_absolute_url"):
+            return obj.get_absolute_url()
+        success = getattr(self, "success_url", "")
+        # The referer is the last resort, read here rather than in the
+        # template: a browser that sends none is a missing key, and resolving
+        # one of those inside a `default:` argument raises.
+        return str(success) if success else self.request.META.get("HTTP_REFERER", "/")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.setdefault("cancel_url", self.get_cancel_url())
+        return context

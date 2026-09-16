@@ -228,6 +228,8 @@ class PaymentCreateView(StaffViewMixin, PageTitleMixin, FormView):
             f"{self.invoice.number} · {self.invoice.client.name} · "
             f"{self.invoice.amount_due} outstanding"
         )
+        # Not a `CrudViewMixin` view, so it names its own way back.
+        context["cancel_url"] = self.invoice.get_absolute_url()
         return context
 
     def form_valid(self, form):

@@ -1283,9 +1283,131 @@ tr:hover .row-action { color: #334155; border-color: var(--line); background: va
 /* ---- Forms ------------------------------------------------------------- */
 
 .form-page { max-width: 720px; }
-.form-label { font-weight: 550; font-size: 0.8125rem; }
-.helptext { font-size: 0.8125rem; color: var(--muted); }
+.form-label { font-weight: 550; font-size: 0.8125rem; margin-bottom: 0.3rem; }
+.helptext { font-size: 0.8125rem; color: var(--muted); margin-top: 0.3rem; }
 .required-marker { color: #dc2626; }
+
+.field-error { font-size: 0.8125rem; color: #b91c1c; margin-top: 0.3rem; }
+
+.form-error-summary {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.8125rem;
+  color: #7f1d1d;
+}
+.form-error-summary-title { font-weight: 650; margin: 0 0 0.35rem; }
+.form-error-summary ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.form-error-summary a { color: #b91c1c; font-weight: 600; }
+.has-error .form-control,
+.has-error .form-select { border-color: #f1a9a9; }
+.has-error .form-control:focus,
+.has-error .form-select:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12); }
+
+.form-notice {
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  color: #075985;
+  border-radius: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.8125rem;
+  margin-bottom: 1rem;
+}
+
+/* ---- Sectioned form ---- */
+
+/* A long form is easier to answer as a few short questions than as one list
+   of seventeen. Each section states what it is for on the left and takes the
+   fields on the right, the way a settings screen does. */
+.form-page.is-sectioned { max-width: 1040px; }
+
+.is-sectioned .form-section {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 1.25rem 2.5rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.is-sectioned .form-section:first-of-type { padding-top: 0.25rem; }
+
+.form-section-head { padding-top: 0.1rem; }
+.form-section-title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.25rem;
+}
+.form-section-caption { font-size: 0.8125rem; color: var(--muted); margin: 0; line-height: 1.5; }
+
+.is-sectioned .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 1.25rem;
+  align-content: start;
+}
+.is-sectioned .form-field.is-wide { grid-column: 1 / -1; }
+
+/* A billing day is two digits. Giving it the same box as an address is what
+   makes a form look like it was generated rather than designed. */
+.is-sectioned .form-field.is-compact .form-control,
+.is-sectioned .form-field.is-compact .form-select { max-width: 11rem; }
+
+/* Without fieldsets it is the plain stack in a card, exactly as before. Such
+   a form has precisely one section, so styling that is the whole job. */
+.form-page:not(.is-sectioned) .form-grid { display: flex; flex-direction: column; gap: 1rem; }
+.form-page:not(.is-sectioned) .form-section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  padding: 1.25rem;
+}
+
+.form-check-row { display: flex; align-items: flex-start; gap: 0.6rem; }
+/* A checkbox sharing a row with a normal field has no label above it, so it
+   would sit level with the neighbour's label rather than its input. Drop it by
+   the height of one. The first field in a section is not indented, so a
+   section that is only a checkbox still lines up with its own heading. */
+.is-sectioned .form-field:not(:first-child) > .form-check-row { padding-top: 1.55rem; }
+.form-check-row .form-check-input { margin: 0.15rem 0 0; flex: 0 0 auto; }
+.form-check-row label { margin: 0; cursor: pointer; }
+.form-check-label-text { display: block; font-weight: 550; font-size: 0.8125rem; }
+.form-check-row .helptext { margin-top: 0.1rem; }
+
+/* ---- Form actions ---- */
+
+/* Stuck to the bottom of the viewport rather than the bottom of the document:
+   on a form this long, Save was a scroll away from wherever you were. */
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding: 0.85rem 0;
+  background: linear-gradient(to bottom, rgba(246, 248, 250, 0) 0%, var(--canvas) 45%);
+}
+.form-actions .btn { min-width: 108px; }
+.form-actions-note { margin-right: auto; font-size: 0.75rem; color: var(--muted); }
+
+@media (max-width: 992px) {
+  .is-sectioned .form-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+    padding: 1.25rem 0;
+  }
+  .is-sectioned .form-grid { grid-template-columns: minmax(0, 1fr); }
+  /* One column: nothing to line up with. */
+  .is-sectioned .form-field:not(:first-child) > .form-check-row { padding-top: 0; }
+  .is-sectioned .form-field.is-compact .form-control,
+  .is-sectioned .form-field.is-compact .form-select { max-width: none; }
+  .form-actions-note { display: none; }
+  .form-actions .btn { flex: 1 1 auto; }
+}
 
 /* ---- Login ------------------------------------------------------------- */
 
