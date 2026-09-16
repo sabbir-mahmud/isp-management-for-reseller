@@ -3,12 +3,14 @@
 import logging
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView
 from django.db.models import Case, Count, F, IntegerField, Q, Value, When
 from django.urls import reverse_lazy
 from django.utils import timezone
-from django.views.generic import CreateView, ListView, UpdateView
+from django.views.generic import CreateView, ListView, TemplateView, UpdateView
 
 from apps.core.mixins import (
     CrudViewMixin,
@@ -20,10 +22,16 @@ from apps.core.mixins import (
 from apps.core.utils import filtered_url
 
 from .filters import StaffFilter
-from .forms import StaffCreateForm, StaffUpdateForm, StyledAuthenticationForm, role_of
+from .forms import (
+    StaffCreateForm,
+    StaffUpdateForm,
+    StyledAuthenticationForm,
+    StyledPasswordChangeForm,
+    role_of,
+)
 from .models import Profile, Role
 from .roles import ROLE_DESCRIPTIONS
-from .throttle import client_ip, is_locked, record_failure, reset
+from .throttle import attempts_left, client_ip, is_locked, record_failure, reset
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -49,7 +57,7 @@ class ThrottledLoginView(LoginView):
             form = self.get_form()
             form.full_clean()
             form.add_error(None, "Too many failed attempts. Try again in a few minutes.")
-            return self.render_to_response(self.get_context_data(form=form))
+            return self.render_to_response(self.get_context_data(form=form, locked=True))
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -62,7 +70,17 @@ class ThrottledLoginView(LoginView):
         ip = client_ip(self.request)
         record_failure(username, ip)
         logger.warning("login failure user=%s ip=%s", username, ip)
-        return super().form_invalid(form)
+        left = attempts_left(username, ip)
+        # Only say so near the end: a count from the first miss is noise.
+        context = {"form": form, "attempts_left": left if left <= 2 else None}
+        if not left:
+            context["locked"] = True
+        return self.render_to_response(self.get_context_data(**context))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["lockout_minutes"] = max(settings.LOGIN_FAILURE_TIMEOUT // 60, 1)
+        return context
 
 
 class SignOutView(LogoutView):
@@ -72,9 +90,37 @@ class SignOutView(LogoutView):
 
 
 class ChangePasswordView(PageTitleMixin, PasswordChangeView):
+    """Django's view, which also keeps this session signed in afterwards.
+
+    Every other session is signed out by the change (their stored auth hash
+    no longer matches), which the done page says, since that is the point
+    of changing a password someone else may know.
+    """
+
     template_name = "users/password_change.html"
-    success_url = reverse_lazy("dashboard")
+    form_class = StyledPasswordChangeForm
+    success_url = reverse_lazy("password_change_done")
     page_title = "Change password"
+    page_subtitle = "For the account you are signed in with"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        context["submit_label"] = "Change password"
+        context["cancel_url"] = reverse_lazy("dashboard")
+        context["profile_role"] = role_of(user)
+        # Names the checklist compares the new password against.
+        context["personal_words"] = [
+            word
+            for word in (user.username, user.first_name, user.last_name, user.email.split("@")[0])
+            if word and len(word) >= 3
+        ]
+        return context
+
+
+class PasswordChangedView(LoginRequiredMixin, PageTitleMixin, TemplateView):
+    template_name = "users/password_change_done.html"
+    page_title = "Password changed"
 
 
 class StaffListView(StaffViewMixin, PageTitleMixin, SortableListMixin, HtmxTemplateMixin, ListView):

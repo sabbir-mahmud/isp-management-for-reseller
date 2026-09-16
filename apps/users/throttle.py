@@ -33,6 +33,12 @@ def is_locked(username: str, ip: str) -> bool:
     return any((cache.get(key) or 0) >= limit for key in _keys(username, ip))
 
 
+def attempts_left(username: str, ip: str) -> int:
+    """Failures still allowed before the lockout, by the stricter of the two keys."""
+    used = max((cache.get(key) or 0) for key in _keys(username, ip))
+    return max(settings.LOGIN_FAILURE_LIMIT - used, 0)
+
+
 def record_failure(username: str, ip: str) -> None:
     timeout = settings.LOGIN_FAILURE_TIMEOUT
     for key in _keys(username, ip):

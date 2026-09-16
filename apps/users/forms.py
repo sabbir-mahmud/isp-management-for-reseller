@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, UserCreationForm
 from django.db.models import Q
 
 from apps.accounts.forms import BootstrapFormMixin
@@ -17,11 +17,71 @@ class StyledAuthenticationForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["username"].widget.attrs.update(
-            {"class": "form-control form-control-lg", "autofocus": True, "placeholder": "Username"}
+            {
+                "class": "form-control form-control-lg",
+                "autofocus": True,
+                "placeholder": "e.g. karim",
+                "autocapitalize": "none",
+                "spellcheck": "false",
+            }
         )
         self.fields["password"].widget.attrs.update(
-            {"class": "form-control form-control-lg", "placeholder": "Password"}
+            {
+                "class": "form-control form-control-lg",
+                "placeholder": "Your password",
+                "data-password-input": "",
+            }
         )
+
+
+#: Django's password rules, as one line each. The validators' own help is an
+#: HTML list written for developers; these are what the checklist shows.
+PASSWORD_RULES = [
+    ("length", "At least 8 characters"),
+    ("not_numeric", "Not only numbers"),
+    ("not_personal", "Not close to your username or name"),
+    ("not_common", "Not a commonly used password (checked when you save)"),
+]
+
+
+class StyledPasswordChangeForm(BootstrapFormMixin, PasswordChangeForm):
+    fieldsets = (
+        {
+            "title": "Current password",
+            "caption": "To confirm it is you making the change.",
+            "fields": ["old_password"],
+        },
+        {
+            "title": "New password",
+            "caption": "Long beats clever: a few unrelated words are easier to "
+            "remember and harder to guess than a short jumble.",
+            "fields": ["new_password1", "new_password2"],
+        },
+    )
+    wide_fields = frozenset({"old_password", "new_password1", "new_password2"})
+    field_addons = {
+        "new_password1": "users/partials/password_rules.html",
+        "new_password2": "users/partials/password_match.html",
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.password_rules = PASSWORD_RULES
+        labels = {
+            "old_password": "Current password",
+            "new_password1": "New password",
+            "new_password2": "Type it again",
+        }
+        for name, label in labels.items():
+            field = self.fields[name]
+            field.label = label
+            field.help_text = ""
+            field.widget.attrs["data-password-input"] = ""
+        self.fields["old_password"].widget.attrs["autocomplete"] = "current-password"
+        for name in ("new_password1", "new_password2"):
+            self.fields[name].widget.attrs["autocomplete"] = "new-password"
+        self.fields["new_password1"].widget.attrs["data-strength-source"] = ""
+        self.fields["new_password2"].widget.attrs["data-match-source"] = ""
 
 
 def role_of(user) -> str:

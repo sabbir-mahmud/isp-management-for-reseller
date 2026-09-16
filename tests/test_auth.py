@@ -84,3 +84,75 @@ def test_a_new_plain_user_starts_at_the_least_privilege(db):
 
     user = get_user_model().objects.create_user("plain", password="plainpass123")
     assert Profile.objects.get(user=user).role == Role.SUPPORT
+
+
+# ---- Page design --------------------------------------------------------------
+
+
+def test_the_login_page_has_the_brand_panel_and_password_tools(client):
+    body = client.get(reverse("login")).content.decode()
+    assert "login-brand" in body
+    assert "data-password-input" in body
+    assert "js/password-tools.js" in body
+    assert 'name="next"' not in body  # only when there is somewhere to go
+
+
+def test_the_last_attempts_are_counted_down(client, make_user, settings):
+    settings.LOGIN_FAILURE_LIMIT = 4
+    make_user("gina", Role.OWNER, password="rightpass123")
+
+    first = client.post(reverse("login"), {"username": "gina", "password": "wrong"})
+    assert first.context["attempts_left"] is None  # 3 left: not worth saying yet
+    assert b"That did not match" in first.content
+
+    second = client.post(reverse("login"), {"username": "gina", "password": "wrong"})
+    assert second.context["attempts_left"] == 2
+    assert b"2 attempts left" in second.content
+
+    client.post(reverse("login"), {"username": "gina", "password": "wrong"})
+    fourth = client.post(reverse("login"), {"username": "gina", "password": "wrong"})
+    assert fourth.context["locked"]
+    assert b"Sign-in paused" in fourth.content
+
+
+def test_changing_a_password_lands_on_the_confirmation(client, make_user):
+    user = make_user("hana", Role.SUPPORT, password="rightpass123")
+    client.force_login(user)
+
+    page = client.get(reverse("password_change"))
+    assert page.status_code == 200
+    assert "is-sectioned" in page.content.decode()
+    assert "hana" in page.context["personal_words"]
+
+    response = client.post(
+        reverse("password_change"),
+        {
+            "old_password": "rightpass123",
+            "new_password1": "quiet-harbour-lantern-7",
+            "new_password2": "quiet-harbour-lantern-7",
+        },
+    )
+    assert response.status_code == 302
+    assert response.url == reverse("password_change_done")
+
+    done = client.get(response.url)
+    assert b"Your password was changed" in done.content
+    # Support has no dashboard, so the way on is the client list.
+    assert reverse("client_list").encode() in done.content
+
+
+def test_a_weak_new_password_is_refused_with_the_form_intact(client, make_user):
+    user = make_user("ivan", Role.OWNER, password="rightpass123")
+    client.force_login(user)
+    response = client.post(
+        reverse("password_change"),
+        {"old_password": "rightpass123", "new_password1": "12345678", "new_password2": "12345678"},
+    )
+    assert response.status_code == 200
+    assert response.context["form"].errors["new_password2"]
+
+
+def test_the_confirmation_needs_a_signed_in_user(client):
+    response = client.get(reverse("password_change_done"))
+    assert response.status_code == 302
+    assert reverse("login") in response.url
