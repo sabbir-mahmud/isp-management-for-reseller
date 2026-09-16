@@ -728,6 +728,112 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
 }
 .breakdown-fill { height: 100%; border-radius: 999px; background: #0d9488; }
 
+/* ---- Period stepper ---------------------------------------------------- */
+
+.period-nav { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+.period-step {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--surface);
+  text-decoration: none;
+}
+.period-step:hover { color: var(--ink); background: #f1f5f9; }
+.period-step.disabled { opacity: 0.35; pointer-events: none; }
+.icon.flip { transform: rotate(180deg); }
+
+/* ---- Statement --------------------------------------------------------- */
+
+.statement > tbody > tr > td { padding: 0.5rem 0.75rem; }
+.statement-note { font-size: 0.6875rem; color: var(--muted); margin-top: 0.1rem; }
+
+/* Context lines are the working, not the result: recessive, and the gross
+   figure they carry is deliberately quieter than the revenue below it. */
+.statement-context > td,
+.statement-context-sub > td { color: var(--muted); font-size: 0.8125rem; }
+.statement-context-sub > td:first-child { padding-left: 1.6rem; }
+
+.statement-line > td { color: var(--ink); }
+.statement-negative > td { color: var(--ink); }
+
+.statement-subtotal > td {
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+}
+.statement-total > td {
+  border-top: 2px solid var(--ink);
+  border-bottom: 0;
+  font-weight: 700;
+  font-size: 1rem;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+.statement-meta > td { color: var(--muted); font-size: 0.8125rem; border-top: 0; }
+.statement-prior { color: var(--muted); }
+
+.statement-delta { font-weight: 600; font-size: 0.8125rem; }
+.statement-delta.up { color: #047857; }
+.statement-delta.down { color: #b91c1c; }
+
+.statement-figure {
+  font-size: 1.375rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin: 0.3rem 0 0.15rem;
+}
+
+.breakdown-fill.expense { background: #ea580c; }
+
+/* ---- Print ------------------------------------------------------------- */
+
+@media print {
+  /* A financial report gets printed and filed. Strip the application chrome
+     and let the statement fall onto the page. */
+  .sidebar,
+  .sidebar-backdrop,
+  .app-header .page-actions,
+  .sidebar-toggle,
+  .chart-tooltip { display: none !important; }
+
+  body { background: #fff; font-size: 11pt; }
+  .app-shell { display: block; }
+  .app-header {
+    position: static;
+    background: #fff;
+    backdrop-filter: none;
+    padding: 0 0 0.5rem;
+    border-bottom: 1px solid #000;
+  }
+  .app-body { padding: 0; }
+  .app-body-inner { max-width: none; }
+
+  .hero {
+    background: #fff !important;
+    color: #000;
+    border: 1px solid #000;
+  }
+  .hero .stat-label, .hero .stat-note, .hero-part-label { color: #333 !important; }
+  .hero .delta { background: none !important; color: #000 !important; padding: 0; }
+
+  .card { border: 1px solid #999; box-shadow: none; break-inside: avoid; }
+  .stat { break-inside: avoid; }
+  .row > [class*="col-"] { break-inside: avoid; }
+
+  /* The chart's table view is the printable form of it. */
+  .chart-plot, .chart-labels, .chart-legend { display: none; }
+  .chart-table { margin-top: 0; }
+  .chart-table summary { display: none; }
+  .chart-table[open] .table-wrap,
+  .chart-table .table-wrap { display: block !important; }
+
+  a[href]::after { content: ""; }
+}
+
 /* ---- Forms ------------------------------------------------------------- */
 
 .form-page { max-width: 720px; }

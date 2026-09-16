@@ -3,7 +3,6 @@
 import csv
 from datetime import date
 
-from django.db.models import Sum
 from django.http import HttpResponse
 from django.utils import timezone
 from django.views.generic import TemplateView
@@ -12,7 +11,7 @@ from apps.accountants.models import Expense, Invoice, Payment
 from apps.accountants.services import upstream_position
 from apps.accounts.models import Client
 from apps.core.mixins import PageTitleMixin, StaffViewMixin
-from apps.core.utils import add_months, month_end, month_start
+from apps.core.utils import add_months, month_start
 
 from . import metrics
 
@@ -52,7 +51,7 @@ class DashboardView(StaffViewMixin, PageTitleMixin, TemplateView):
 
 
 class FinancialReportView(StaffViewMixin, PageTitleMixin, TemplateView):
-    """Month-by-month profit and loss, with the commission split spelled out."""
+    """Month-by-month profit and loss, with the settlement position spelled out."""
 
     permission_required = "accountants.view_financial_report"
     template_name = "reports/financial.html"
@@ -61,37 +60,47 @@ class FinancialReportView(StaffViewMixin, PageTitleMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         period = _period_from_request(self.request)
+        prior = add_months(period, -1)
+        trend = metrics.revenue_trend(12, period)
+
         context["period"] = period
+        context["prior"] = prior
         context["page_subtitle"] = f"{period:%B %Y}"
-        context["profit"] = metrics.profit(period)
-        context["commission"] = metrics.commission_split(period)
+
+        # Month-to-month stepping, so reading back through the year does not
+        # mean going via the dropdown every time. Capped at the current month:
+        # there is nothing to report from the future.
+        context["previous_period"] = prior
+        following = add_months(period, 1)
+        context["next_period"] = following if following <= month_start() else None
+        context["period_options"] = [add_months(month_start(), -offset) for offset in range(12)]
+
+        context["statement"] = metrics.profit_and_loss(period)
+        context["expense_breakdown"] = metrics.expense_breakdown(period)
+        context["trend"] = trend
+        context["revenue_series"] = [("revenue", "Revenue earned"), ("expenses", "Expenses")]
+
+        # Headline tiles, each carrying the month before so the figures read as
+        # movement rather than as isolated numbers.
+        context["net"] = metrics.Money(
+            metrics.revenue(period) - metrics.expenses(period),
+            metrics.revenue(prior) - metrics.expenses(prior),
+        )
+        context["revenue"] = metrics.Money(metrics.revenue(period), metrics.revenue(prior))
+        context["expenses"] = metrics.Money(metrics.expenses(period), metrics.expenses(prior))
+        context["commission_earned"] = metrics.Money(
+            metrics.commission_earned(period), metrics.commission_earned(prior)
+        )
         context["billed"] = metrics.billed(period)
         context["client_payments"] = metrics.client_payments(period)
-        context["reseller_cash"] = metrics.reseller_cash(period)
-        context["upstream_direct"] = metrics.upstream_direct(period)
-        context["commission_earned"] = metrics.commission_earned(period)
-        context["other_income"] = metrics.other_income(period)
         context["collection_rate"] = metrics.collection_rate(period)
         context["outstanding"] = metrics.outstanding_total()
         context["outstanding_by_mode"] = metrics.outstanding_by_mode()
+        context["aging"] = metrics.aging_buckets()
+        context["commission"] = metrics.commission_split(period)
         context["upstream"] = upstream_position(period)
         context["upstream_all_time"] = upstream_position()
-        context["trend"] = metrics.revenue_trend(12, period)
-        context["revenue_series"] = [("revenue", "Revenue earned"), ("expenses", "Expenses")]
-        context["aging"] = metrics.aging_buckets()
-        context["expense_breakdown"] = _expense_breakdown(period)
-        context["period_options"] = [add_months(month_start(), -offset) for offset in range(12)]
         return context
-
-
-def _expense_breakdown(period):
-    """Where the month's money went, largest category first."""
-    return (
-        Expense.objects.filter(occurred_on__range=(month_start(period), month_end(period)))
-        .values("category")
-        .annotate(total=Sum("amount"))
-        .order_by("-total")
-    )
 
 
 class ExportView(StaffViewMixin, TemplateView):

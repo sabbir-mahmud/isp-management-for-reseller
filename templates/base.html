@@ -167,6 +167,21 @@
     });
     window.addEventListener('scroll', hide, { passive: true });
   })();
+
+  // Printing. A collapsed <details> prints as nothing in some browsers no
+  // matter what the stylesheet says, and the chart's table view is how the
+  // chart prints — so open them first and put them back afterwards.
+  (function () {
+    let reopened = [];
+    window.addEventListener('beforeprint', () => {
+      reopened = [...document.querySelectorAll('details:not([open])')];
+      reopened.forEach((el) => el.setAttribute('open', ''));
+    });
+    window.addEventListener('afterprint', () => {
+      reopened.forEach((el) => el.removeAttribute('open'));
+      reopened = [];
+    });
+  })();
 </script>
 {% block scripts %}{% endblock %}
 </body>

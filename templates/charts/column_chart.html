@@ -43,6 +43,8 @@ table view sits underneath so the figures are reachable without colour.
       {% for band in bands %}<span class="chart-label">{{ band.label }}</span>{% endfor %}
     </div>
 
+    {% comment %} Open in print (see the print stylesheet): a collapsed
+    <details> prints as nothing, and the table is how the chart prints. {% endcomment %}
     <details class="chart-table">
       <summary>Show the figures</summary>
       <div class="table-wrap">

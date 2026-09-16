@@ -1,117 +1,258 @@
 {% extends "base.html" %}
-{% load ui charts %}
+{% load ui charts icons %}
+
 {% block page_actions %}
-  <form method="get">
-    <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
-      {% for option in period_options %}
-        <option value="{{ option|date:'Y-m-d' }}" {% if option == period %}selected{% endif %}>{{ option|date:"F Y" }}</option>
-      {% endfor %}
-    </select>
-  </form>
-{% endblock %}
-{% block content %}
-<div class="stack">
-
-<div class="row g-3">
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Billed" value=billed|money icon="invoices" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Customers paid" value=client_payments|money meta=collection_rate|percent|add:" of billed" icon="payments" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Commission earned" value=commission_earned|money icon="report" tone="accent" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Outstanding" value=outstanding|money meta="All periods" icon="expenses" %}</div>
-</div>
-
-<div class="row g-3">
-  <div class="col-12 col-xl-5">
-    <div class="card h-100">
-      <div class="card-header"><span>Profit &amp; loss</span><span class="card-sub">{{ period|date:"F Y" }}</span></div>
-      <div class="card-body">
-        {% comment %}
-        Gross customer money is shown as context, then explicitly excluded: the
-        upstream share was never the reseller's revenue, so the P&L starts at
-        commission.
-        {% endcomment %}
-        <table class="table table-sm mb-0">
-          <tbody>
-            <tr><td class="text-muted">Customers paid (gross)</td><td class="numeric text-muted">{{ client_payments|money }}</td></tr>
-            <tr><td class="ps-3 small text-muted">— you collected</td><td class="numeric small text-muted">{{ reseller_cash|money }}</td></tr>
-            <tr><td class="ps-3 small text-muted">— paid {{ commission.upstream_name }} directly</td><td class="numeric small text-muted">{{ upstream_direct|money }}</td></tr>
-            <tr class="border-top"><td class="text-muted">Commission earned</td><td class="numeric">{{ commission_earned|money }}</td></tr>
-            <tr><td class="text-muted">Other income</td><td class="numeric">{{ other_income|money }}</td></tr>
-            <tr class="border-top"><td class="fw-semibold">Revenue</td><td class="numeric fw-semibold">{{ profit.revenue|money }}</td></tr>
-            <tr><td class="text-muted">Expenses</td><td class="numeric text-danger">−{{ profit.expenses|money }}</td></tr>
-            <tr class="border-top">
-              <td class="fw-semibold">Net</td>
-              <td class="numeric fw-semibold {% if profit.net < 0 %}text-danger{% else %}text-success{% endif %}">{{ profit.net|money }}</td>
-            </tr>
-            <tr><td class="text-muted">Margin</td><td class="numeric">{{ profit.margin|percent }}</td></tr>
-          </tbody>
-        </table>
-        <hr>
-        <div class="small text-muted mb-2">
-          Position with {{ commission.upstream_name }} ({{ commission.commission_percent }}% default)
-        </div>
-        <div class="d-flex justify-content-between"><span class="text-muted">To remit this month</span><span class="numeric">{{ upstream.payable|money }}</span></div>
-        <div class="d-flex justify-content-between"><span class="text-muted">Commission receivable</span><span class="numeric">{{ upstream.receivable|money }}</span></div>
-        <div class="d-flex justify-content-between border-top pt-2 mt-2">
-          <span class="text-muted small">All-time balance</span>
-          <span class="numeric small">
-            {{ upstream_all_time.payable|money }} owed / {{ upstream_all_time.receivable|money }} due
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-xl-4">
-    <div class="card h-100">
-      <div class="card-header"><span>Where the money went</span><span class="card-sub">{{ profit.expenses|money }}</span></div>
-      <div class="table-wrap">
-        <table class="table table-sm mb-0">
-          <thead><tr><th>Category</th><th class="numeric">Amount</th></tr></thead>
-          <tbody>
-            {% for row in expense_breakdown %}
-              <tr><td>{{ row.category|title }}</td><td class="numeric">{{ row.total|money }}</td></tr>
-            {% empty %}
-              <tr><td colspan="2" class="text-muted small p-3">No expenses this month.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-xl-3">
-    <div class="card h-100">
-      <div class="card-header"><span>Aged debt</span><span class="card-sub">{{ outstanding|money }}</span></div>
-      <div class="card-body">
-        {% for bucket in aging %}
-          <div class="d-flex justify-content-between mb-2">
-            <span class="text-muted small">{{ bucket.label }}</span>
-            <span class="numeric small">{{ bucket.amount|money }}</span>
-          </div>
+  <div class="period-nav" role="group" aria-label="Change month">
+    <a class="period-step" href="?period={{ previous_period|date:'Y-m-d' }}"
+       aria-label="Previous month" title="{{ previous_period|date:'F Y' }}">{% icon "chevron" 16 "icon flip" %}</a>
+    <form method="get">
+      <select name="period" class="form-select form-select-sm" onchange="this.form.submit()"
+              aria-label="Reporting month">
+        {% for option in period_options %}
+          <option value="{{ option|date:'Y-m-d' }}" {% if option == period %}selected{% endif %}>
+            {{ option|date:"F Y" }}
+          </option>
         {% endfor %}
-        <hr>
-        <div class="d-flex justify-content-between mb-1">
-          <span class="text-muted small">Yours to chase</span>
-          <span class="numeric small">{{ outstanding_by_mode.reseller|money }}</span>
+      </select>
+    </form>
+    {% if next_period %}
+      <a class="period-step" href="?period={{ next_period|date:'Y-m-d' }}"
+         aria-label="Next month" title="{{ next_period|date:'F Y' }}">{% icon "chevron" 16 %}</a>
+    {% else %}
+      <span class="period-step disabled" aria-hidden="true">{% icon "chevron" 16 %}</span>
+    {% endif %}
+  </div>
+  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">Print</button>
+  {% if perms.accountants.export_data %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'export' 'expenses' %}">Export expenses</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack report">
+
+  {% comment %}
+  A financial report leads with its bottom line. Everything above it on the
+  statement is the working that produced this number.
+  {% endcomment %}
+  <div class="row g-3">
+    <div class="col-12 col-xl-7">
+      <div class="hero">
+        <div class="hero-main">
+          <span class="stat-label">Net profit · {{ period|date:"F Y" }}</span>
+          <p class="hero-value">{{ net.value|money }}</p>
+          <div class="stat-meta">
+            {% if net.direction == 'flat' %}
+              <span class="delta delta-flat">No change</span>
+            {% else %}
+              <span class="delta {% if net.direction == 'up' %}delta-good{% else %}delta-bad{% endif %}">
+                {% if net.direction == 'up' %}↑{% else %}↓{% endif %} {{ net.delta|money }}
+              </span>
+            {% endif %}
+            <span class="stat-note">vs {{ prior|date:"F" }} · margin {{ statement.margin|percent }}
+              (was {{ statement.prior_margin|percent }})</span>
+          </div>
+          <div class="hero-breakdown">
+            <span class="hero-part"><span class="hero-part-label">Revenue</span>{{ revenue.value|money }}</span>
+            <span class="hero-part"><span class="hero-part-label">Expenses</span>{{ expenses.value|money }}</span>
+            <span class="hero-part"><span class="hero-part-label">Commission</span>{{ commission_earned.value|money }}</span>
+          </div>
         </div>
-        <div class="d-flex justify-content-between">
-          <span class="text-muted small">{{ commission.upstream_name|capfirst }} to chase</span>
-          <span class="numeric small">{{ outstanding_by_mode.upstream|money }}</span>
+        <div class="hero-trend">
+          {% sparkline trend "net" 200 56 "net-spark" %}
+          <span class="stat-note">Net, last 12 months</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+      <div class="row g-3 h-100">
+        <div class="col-6">
+          {% include "partials/kpi.html" with label="Revenue earned" value=revenue.value|money metric=revenue icon="report" tone="accent" %}
+        </div>
+        <div class="col-6">
+          {% include "partials/kpi.html" with label="Expenses" value=expenses.value|money metric=expenses invert=1 icon="expenses" %}
+        </div>
+        <div class="col-6">
+          {% include "partials/kpi.html" with label="Collection rate" value=collection_rate|percent meta=client_payments|money|add:" of "|add:billed|money icon="payments" %}
+        </div>
+        <div class="col-6">
+          {% include "partials/kpi.html" with label="Outstanding" value=outstanding|money meta="All periods" icon="invoices" %}
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<div class="card">
-  <div class="card-header">
-    <span>Earned revenue vs expenses</span>
-    <span class="card-sub">Last 12 months</span>
+  <div class="row g-3">
+    <div class="col-12 col-xl-7">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>Profit &amp; loss</span>
+          <span class="card-sub">{{ period|date:"F Y" }} vs {{ prior|date:"F Y" }}</span>
+        </div>
+        <div class="table-wrap">
+          <table class="table table-sm statement mb-0">
+            <thead>
+              <tr>
+                <th>Line</th>
+                <th class="numeric">{{ period|date:"M Y" }}</th>
+                <th class="numeric">{{ prior|date:"M Y" }}</th>
+                <th class="numeric">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in statement.rows %}
+                <tr class="statement-{{ row.kind }}">
+                  <td>
+                    {{ row.label }}
+                    {% if row.note %}<div class="statement-note">{{ row.note }}</div>{% endif %}
+                  </td>
+                  <td class="numeric">
+                    {% if row.kind == 'negative' %}−{% endif %}{{ row.value|money }}
+                  </td>
+                  <td class="numeric statement-prior">
+                    {% if row.kind == 'negative' %}−{% endif %}{{ row.prior|money }}
+                  </td>
+                  <td class="numeric">
+                    {% if row.delta %}
+                      <span class="statement-delta{% if row.kind == 'negative' %}{% if row.delta > 0 %} down{% else %} up{% endif %}{% else %}{% if row.delta > 0 %} up{% else %} down{% endif %}{% endif %}">
+                        {% if row.delta > 0 %}+{% endif %}{{ row.delta|money }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+              <tr class="statement-meta">
+                <td>Margin</td>
+                <td class="numeric">{{ statement.margin|percent }}</td>
+                <td class="numeric statement-prior">{{ statement.prior_margin|percent }}</td>
+                <td class="numeric"><span class="text-muted">—</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>Position with {{ commission.upstream_name|capfirst }}</span>
+          <a class="card-sub text-decoration-none" href="{% url 'settlement_list' %}">Settle up</a>
+        </div>
+        <div class="card-body">
+          {% comment %}
+          Its own card, not a footnote on the P&L: this is a balance-sheet
+          position, not part of the month's result.
+          {% endcomment %}
+          <div class="row g-3">
+            <div class="col-6">
+              <span class="stat-label">You owe them</span>
+              <p class="statement-figure {% if upstream_all_time.payable > 0 %}text-danger{% endif %}">
+                {{ upstream_all_time.payable|money }}
+              </p>
+              <span class="stat-note">{{ upstream.payable|money }} of it from {{ period|date:"F" }}</span>
+            </div>
+            <div class="col-6">
+              <span class="stat-label">They owe you</span>
+              <p class="statement-figure {% if upstream_all_time.receivable > 0 %}text-success{% endif %}">
+                {{ upstream_all_time.receivable|money }}
+              </p>
+              <span class="stat-note">{{ upstream.receivable|money }} of it from {{ period|date:"F" }}</span>
+            </div>
+          </div>
+          <hr>
+          <div class="breakdown">
+            <div class="breakdown-row">
+              <span class="breakdown-label">Commission rate (default)</span>
+              <span class="breakdown-value">{{ commission.commission_percent }}%</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Remitted this month</span>
+              <span class="breakdown-value">{{ upstream.remitted|money }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Commission received</span>
+              <span class="breakdown-value">{{ upstream.commission_received|money }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="card-body">
-    {% column_chart trend series=revenue_series chart_id="financial-trend" height=200 %}
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>Where the money went</span>
+          <span class="card-sub">{{ expenses.value|money }}</span>
+        </div>
+        <div class="card-body">
+          {% if expense_breakdown %}
+            <div class="breakdown">
+              {% for row in expense_breakdown %}
+                <div class="breakdown-row">
+                  <span class="breakdown-label">{{ row.label }} <span class="text-muted">· {{ row.share|percent }}</span></span>
+                  <span class="breakdown-value">{{ row.total|money }}</span>
+                  <span class="breakdown-track">
+                    <span class="breakdown-fill expense" style="width:{{ row.share }}%"></span>
+                  </span>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            {% include "partials/empty.html" with title="No expenses this month" hint="Costs you record will be broken down here." %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>Aged debt</span>
+          <span class="card-sub">{{ outstanding|money }}</span>
+        </div>
+        <div class="card-body">
+          <div class="breakdown">
+            {% for bucket in aging %}
+              <div class="breakdown-row">
+                <span class="breakdown-label">{{ bucket.label }} <span class="text-muted">· {{ bucket.count }}</span></span>
+                <span class="breakdown-value">{{ bucket.amount|money }}</span>
+                <span class="breakdown-track">
+                  <span class="breakdown-fill" style="width:{% widthratio bucket.amount outstanding 100 %}%"></span>
+                </span>
+              </div>
+            {% endfor %}
+          </div>
+          <hr>
+          <div class="breakdown">
+            <div class="breakdown-row">
+              <span class="breakdown-label">Yours to chase</span>
+              <span class="breakdown-value">{{ outstanding_by_mode.reseller|money }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">{{ commission.upstream_name|capfirst }} to chase</span>
+              <span class="breakdown-value">{{ outstanding_by_mode.upstream|money }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span>Earned revenue vs expenses</span>
+      <span class="card-sub">Last 12 months</span>
+    </div>
+    <div class="card-body">
+      {% column_chart trend series=revenue_series chart_id="financial-trend" height=200 %}
+    </div>
+  </div>
 
 </div>
 {% endblock %}

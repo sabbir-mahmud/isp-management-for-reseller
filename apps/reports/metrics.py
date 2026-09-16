@@ -374,6 +374,84 @@ def pop_mix():
     )
 
 
+def expense_breakdown(period: date) -> list[dict]:
+    """Where the month's money went, largest first, with each category's share."""
+    rows = list(
+        Expense.objects.filter(occurred_on__range=(month_start(period), month_end(period)))
+        .values("category")
+        .annotate(total=Coalesce(Sum("amount"), ZERO))
+        .order_by("-total")
+    )
+    labels = dict(Expense.Category.choices)
+    total = sum((row["total"] for row in rows), start=Decimal("0.00"))
+    for row in rows:
+        row["label"] = labels.get(row["category"], row["category"].title())
+        row["share"] = percentage(row["total"], total)
+    return rows
+
+
+# The profit & loss statement, as an ordered list of lines. Defining it in one
+# place means the page, the export and any future PDF all show the same
+# statement rather than three hand-assembled variants that drift apart.
+PL_LINES = [
+    ("Customers paid (gross)", "client_payments", "context", ""),
+    ("— you collected", "reseller_cash", "context-sub", ""),
+    ("— paid upstream directly", "upstream_direct", "context-sub", ""),
+    ("Commission earned", "commission_earned", "line", "Your share of what customers paid"),
+    ("Other income", "other_income", "line", "Installations, hardware, repairs"),
+    ("Revenue", "revenue", "subtotal", ""),
+    ("Expenses", "expenses", "negative", "Excludes anything remitted upstream"),
+    ("Net profit", "net", "total", ""),
+]
+
+_PL_SOURCES = {
+    "client_payments": client_payments,
+    "reseller_cash": reseller_cash,
+    "upstream_direct": upstream_direct,
+    "commission_earned": commission_earned,
+    "other_income": other_income,
+    "revenue": revenue,
+    "expenses": expenses,
+    "net": lambda period: revenue(period) - expenses(period),
+}
+
+
+def profit_and_loss(period: date) -> dict:
+    """The statement for a month, each line carried against the month before.
+
+    A P&L with no comparison is hard to read — "is 9,900 of expenses high?"
+    only has an answer next to last month's.
+    """
+    period = month_start(period)
+    prior = add_months(period, -1)
+
+    rows = []
+    for label, key, kind, note in PL_LINES:
+        source = _PL_SOURCES[key]
+        rows.append(
+            {
+                "label": label,
+                "key": key,
+                "kind": kind,
+                "note": note,
+                "value": source(period),
+                "prior": source(prior),
+            }
+        )
+        rows[-1]["delta"] = rows[-1]["value"] - rows[-1]["prior"]
+
+    return {
+        "period": period,
+        "prior": prior,
+        "rows": rows,
+        "margin": percentage(
+            revenue(period) - expenses(period),
+            revenue(period),
+        ),
+        "prior_margin": percentage(revenue(prior) - expenses(prior), revenue(prior)),
+    }
+
+
 def dashboard(period: date | None = None) -> dict:
     """Everything the dashboard renders, assembled once."""
     period = month_start(period)

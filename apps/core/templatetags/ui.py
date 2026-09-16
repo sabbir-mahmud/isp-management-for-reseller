@@ -29,12 +29,17 @@ def querystring(context, **kwargs):
 
 @register.filter
 def money(value, symbol="৳"):
-    """Format an amount for display: `৳ 1,250.00`, negatives included."""
+    """Format an amount for display: `৳ 1,250.00`, `\u2212৳ 947.25`.
+
+    The sign leads the symbol. Formatting the raw Decimal instead strands it
+    between them — `৳ -947.25` — which reads as a typo in a column of figures.
+    """
     try:
         amount = Decimal(value or 0)
     except TypeError, ValueError, InvalidOperation:
         return value
-    return f"{symbol} {amount:,.2f}"
+    sign = "\u2212" if amount < 0 else ""
+    return f"{sign}{symbol} {abs(amount):,.2f}"
 
 
 BADGES = {
