@@ -728,6 +728,280 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
 }
 .breakdown-fill { height: 100%; border-radius: 999px; background: #0d9488; }
 
+/* ---- Filter chips ------------------------------------------------------ */
+
+/* The counts double as the status filter: reading "12 suspended" and then
+   hunting for them in a dropdown was the old flow. */
+.filter-chips { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+.chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.6rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--ink);
+  min-width: 112px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.chip:hover { border-color: #cbd5e1; background: #fbfcfd; }
+
+.chip-value { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.02em; line-height: 1.1; }
+.chip-label { font-size: 0.75rem; color: var(--muted); }
+
+.chip-on { border-color: var(--brand); background: #f0fdfa; box-shadow: inset 0 0 0 1px var(--brand); }
+.chip-on .chip-value { color: var(--brand-dark); }
+.chip-success .chip-value { color: #047857; }
+.chip-warning .chip-value { color: #b45309; }
+.chip-muted .chip-value { color: var(--muted); }
+
+/* ---- Index toolbar ----------------------------------------------------- */
+
+.index-card { overflow: hidden; }
+
+.toolbar { border-bottom: 1px solid var(--line); background: #fbfcfd; }
+
+.toolbar-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  flex-wrap: wrap;
+}
+
+/* Search is the field people actually use, so it takes the room and the rest
+   sit beside it — rather than five equal boxes where nothing leads. */
+.toolbar-search { position: relative; flex: 1 1 320px; min-width: 220px; }
+.toolbar-search .form-control { padding-left: 2.15rem; height: 38px; }
+.toolbar-search-icon {
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.toolbar-field { display: flex; flex-direction: column; gap: 0.2rem; flex: 0 1 auto; min-width: 150px; }
+.toolbar-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.toolbar-field .form-select { height: 38px; }
+
+.toolbar-actions { display: flex; align-items: center; gap: 0.25rem; margin-left: auto; }
+
+/* What is applied, and how much came back. Without it a filtered list looks
+   identical to an unfiltered one until you read the form — which is how
+   people conclude that records have gone missing. */
+.toolbar-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1rem 0.7rem;
+  flex-wrap: wrap;
+  min-height: 0;
+}
+.toolbar-status:empty { display: none; }
+.toolbar-count { margin-left: auto; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+
+.active-filters { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.active-filters-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  border-radius: 999px;
+  padding: 0.15rem 0.3rem 0.15rem 0.55rem;
+  max-width: 260px;
+}
+.pill-key { color: #047857; opacity: 0.75; }
+.pill-key::after { content: ":"; margin-right: 0.15rem; }
+
+.pill-remove {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #065f46;
+  text-decoration: none;
+  line-height: 1;
+  font-size: 0.8125rem;
+}
+.pill-remove:hover { background: #a7f3d0; color: #064e3b; }
+
+.active-filters-clear { font-size: 0.75rem; color: var(--muted); text-decoration: none; }
+.active-filters-clear:hover { color: var(--ink); text-decoration: underline; }
+
+/* ---- Index table ------------------------------------------------------- */
+
+/* Shared column behaviour, so the three index pages line up rather than each
+   inventing its own widths. */
+.index-table .col-load { width: 170px; }
+.index-table .col-actions { width: 1%; white-space: nowrap; }
+
+.load-cell { display: flex; align-items: center; gap: 0.5rem; }
+.load-count { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 3ch; }
+.load-cell .breakdown-track { flex: 1 1 auto; }
+
+/* A small square carrying a plan's headline number, so the packages table has
+   the same left-hand anchor as the avatar on the clients table. */
+.badge-mark {
+  flex: 0 0 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: #ccfbf1;
+  color: #0f766e;
+  display: grid;
+  place-items: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.row-muted .badge-mark { background: #f1f5f9; color: var(--muted); }
+
+/* ---- Sortable headers -------------------------------------------------- */
+
+.table > thead th.sortable { padding: 0; }
+.table > thead th.sortable > a {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.6rem 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+.table > thead th.sortable.numeric > a { justify-content: flex-end; }
+.table > thead th.sortable > a:hover { color: var(--ink); background: #f1f5f9; }
+.table > thead th.sorted > a { color: var(--ink); }
+
+.sort-arrow { font-size: 0.6875rem; opacity: 0.4; }
+.table > thead th.sorted .sort-arrow { opacity: 1; color: var(--brand); }
+
+/* ---- Table cells ------------------------------------------------------- */
+
+.cell-identity { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.cell-identity-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.cell-sub { display: block; font-size: 0.75rem; color: var(--muted); }
+.unit { font-weight: 400; color: var(--muted); font-size: 0.75rem; }
+
+.avatar-sm { flex: 0 0 28px; height: 28px; font-size: 0.6875rem; background: #e2e8f0; color: #475569; }
+.avatar-lg { flex: 0 0 56px; height: 56px; font-size: 1.125rem; background: #ccfbf1; color: #0f766e; }
+
+/* Row actions stay out of the way until the row is under the cursor, so a
+   dense table reads as data rather than as a wall of buttons. Keyboard focus
+   brings them back, and touch devices never hide them. */
+.row-actions { display: inline-flex; gap: 0.35rem; justify-content: flex-end; opacity: 0.45; transition: opacity 0.12s ease; }
+tr:hover .row-actions, .row-actions:focus-within { opacity: 1; }
+@media (hover: none) { .row-actions { opacity: 1; } }
+
+.row-muted td { background: #fbfcfd; }
+.row-muted td:first-child { box-shadow: inset 3px 0 0 #e2e8f0; }
+
+/* ---- POP tree ---------------------------------------------------------- */
+
+.tree-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: calc(var(--depth, 0) * 1.4rem);
+  position: relative;
+}
+.tree-branch {
+  position: absolute;
+  left: calc((var(--depth, 0) - 1) * 1.4rem + 0.45rem);
+  width: 0.65rem;
+  height: 1px;
+  background: #cbd5e1;
+}
+.tree-icon { display: grid; place-items: center; color: var(--muted); flex: 0 0 auto; }
+
+/* ---- Profile header ---------------------------------------------------- */
+
+.profile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  flex-wrap: wrap;
+}
+.profile-identity { flex: 1 1 260px; min-width: 0; }
+.profile-name { font-size: 1.35rem; font-weight: 650; letter-spacing: -0.02em; margin: 0 0 0.35rem; }
+.profile-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
+
+.tag {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.18rem 0.45rem;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+.tag-accent { background: #ccfbf1; color: #0f766e; }
+
+.profile-balance { text-align: right; margin-left: auto; }
+.profile-balance .statement-figure { margin: 0.2rem 0 0; }
+
+/* A strip of the facts a support call actually needs, rather than a
+   definition list you have to scroll. */
+.profile-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border-top: 1px solid var(--line);
+  background: #fbfcfd;
+}
+.fact { padding: 0.7rem 1.25rem; border-right: 1px solid var(--line); min-width: 0; }
+.fact:last-child { border-right: 0; }
+.fact-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.fact-value {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.875rem;
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---- Period stepper ---------------------------------------------------- */
 
 .period-nav { display: inline-flex; align-items: center; gap: 0.25rem; }
@@ -820,7 +1094,9 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
   .hero .stat-label, .hero .stat-note, .hero-part-label { color: #333 !important; }
   .hero .delta { background: none !important; color: #000 !important; padding: 0; }
 
-  .card { border: 1px solid #999; box-shadow: none; break-inside: avoid; }
+  .card, .profile { border: 1px solid #999; box-shadow: none; break-inside: avoid; }
+  .row-actions, .filter-chips, .sort-arrow, .toolbar-form { display: none !important; }
+  .toolbar { background: #fff; }
   .stat { break-inside: avoid; }
   .row > [class*="col-"] { break-inside: avoid; }
 
@@ -896,6 +1172,16 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
   .chart-plot, .chart-labels { padding-left: 34px; }
   .chart-axis { width: 34px; }
   .chart-grid { left: 34px; }
+  .chip { min-width: 96px; padding: 0.5rem 0.7rem; }
+  .chip-value { font-size: 1.05rem; }
+  .profile-balance { text-align: left; margin-left: 0; width: 100%; }
+  .fact { border-right: 0; border-bottom: 1px solid var(--line); }
+  .toolbar-form { padding: 0.7rem; gap: 0.5rem; }
+  .toolbar-search { flex-basis: 100%; }
+  .toolbar-field { flex: 1 1 140px; min-width: 0; }
+  .toolbar-actions { margin-left: 0; width: 100%; }
+  .toolbar-status { padding: 0 0.7rem 0.6rem; }
+  .toolbar-count { margin-left: 0; width: 100%; }
 }
 
 @media (min-width: 993px) {

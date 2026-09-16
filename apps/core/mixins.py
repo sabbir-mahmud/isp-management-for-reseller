@@ -55,5 +55,39 @@ class PageTitleMixin:
         return context
 
 
+class SortableListMixin:
+    """Column sorting driven by `?sort=`, restricted to a declared whitelist.
+
+    The whitelist maps a short public key to the ORM expression it orders by.
+    Passing user input straight to `order_by` would let a crafted query sort on
+    a related table's columns — cheap to prevent, so prevented here.
+    """
+
+    sort_fields: dict[str, str] = {}
+    default_sort: str = ""
+
+    def get_sort_key(self) -> str:
+        requested = self.request.GET.get("sort", "")
+        if requested.lstrip("-") in self.sort_fields:
+            return requested
+        return self.default_sort
+
+    def get_ordering(self):
+        key = self.get_sort_key()
+        if not key:
+            return None
+        field = self.sort_fields[key.lstrip("-")]
+        return [f"-{field}" if key.startswith("-") else field]
+
+    def apply_sort(self, queryset):
+        ordering = self.get_ordering()
+        return queryset.order_by(*ordering) if ordering else queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["sort"] = self.get_sort_key()
+        return context
+
+
 class CrudViewMixin(StaffViewMixin, PageTitleMixin, SuccessMessageMixin, ActorFormMixin):
     """The full stack every create/update view needs, in one name."""

@@ -3,6 +3,7 @@
 from decimal import Decimal
 
 import pytest
+from django.db import connection
 from django.urls import reverse
 
 from apps.accountants.models import Invoice, Payment
@@ -318,3 +319,28 @@ def test_the_client_form_accepts_a_collection_mode_override(client, logged_in, p
     created = Client.objects.get(username="onlinepayer")
     assert created.effective_collection_mode == CollectionMode.UPSTREAM
     assert created.subscription.effective_commission_percent == Decimal("25.00")
+
+
+def test_billing_settings_are_cached_rather_than_read_per_row(db):
+    """`load()` is called once per client row on the list page.
+
+    Uncached, a 25-row page paid 25 extra queries just to resolve who collects
+    each client's bill.
+    """
+    from django.core.cache import cache
+    from django.test.utils import CaptureQueriesContext
+
+    from apps.accountants.models import BillingSettings
+
+    BillingSettings.load()  # prime
+    with CaptureQueriesContext(connection) as ctx:
+        for _ in range(10):
+            BillingSettings.load()
+    assert len(ctx) == 0
+
+    # Saving must invalidate, or an edit would appear not to take effect.
+    row = BillingSettings.load()
+    row.commission_percent = Decimal("33.00")
+    row.save()
+    assert cache.get(BillingSettings.CACHE_KEY) is None
+    assert BillingSettings.load().commission_percent == Decimal("33.00")

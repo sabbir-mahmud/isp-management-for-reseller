@@ -1,0 +1,38 @@
+{% load icons tables %}
+{% comment %}
+The index toolbar: search, the narrowing selects, what is currently applied,
+and how many rows came back. Identical on every index page.
+
+The first field of a filterset is always the free-text search, so it gets the
+wide treatment and the rest sit beside it.
+{% endcomment %}
+<div class="toolbar">
+  <form method="get" class="toolbar-form">
+    {% for field in filter.form %}
+      {% if forloop.first %}
+        <div class="toolbar-search">
+          <span class="toolbar-search-icon">{% icon "search" 16 %}</span>
+          {{ field }}
+        </div>
+      {% else %}
+        <div class="toolbar-field">
+          <label class="toolbar-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+        </div>
+      {% endif %}
+    {% endfor %}
+    <div class="toolbar-actions">
+      <button class="btn btn-primary btn-sm" type="submit">Apply</button>
+      <a class="btn btn-link btn-sm text-decoration-none" href="{{ request.path }}">Reset</a>
+    </div>
+  </form>
+
+  <div class="toolbar-status">
+    {% active_filters filter %}
+    <span class="toolbar-count">
+      {% if page_obj %}
+        {{ page_obj.paginator.count }} {% if page_obj.paginator.count == 1 %}{{ row_noun|default:"record" }}{% else %}{{ row_noun_plural|default:"records" }}{% endif %}
+      {% endif %}
+    </span>
+  </div>
+</div>

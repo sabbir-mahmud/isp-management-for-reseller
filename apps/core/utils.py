@@ -72,3 +72,21 @@ def split_commission(amount, percent) -> tuple[Decimal, Decimal]:
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
     return commission, amount - commission
+
+
+def filtered_url(request, **params) -> str:
+    """The current URL with `params` applied, and pagination dropped.
+
+    Used by the summary chips and the filter pills, so both keep whatever else
+    is already applied instead of resetting the page to an unfiltered state.
+    Passing `None` or an empty string removes a key.
+    """
+    query = request.GET.copy()
+    for key, value in params.items():
+        if value in (None, ""):
+            query.pop(key, None)
+        else:
+            query[key] = value
+    query.pop("page", None)
+    encoded = query.urlencode()
+    return f"?{encoded}" if encoded else "?"

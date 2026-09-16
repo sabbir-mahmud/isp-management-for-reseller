@@ -8,6 +8,7 @@ billed, a `Payment` is what arrived, and the difference is what is owed.
 
 from decimal import Decimal
 
+from django.core.cache import cache
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q, Sum
@@ -64,14 +65,28 @@ class BillingSettings(ActorStampedModel):
     def __str__(self):
         return f"{self.get_collection_mode_display()} at {self.commission_percent}%"
 
+    #: Cache key for the singleton. Read on nearly every page — and once per
+    #: row wherever a client's effective collection mode is shown — so an
+    #: uncached `load()` turns a 25-row list into 25 extra queries.
+    CACHE_KEY = "billing-settings"
+    CACHE_TTL = 300
+
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
+        cache.delete(self.CACHE_KEY)
+
+    def delete(self, *args, **kwargs):
+        cache.delete(self.CACHE_KEY)
+        return super().delete(*args, **kwargs)
 
     @classmethod
     def load(cls) -> BillingSettings:
-        obj, _ = cls.objects.get_or_create(pk=1)
-        return obj
+        row = cache.get(cls.CACHE_KEY)
+        if row is None:
+            row, _ = cls.objects.get_or_create(pk=1)
+            cache.set(cls.CACHE_KEY, row, cls.CACHE_TTL)
+        return row
 
 
 class InvoiceQuerySet(models.QuerySet):

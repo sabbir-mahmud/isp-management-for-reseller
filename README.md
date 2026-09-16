@@ -63,7 +63,7 @@ python -c "from django.core.management.utils import get_random_secret_key as g; 
 # paste into SECRET_KEY in .env, and set DEBUG=True for local work
 
 make migrate
-make seed                     # optional: 60 clients and 6 months of billing history
+make seed                     # optional: 350 clients, 15 packages, 150 POPs, 6 months of billing
 make superuser                # or sign in as the seeded `owner`
 make run
 ```
@@ -72,8 +72,13 @@ Then open http://127.0.0.1:8000/.
 
 The seeded logins are `owner`, `manager`, `accountant` and `support`, all with
 the password `demopass123`. Sign in as each to see how much of the application
-a role can reach. The demo deliberately mixes both settlement arrangements, so
-the upstream page shows a real balance in each direction.
+a role can reach.
+
+The dataset is deliberately full size — 350 clients across a three-level POP
+tree, a 15-plan catalogue including two retired plans clients are still on, and
+both settlement arrangements in use — so pagination, filtering and the POP
+hierarchy are all exercised rather than merely rendering. Adjust with
+`--clients`, `--pops` and `--months`.
 
 ## Running it for real
 
@@ -125,7 +130,7 @@ in the admin are removed on the next sync.
 ## Development
 
 ```bash
-make test        # 160 tests
+make test        # 286 tests
 make coverage    # with a coverage report
 make lint        # ruff check + format check
 make format      # apply fixes

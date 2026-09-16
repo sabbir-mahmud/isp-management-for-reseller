@@ -127,3 +127,43 @@ def test_client_snapshot_counts_by_status(make_client_record):
     assert snapshot["total"] == 2
     assert snapshot["active"] == 1
     assert snapshot["active_percent"] == 50.0
+
+
+def test_a_figures_scope_computes_each_leaf_once(db, period):
+    """Guards the dashboard's query count.
+
+    Without the scope the same figure is fetched several times per page —
+    `revenue` also sits inside `profit`, `client_payments` inside both
+    `collection_rate` and `commission_split`.
+    """
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    with CaptureQueriesContext(connection) as unscoped:
+        for _ in range(5):
+            metrics.revenue(period)
+    assert len(unscoped) == 10  # two aggregates per call, five times
+
+    with CaptureQueriesContext(connection) as scoped, metrics.figures_scope():
+        for _ in range(5):
+            metrics.revenue(period)
+    assert len(scoped) == 2  # computed once
+
+
+def test_the_scope_does_not_outlive_its_block(db, period):
+    """A figure read after a write must be the new number, not a cached one."""
+    from decimal import Decimal
+
+    with metrics.figures_scope():
+        before = metrics.other_income(period)
+
+    Income.objects.create(description="probe", amount=Decimal("500.00"), occurred_on=period)
+
+    with metrics.figures_scope():
+        assert metrics.other_income(period) == before + Decimal("500.00")
+
+
+def test_dashboard_query_count_stays_bounded(db, period, django_assert_max_num_queries):
+    """A dashboard is a lot of aggregates; it must not become a lot more."""
+    with django_assert_max_num_queries(60):
+        metrics.dashboard(period)

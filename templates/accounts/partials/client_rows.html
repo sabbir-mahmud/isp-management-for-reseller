@@ -2,15 +2,29 @@
 {% for client in clients %}
   <tr>
     <td>
-      <a class="fw-semibold text-decoration-none" href="{% url 'client_detail' client.pk %}">{{ client.name }}</a>
-      <div class="small text-muted">{{ client.client_code }} · {{ client.username }}</div>
+      <div class="cell-identity">
+        <span class="avatar avatar-sm" aria-hidden="true">{{ client.name|initials }}</span>
+        <span class="cell-identity-text">
+          <a class="fw-semibold text-decoration-none" href="{% url 'client_detail' client.pk %}">{{ client.name }}</a>
+          <span class="cell-sub">{{ client.client_code }} · {{ client.username }}</span>
+        </span>
+      </div>
     </td>
     <td>
       <div>{{ client.phone }}</div>
-      {% if client.address %}<div class="small text-muted text-truncate" style="max-width:220px">{{ client.address }}</div>{% endif %}
+      {% if client.address %}<div class="cell-sub text-truncate" style="max-width:220px">{{ client.address }}</div>{% endif %}
     </td>
-    <td>{% if client.package %}{{ client.package.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
-    <td class="numeric">{% if client.monthly_price %}{{ client.monthly_price|money }}{% else %}—{% endif %}</td>
+    <td>
+      {% if client.package %}
+        {{ client.package.name }}
+        <div class="cell-sub">
+          {% if client.pays_upstream_directly %}Pays upstream{% else %}You collect{% endif %}
+        </div>
+      {% else %}
+        <span class="text-muted">No plan</span>
+      {% endif %}
+    </td>
+    <td class="numeric">{% if client.monthly_price %}{{ client.monthly_price|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
     <td>{{ client.pop.name|default:"—" }}</td>
     <td>{{ client.status|status_badge }}</td>
     <td class="numeric">
@@ -19,12 +33,14 @@
       {% else %}<span class="text-muted">—</span>{% endif %}
     </td>
     <td class="text-end">
-      {% if perms.accounts.change_client %}
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'client_edit' client.pk %}">Edit</a>
-      {% endif %}
-      {% if perms.accounts.delete_client %}
-        <a class="btn btn-sm btn-outline-danger" href="{% url 'client_delete' client.pk %}">Archive</a>
-      {% endif %}
+      <div class="row-actions">
+        {% if perms.accounts.change_client %}
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'client_edit' client.pk %}">Edit</a>
+        {% endif %}
+        {% if perms.accounts.delete_client %}
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'client_delete' client.pk %}">Archive</a>
+        {% endif %}
+      </div>
     </td>
   </tr>
 {% empty %}

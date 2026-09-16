@@ -267,7 +267,14 @@ def upstream_position(period: date | None = None) -> dict:
 
 
 def _total(queryset, field) -> Decimal:
-    return queryset.aggregate(total=Sum(field))["total"] or Decimal("0.00")
+    """Sum a money column, always to the paisa.
+
+    SQLite sums DecimalFields through a float, so a few thousand rows come
+    back as 142958.120000000; quantising keeps the figure identical on both
+    backends and stops that reaching a template or a comparison.
+    """
+    total = queryset.aggregate(total=Sum(field))["total"] or Decimal("0.00")
+    return Decimal(total).quantize(Decimal("0.01"))
 
 
 @transaction.atomic

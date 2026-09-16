@@ -6,9 +6,12 @@ plain data and takes the period as an argument — that is what makes them
 testable and what lets the same code answer "this month" and "last March".
 """
 
+import contextvars
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from functools import wraps
 
 from django.db.models import Count, DecimalField, F, Q, Sum, Value
 from django.db.models.functions import Coalesce, TruncMonth
@@ -22,6 +25,40 @@ from apps.core.utils import add_months, month_end, month_range, month_start, per
 from apps.warehouse.models import Onu, Product
 
 ZERO = Value(Decimal("0.00"), output_field=DecimalField(max_digits=14, decimal_places=2))
+
+# A dashboard asks for the same figure several times over — `revenue` is also
+# inside `profit`, `client_payments` is also inside `collection_rate` and
+# `commission_split`, and each of those is a database round trip. A scope
+# memoises the leaf figures for the duration of one assembly and nothing
+# beyond it, so a caller that records a payment and then reads a metric still
+# sees the new number.
+_SCOPE: contextvars.ContextVar[dict | None] = contextvars.ContextVar("metrics_scope", default=None)
+
+
+@contextmanager
+def figures_scope():
+    """Compute each leaf figure at most once inside this block."""
+    token = _SCOPE.set({})
+    try:
+        yield
+    finally:
+        _SCOPE.reset(token)
+
+
+def memoised(fn):
+    """Cache `fn(period)` for the current scope. A no-op outside one."""
+
+    @wraps(fn)
+    def wrapper(period):
+        scope = _SCOPE.get()
+        if scope is None:
+            return fn(period)
+        key = (fn.__name__, month_start(period))
+        if key not in scope:
+            scope[key] = fn(period)
+        return scope[key]
+
+    return wrapper
 
 
 def _sum(queryset, field) -> Decimal:
@@ -97,6 +134,7 @@ def arpu() -> Decimal:
     return (mrr() / active).quantize(Decimal("0.01")) if active else Decimal("0.00")
 
 
+@memoised
 def billed(period: date) -> Decimal:
     """Everything invoiced for the period, under either arrangement."""
     return _sum(
@@ -109,6 +147,7 @@ def _payments_in(period: date):
     return Payment.objects.filter(received_on__range=(month_start(period), month_end(period)))
 
 
+@memoised
 def client_payments(period: date) -> Decimal:
     """Gross customer payments, across both arrangements.
 
@@ -118,6 +157,7 @@ def client_payments(period: date) -> Decimal:
     return _sum(_payments_in(period), "amount")
 
 
+@memoised
 def reseller_cash(period: date) -> Decimal:
     """Money the reseller physically collected and is holding.
 
@@ -127,11 +167,13 @@ def reseller_cash(period: date) -> Decimal:
     return _sum(_payments_in(period).filter(collection_mode=CollectionMode.RESELLER), "amount")
 
 
+@memoised
 def upstream_direct(period: date) -> Decimal:
     """Bills customers paid to the upstream operator directly."""
     return _sum(_payments_in(period).filter(collection_mode=CollectionMode.UPSTREAM), "amount")
 
 
+@memoised
 def commission_earned(period: date) -> Decimal:
     """The reseller's actual earnings on customer payments.
 
@@ -141,11 +183,13 @@ def commission_earned(period: date) -> Decimal:
     return _sum(_payments_in(period), "commission_amount")
 
 
+@memoised
 def other_income(period: date) -> Decimal:
     start, end = month_start(period), month_end(period)
     return _sum(Income.objects.filter(occurred_on__range=(start, end)), "amount")
 
 
+@memoised
 def revenue(period: date) -> Decimal:
     """What the business actually earned: commission plus non-subscription income.
 
@@ -157,6 +201,7 @@ def revenue(period: date) -> Decimal:
     return commission_earned(period) + other_income(period)
 
 
+@memoised
 def expenses(period: date) -> Decimal:
     start, end = month_start(period), month_end(period)
     return _sum(Expense.objects.filter(occurred_on__range=(start, end)), "amount")
@@ -425,6 +470,11 @@ def profit_and_loss(period: date) -> dict:
     period = month_start(period)
     prior = add_months(period, -1)
 
+    with figures_scope():
+        return _profit_and_loss(period, prior)
+
+
+def _profit_and_loss(period: date, prior: date) -> dict:
     rows = []
     for label, key, kind, note in PL_LINES:
         source = _PL_SOURCES[key]
@@ -456,6 +506,12 @@ def dashboard(period: date | None = None) -> dict:
     """Everything the dashboard renders, assembled once."""
     period = month_start(period)
     prior = add_months(period, -1)
+
+    with figures_scope():
+        return _dashboard(period, prior)
+
+
+def _dashboard(period: date, prior: date) -> dict:
     trend = revenue_trend(12, period)
 
     return {

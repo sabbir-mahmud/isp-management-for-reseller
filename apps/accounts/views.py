@@ -4,18 +4,28 @@ Every view is permission-gated by name; `login_required` alone (as before)
 gave a support technician the same power as the owner.
 """
 
+from decimal import Decimal
+
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Case, Count, DecimalField, F, Q, Value, When
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from apps.accountants.services import change_package
-from apps.core.mixins import CrudViewMixin, HtmxTemplateMixin, PageTitleMixin, StaffViewMixin
+from apps.core.aggregates import money_sum
+from apps.core.chips import build_chips
+from apps.core.mixins import (
+    CrudViewMixin,
+    HtmxTemplateMixin,
+    PageTitleMixin,
+    SortableListMixin,
+    StaffViewMixin,
+)
 from apps.warehouse.models import Pop
 
-from .filters import ClientFilter, PackageFilter
+from .filters import ClientFilter, PackageFilter, PopFilter
 from .forms import ClientForm, PackageForm, PopForm
 from .models import Client, Package
 from .services import ProvisioningError, assign_onu, set_client_status
@@ -43,7 +53,7 @@ class FilteredListView(StaffViewMixin, PageTitleMixin, HtmxTemplateMixin, ListVi
 # ---------------------------------------------------------------------------#
 
 
-class ClientListView(FilteredListView):
+class ClientListView(SortableListMixin, FilteredListView):
     permission_required = "accounts.view_client"
     model = Client
     filterset_class = ClientFilter
@@ -53,20 +63,59 @@ class ClientListView(FilteredListView):
     page_title = "Clients"
     page_subtitle = "Everyone connected, and what they are on"
 
+    sort_fields = {
+        "name": "name",
+        "code": "client_code",
+        "status": "status",
+        "pop": "pop__name",
+        "owes": "outstanding",
+        "joined": "connection_date",
+    }
+    default_sort = "-joined"
+
     def get_queryset(self):
         self.filterset = self.filterset_class(
             self.request.GET, queryset=Client.objects.with_related()
         )
-        return self.filterset.qs
+        return self.apply_sort(self.filterset.qs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["status_counts"] = Client.objects.aggregate(
+        counts = Client.objects.aggregate(
             total=Count("pk"),
             active=Count("pk", filter=Q(status=Client.Status.ACTIVE)),
             suspended=Count("pk", filter=Q(status=Client.Status.SUSPENDED)),
             pending=Count("pk", filter=Q(status=Client.Status.PENDING)),
+            terminated=Count("pk", filter=Q(status=Client.Status.TERMINATED)),
         )
+        context["status_counts"] = counts
+        context["chips"] = build_chips(
+            self.request,
+            "status",
+            [
+                {"label": "All clients", "value": counts["total"], "match": None},
+                {
+                    "label": "Active",
+                    "value": counts["active"],
+                    "match": "active",
+                    "tone": "success",
+                },
+                {
+                    "label": "Suspended",
+                    "value": counts["suspended"],
+                    "match": "suspended",
+                    "tone": "warning",
+                },
+                {"label": "Pending install", "value": counts["pending"], "match": "pending"},
+                {
+                    "label": "Terminated",
+                    "value": counts["terminated"],
+                    "match": "terminated",
+                    "tone": "muted",
+                },
+            ],
+        )
+        context["row_noun"], context["row_noun_plural"] = "client", "clients"
         return context
 
 
@@ -172,7 +221,7 @@ class ClientStatusView(StaffViewMixin, DetailView):
 # ---------------------------------------------------------------------------#
 
 
-class PackageListView(FilteredListView):
+class PackageListView(SortableListMixin, FilteredListView):
     permission_required = "accounts.view_package"
     model = Package
     filterset_class = PackageFilter
@@ -181,14 +230,58 @@ class PackageListView(FilteredListView):
     page_title = "Packages"
     page_subtitle = "Plans you sell, and what they earn"
 
+    sort_fields = {
+        "name": "name",
+        "speed": "bandwidth_mbps",
+        "price": "monthly_price",
+        "subscribers": "subscribers",
+        "revenue": "monthly_revenue",
+    }
+
     def get_queryset(self):
+        live = Q(subscriptions__status="active")
         queryset = Package.objects.annotate(
-            subscribers=Count(
-                "subscriptions", filter=Q(subscriptions__status="active"), distinct=True
-            )
+            subscribers=Count("subscriptions", filter=live, distinct=True),
+            monthly_revenue=money_sum(
+                Case(
+                    When(
+                        live, then=F("subscriptions__monthly_price") - F("subscriptions__discount")
+                    ),
+                    default=Value(Decimal("0.00")),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            ),
         ).order_by("-is_active", "monthly_price", "name")
         self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
-        return self.filterset.qs
+        return self.apply_sort(self.filterset.qs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        rows = list(context["packages"])
+        # The share bars need a denominator, and it has to be the largest plan
+        # on the page rather than the total — otherwise every bar is a sliver.
+        context["busiest"] = max((row.subscribers for row in rows), default=0) or 1
+
+        totals = Package.objects.aggregate(
+            plans=Count("pk"),
+            active=Count("pk", filter=Q(is_active=True)),
+            retired=Count("pk", filter=Q(is_active=False)),
+        )
+        totals["subscribers"] = sum(row.subscribers for row in rows)
+        totals["revenue"] = sum((row.monthly_revenue for row in rows), start=Decimal("0.00"))
+        context["totals"] = totals
+        context["chips"] = build_chips(
+            self.request,
+            "is_active",
+            [
+                {"label": "All packages", "value": totals["plans"], "match": None},
+                {"label": "On sale", "value": totals["active"], "match": "true", "tone": "success"},
+                {"label": "Retired", "value": totals["retired"], "match": "false", "tone": "muted"},
+            ],
+        )
+        context["chip_group"] = "availability"
+        context["row_noun"], context["row_noun_plural"] = "package", "packages"
+        return context
 
 
 class PackageCreateView(CrudViewMixin, CreateView):
@@ -245,9 +338,10 @@ class PackageDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
 # ---------------------------------------------------------------------------#
 
 
-class PopListView(StaffViewMixin, PageTitleMixin, ListView):
+class PopListView(FilteredListView):
     permission_required = "warehouse.view_pop"
     model = Pop
+    filterset_class = PopFilter
     template_name = "accounts/pop_list.html"
     context_object_name = "pops"
     paginate_by = 50
@@ -255,7 +349,7 @@ class PopListView(StaffViewMixin, PageTitleMixin, ListView):
     page_subtitle = "Points of presence and their client load"
 
     def get_queryset(self):
-        return (
+        queryset = (
             Pop.objects.select_related("parent")
             .annotate(
                 clients_total=Count("clients", distinct=True),
@@ -263,6 +357,73 @@ class PopListView(StaffViewMixin, PageTitleMixin, ListView):
             )
             .order_by("name")
         )
+        self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        rows = list(self.filterset.qs)
+
+        # The estate's shape is the point, so the tree is built across the
+        # whole result and *then* paginated. Ordering a single page would put
+        # a child on page 2 under a parent left behind on page 1.
+        self.all_rows = rows
+        return self._as_tree(rows)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        rows = self.all_rows
+        context["busiest"] = max((row.clients_total for row in rows), default=0) or 1
+
+        totals = Pop.objects.aggregate(
+            pops=Count("pk"),
+            active=Count("pk", filter=Q(is_active=True)),
+            inactive=Count("pk", filter=Q(is_active=False)),
+        )
+        totals["clients"] = sum(row.clients_total for row in rows)
+        totals["unattached"] = sum(1 for row in rows if row.clients_total == 0)
+        context["totals"] = totals
+        context["chips"] = build_chips(
+            self.request,
+            "is_active",
+            [
+                {"label": "All POPs", "value": totals["pops"], "match": None},
+                {"label": "Active", "value": totals["active"], "match": "true", "tone": "success"},
+                {
+                    "label": "Inactive",
+                    "value": totals["inactive"],
+                    "match": "false",
+                    "tone": "muted",
+                },
+            ],
+        )
+        context["chip_group"] = "status"
+        context["row_noun"], context["row_noun_plural"] = "POP", "POPs"
+        return context
+
+    @staticmethod
+    def _as_tree(rows):
+        """Order parents before their children, and tag each row's depth.
+
+        Done in Python over the fetched rows rather than as a recursive query:
+        an estate is hundreds of POPs, not millions.
+        """
+        children = {}
+        for row in rows:
+            children.setdefault(row.parent_id, []).append(row)
+
+        ordered = []
+
+        def walk(parent_id, depth):
+            for row in children.get(parent_id, []):
+                row.depth = depth
+                ordered.append(row)
+                walk(row.pk, depth + 1)
+
+        walk(None, 0)
+        # A row whose parent was filtered out still has to appear, at the root.
+        seen = {row.pk for row in ordered}
+        for row in rows:
+            if row.pk not in seen:
+                row.depth = 0
+                ordered.append(row)
+        return ordered
 
 
 class PopCreateView(CrudViewMixin, CreateView):

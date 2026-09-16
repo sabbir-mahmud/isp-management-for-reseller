@@ -9,6 +9,7 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.utils import timezone
 
 from apps.accountants.models import BillingSettings
@@ -22,11 +23,18 @@ User = get_user_model()
 
 @pytest.fixture(autouse=True)
 def _billing_settings(db):
-    """Every test gets the singleton with predictable values."""
-    return BillingSettings.objects.update_or_create(
+    """Every test gets the singleton with predictable values.
+
+    The row is cached in production, so the cache is cleared around each test
+    — otherwise one test's settings would survive another's rollback.
+    """
+    cache.delete(BillingSettings.CACHE_KEY)
+    row = BillingSettings.objects.update_or_create(
         pk=1,
         defaults={"commission_percent": Decimal("20.00"), "due_days": 10, "invoice_prefix": "INV"},
     )[0]
+    yield row
+    cache.delete(BillingSettings.CACHE_KEY)
 
 
 @pytest.fixture

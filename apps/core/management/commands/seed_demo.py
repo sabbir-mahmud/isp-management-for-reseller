@@ -59,7 +59,8 @@ class Command(BaseCommand):
     help = "Create demo clients, packages, inventory, invoices and payments."
 
     def add_arguments(self, parser):
-        parser.add_argument("--clients", type=int, default=60)
+        parser.add_argument("--clients", type=int, default=350)
+        parser.add_argument("--pops", type=int, default=150)
         parser.add_argument("--months", type=int, default=6, help="Months of billing history.")
         parser.add_argument("--force", action="store_true", help="Run even if data exists.")
 
@@ -73,7 +74,7 @@ class Command(BaseCommand):
         random.seed(42)  # Reproducible demos.
         self._billing_settings()
         self._staff()
-        pops = self._pops()
+        pops = self._pops(options["pops"])
         packages = self._packages()
         onus = self._inventory()
         self._clients(options["clients"], pops, packages, onus)
@@ -123,21 +124,72 @@ class Command(BaseCommand):
                 user.save()
             Profile.objects.update_or_create(user=user, defaults={"role": role})
 
-    def _pops(self):
-        main = Pop.objects.create(name="Main POP", code="MAIN", address="Kaliganj HQ")
-        return [main] + [
-            Pop.objects.create(name=f"{area} POP", code=area[:4].upper(), parent=main, address=area)
-            for area in AREAS[:3]
-        ]
+    def _pops(self, count):
+        """A three-level estate: core, zone, then street-level nodes.
+
+        Real networks are a tree, and the list page is built to show that, so
+        the demo has to have one rather than a flat run of names.
+        """
+        core = Pop.objects.create(name="Core POP", code="CORE", address="Kaliganj HQ")
+        created = [core]
+
+        zones = []
+        for index, area in enumerate(AREAS):
+            if len(created) >= count:
+                break
+            zone = Pop.objects.create(
+                name=f"{area} Zone",
+                code=f"Z{index + 1:02d}",
+                parent=core,
+                address=area,
+            )
+            zones.append(zone)
+            created.append(zone)
+
+        # The rest hang off a zone as street-level nodes, with a few switched
+        # off so the status filter has something to find.
+        index = 0
+        while len(created) < count and zones:
+            zone = zones[index % len(zones)]
+            index += 1
+            node = Pop.objects.create(
+                name=f"{zone.address} Node {index:03d}",
+                code=f"N{index:03d}",
+                parent=zone,
+                address=f"{random.randint(1, 120)} {zone.address}",
+                # Every twelfth node is switched off, rather than a random
+                # percentage: the demo must always have something for the
+                # status filter to find, however small `--pops` is.
+                is_active=index % 12 != 0,
+            )
+            created.append(node)
+
+        # Clients attach to the leaf nodes, not to the core.
+        self.stdout.write(f"  {len(created)} POPs across {len(zones)} zones")
+        return [pop for pop in created if pop.parent_id is not None] or created
 
     def _packages(self):
-        # The upstream operator pays a better rate on the faster plans, which
-        # is why the commission override on a package is worth having.
+        # A real catalogue: a home ladder, a business ladder, and a couple of
+        # retired plans that clients are still on. The upstream operator pays a
+        # better rate on the faster tiers, which is what the per-package
+        # commission override exists for.
         rows = [
-            ("Starter 10", 10, 5, 5, "500.00", None),
-            ("Home 20", 20, 10, 10, "800.00", None),
-            ("Home 30", 30, 15, 15, "1100.00", "22.50"),
-            ("Pro 50", 50, 25, 25, "1800.00", "25.00"),
+            # name, Mbps, GGC, FNA, price, commission, active
+            ("Starter 5", 5, 3, 3, "350.00", None, True),
+            ("Starter 10", 10, 5, 5, "500.00", None, True),
+            ("Home 15", 15, 8, 8, "650.00", None, True),
+            ("Home 20", 20, 10, 10, "800.00", None, True),
+            ("Home 25", 25, 12, 12, "950.00", None, True),
+            ("Home 30", 30, 15, 15, "1100.00", "22.50", True),
+            ("Home 40", 40, 20, 20, "1400.00", "22.50", True),
+            ("Pro 50", 50, 25, 25, "1800.00", "25.00", True),
+            ("Pro 60", 60, 30, 30, "2100.00", "25.00", True),
+            ("Pro 80", 80, 40, 40, "2600.00", "27.50", True),
+            ("Business 100", 100, 50, 50, "3500.00", "30.00", True),
+            ("Business 150", 150, 75, 75, "5000.00", "30.00", True),
+            ("Business 200", 200, 100, 100, "6500.00", "32.50", True),
+            ("Legacy 8", 8, 4, 4, "450.00", None, False),
+            ("Legacy Broadband 12", 12, 6, 6, "600.00", None, False),
         ]
         return [
             Package.objects.create(
@@ -147,8 +199,10 @@ class Command(BaseCommand):
                 fna_mbps=fna,
                 monthly_price=Decimal(price),
                 commission_percent=Decimal(commission) if commission else None,
+                is_active=active,
+                description="Unlimited, 1:8 contention" if speed >= 100 else "",
             )
-            for name, speed, ggc, fna, price, commission in rows
+            for name, speed, ggc, fna, price, commission, active in rows
         ]
 
     def _inventory(self):
@@ -160,19 +214,24 @@ class Command(BaseCommand):
             StockMovement.objects.create(
                 product=product, kind=StockMovement.Kind.IN, quantity=qty, reason="Opening stock"
             )
+        # Enough hardware for most of the client base, deliberately not all of
+        # it — an estate always has connections waiting on a device.
         return [
             Onu.objects.create(
                 serial=f"ONU{20250000 + index}",
                 model=random.choice(["VSOL V2802", "CDATA 72GW", "Huawei HG8310"]),
                 purchase_price=Decimal("1500.00"),
             )
-            for index in range(80)
+            for index in range(320)
         ]
 
     def _clients(self, count, pops, packages, onus):
         today = timezone.localdate()
+        # The cheaper home plans carry most of the base, business plans a few,
+        # and the retired plans keep the handful of clients still on them.
+        weights = [8, 14, 12, 16, 11, 9, 7, 5, 4, 3, 2, 1, 1, 2, 2]
         for index in range(count):
-            package = random.choices(packages, weights=[3, 5, 3, 1])[0]
+            package = random.choices(packages, weights=weights[: len(packages)])[0]
             status = random.choices(
                 [Client.Status.ACTIVE, Client.Status.SUSPENDED, Client.Status.TERMINATED],
                 weights=[88, 8, 4],

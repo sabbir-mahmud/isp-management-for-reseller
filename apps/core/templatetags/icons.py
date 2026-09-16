@@ -46,6 +46,7 @@ ICONS = {
     "key": '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 8.3-8.3"/><path d="m17 6 3 3"/><path d="m14 9 3 3"/>',
     "menu": '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
     "close": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     "chevron": '<path d="m9 6 6 6-6 6"/>',
     "collapse": '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="m15 9-2 3 2 3"/>',
 }

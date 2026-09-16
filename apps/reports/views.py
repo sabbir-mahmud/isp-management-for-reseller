@@ -60,6 +60,13 @@ class FinancialReportView(StaffViewMixin, PageTitleMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         period = _period_from_request(self.request)
+        # One scope for the whole page: the statement, the tiles and the chart
+        # all want the same handful of figures, and without it each asks the
+        # database again.
+        with metrics.figures_scope():
+            return self._assemble(context, period)
+
+    def _assemble(self, context, period):
         prior = add_months(period, -1)
         trend = metrics.revenue_trend(12, period)
 
