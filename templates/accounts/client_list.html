@@ -12,10 +12,10 @@
 
 {% block content %}
 <div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Total" value=status_counts.total %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Active" value=status_counts.active %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Suspended" value=status_counts.suspended %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Pending install" value=status_counts.pending %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Total" value=status_counts.total icon="clients" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Active" value=status_counts.active icon="clients" tone="accent" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Suspended" value=status_counts.suspended icon="clients" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Pending install" value=status_counts.pending icon="clients" %}</div>
 </div>
 
 <div class="card">

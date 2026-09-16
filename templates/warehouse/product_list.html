@@ -6,10 +6,10 @@
 {% endblock %}
 {% block content %}
 <div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Items" value=totals.skus %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Units on hand" value=totals.units %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Stock value" value=totals.value|money %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Low stock" value=low_stock meta="At or below reorder level" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Items" value=totals.skus icon="stock" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Units on hand" value=totals.units icon="stock" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Stock value" value=totals.value|money icon="stock" tone="accent" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Low stock" value=low_stock icon="expenses" meta="At or below reorder level" %}</div>
 </div>
 <div class="card">
   {% include "partials/filters.html" %}

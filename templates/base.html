@@ -14,22 +14,26 @@
 
   <div class="app-main">
     <header class="app-header">
-      <button type="button" class="sidebar-toggle" data-sidebar-toggle
-              aria-controls="sidebar" aria-label="Toggle navigation">
-        {% icon "menu" 20 %}
-      </button>
-      <div class="me-auto">
-        <h1>{% block page_title %}{{ page_title }}{% endblock %}</h1>
-        {% if page_subtitle %}<p class="subtitle">{{ page_subtitle }}</p>{% endif %}
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        {% block page_actions %}{% endblock %}
+      <div class="app-header-inner">
+        <button type="button" class="sidebar-toggle" data-sidebar-toggle
+                aria-controls="sidebar" aria-label="Toggle navigation">
+          {% icon "menu" 20 %}
+        </button>
+        <div class="me-auto">
+          <h1>{% block page_title %}{{ page_title }}{% endblock %}</h1>
+          {% if page_subtitle %}<p class="subtitle">{{ page_subtitle }}</p>{% endif %}
+        </div>
+        <div class="page-actions">
+          {% block page_actions %}{% endblock %}
+        </div>
       </div>
     </header>
 
     <main class="app-body">
-      {% include "partials/messages.html" %}
-      {% block content %}{% endblock %}
+      <div class="app-body-inner">
+        {% include "partials/messages.html" %}
+        {% block content %}{% endblock %}
+      </div>
     </main>
   </div>
 </div>
@@ -126,6 +130,42 @@
         });
       }
     });
+  })();
+
+  // Chart tooltips. One reused element positioned against the hovered band,
+  // rather than a title attribute (which waits a second and cannot be styled)
+  // or a node per band.
+  (function () {
+    const bands = document.querySelectorAll('[data-chart] [data-tip]');
+    if (!bands.length) return;
+
+    const tip = document.createElement('div');
+    tip.className = 'chart-tooltip';
+    tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tip);
+
+    const show = (el) => {
+      tip.textContent = el.dataset.tip;
+      tip.classList.add('visible');
+      const box = el.getBoundingClientRect();
+      const own = tip.getBoundingClientRect();
+      // Clamp to the viewport so the first and last months stay readable.
+      const left = Math.min(
+        Math.max(box.left + box.width / 2 - own.width / 2, 8),
+        window.innerWidth - own.width - 8
+      );
+      tip.style.left = left + 'px';
+      tip.style.top = Math.max(box.top - own.height - 8, 8) + 'px';
+    };
+    const hide = () => tip.classList.remove('visible');
+
+    bands.forEach((band) => {
+      band.addEventListener('mouseenter', () => show(band));
+      band.addEventListener('focus', () => show(band));
+      band.addEventListener('mouseleave', hide);
+      band.addEventListener('blur', hide);
+    });
+    window.addEventListener('scroll', hide, { passive: true });
   })();
 </script>
 {% block scripts %}{% endblock %}

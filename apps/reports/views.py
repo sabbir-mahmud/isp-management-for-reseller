@@ -40,6 +40,14 @@ class DashboardView(StaffViewMixin, PageTitleMixin, TemplateView):
         context.update(metrics.dashboard(period))
         context["page_subtitle"] = f"{period:%B %Y}"
         context["period_options"] = [add_months(month_start(), -offset) for offset in range(12)]
+
+        # Presentation of the headline figure: what the hero number is made of,
+        # and the two series the trend chart plots on its single shared axis.
+        context["revenue_breakdown"] = [
+            {"label": "Commission", "value": context["profit"]["commission"]},
+            {"label": "Other income", "value": context["profit"]["other_income"]},
+        ]
+        context["revenue_series"] = [("revenue", "Revenue earned"), ("expenses", "Expenses")]
         return context
 
 
@@ -69,7 +77,7 @@ class FinancialReportView(StaffViewMixin, PageTitleMixin, TemplateView):
         context["upstream"] = upstream_position(period)
         context["upstream_all_time"] = upstream_position()
         context["trend"] = metrics.revenue_trend(12, period)
-        context["max_trend"] = metrics.trend_ceiling(context["trend"])
+        context["revenue_series"] = [("revenue", "Revenue earned"), ("expenses", "Expenses")]
         context["aging"] = metrics.aging_buckets()
         context["expense_breakdown"] = _expense_breakdown(period)
         context["period_options"] = [add_months(month_start(), -offset) for offset in range(12)]

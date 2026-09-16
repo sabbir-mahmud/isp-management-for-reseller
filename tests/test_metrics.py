@@ -95,8 +95,16 @@ def test_revenue_trend_returns_one_row_per_month(db, period):
     assert trend[0]["period"] < trend[-1]["period"]
 
 
-def test_trend_ceiling_is_never_zero(db, period):
-    assert metrics.trend_ceiling(metrics.revenue_trend(12, period)) > 0
+def test_the_chart_axis_rounds_up_to_a_readable_ceiling():
+    """A raw peak of 13,935.75 gives ticks nobody can read; the axis lifts it."""
+    from decimal import Decimal
+
+    from apps.core.templatetags.charts import nice_ceiling
+
+    assert nice_ceiling(13935.75) == Decimal("15000")
+    assert nice_ceiling(47500) == Decimal("50000")
+    # Never zero: the bar heights divide by it.
+    assert nice_ceiling(0) > 0
 
 
 def test_aging_buckets_cover_every_outstanding_invoice(client_record, period):

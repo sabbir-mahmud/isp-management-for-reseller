@@ -1,0 +1,10 @@
+{% if has_data %}
+  <svg class="sparkline" viewBox="0 0 {{ width }} {{ height }}" width="{{ width }}" height="{{ height }}"
+       preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <polygon points="{{ area }}" fill="{{ color }}" fill-opacity="0.1"/>
+    <polyline points="{{ points }}" fill="none" stroke="{{ color }}" stroke-width="2"
+              stroke-linejoin="round" stroke-linecap="round"/>
+    {% comment %} The surface ring keeps the end dot legible where it meets the line. {% endcomment %}
+    <circle cx="{{ last.x }}" cy="{{ last.y }}" r="4" fill="{{ color }}" stroke="#fff" stroke-width="2"/>
+  </svg>
+{% endif %}

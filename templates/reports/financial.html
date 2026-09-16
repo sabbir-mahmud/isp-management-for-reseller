@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load ui %}
+{% load ui charts %}
 {% block page_actions %}
   <form method="get">
     <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -10,17 +10,19 @@
   </form>
 {% endblock %}
 {% block content %}
-<div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Billed" value=billed|money %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Customers paid" value=client_payments|money meta=collection_rate|percent|add:" of billed" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Commission earned" value=commission_earned|money %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Outstanding" value=outstanding|money meta="All periods" %}</div>
+<div class="stack">
+
+<div class="row g-3">
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Billed" value=billed|money icon="invoices" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Customers paid" value=client_payments|money meta=collection_rate|percent|add:" of billed" icon="payments" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Commission earned" value=commission_earned|money icon="report" tone="accent" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Outstanding" value=outstanding|money meta="All periods" icon="expenses" %}</div>
 </div>
 
 <div class="row g-3">
   <div class="col-12 col-xl-5">
     <div class="card h-100">
-      <div class="card-header">Profit &amp; loss — {{ period|date:"F Y" }}</div>
+      <div class="card-header"><span>Profit &amp; loss</span><span class="card-sub">{{ period|date:"F Y" }}</span></div>
       <div class="card-body">
         {% comment %}
         Gross customer money is shown as context, then explicitly excluded: the
@@ -61,7 +63,7 @@
 
   <div class="col-12 col-xl-4">
     <div class="card h-100">
-      <div class="card-header">Where the money went</div>
+      <div class="card-header"><span>Where the money went</span><span class="card-sub">{{ profit.expenses|money }}</span></div>
       <div class="table-wrap">
         <table class="table table-sm mb-0">
           <thead><tr><th>Category</th><th class="numeric">Amount</th></tr></thead>
@@ -79,7 +81,7 @@
 
   <div class="col-12 col-xl-3">
     <div class="card h-100">
-      <div class="card-header">Aged debt</div>
+      <div class="card-header"><span>Aged debt</span><span class="card-sub">{{ outstanding|money }}</span></div>
       <div class="card-body">
         {% for bucket in aging %}
           <div class="d-flex justify-content-between mb-2">
@@ -101,24 +103,15 @@
   </div>
 </div>
 
-<div class="card mt-3">
-  <div class="card-header">Last 12 months</div>
-  <div class="table-wrap">
-    <table class="table table-sm mb-0">
-      <thead><tr><th>Month</th><th class="numeric">Customers paid</th><th class="numeric">Revenue earned</th>
-                 <th class="numeric">Expenses</th><th class="numeric">Net</th></tr></thead>
-      <tbody>
-        {% for row in trend %}
-          <tr>
-            <td>{{ row.period|date:"F Y" }}</td>
-            <td class="numeric text-muted">{{ row.gross|money }}</td>
-            <td class="numeric">{{ row.revenue|money }}</td>
-            <td class="numeric">{{ row.expenses|money }}</td>
-            <td class="numeric {% if row.net < 0 %}text-danger{% else %}text-success{% endif %}">{{ row.net|money }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="card">
+  <div class="card-header">
+    <span>Earned revenue vs expenses</span>
+    <span class="card-sub">Last 12 months</span>
   </div>
+  <div class="card-body">
+    {% column_chart trend series=revenue_series chart_id="financial-trend" height=200 %}
+  </div>
+</div>
+
 </div>
 {% endblock %}

@@ -9,10 +9,10 @@
 {% endblock %}
 {% block content %}
 <div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Invoices" value=totals.count %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Billed" value=totals.billed|money %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Your commission" value=totals.commission|money %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Outstanding" value=totals.due|money %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Invoices" value=totals.count icon="invoices" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Billed" value=totals.billed|money icon="invoices" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Your commission" value=totals.commission|money icon="report" tone="accent" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Outstanding" value=totals.due|money icon="expenses" %}</div>
 </div>
 <div class="card">
   {% include "partials/filters.html" %}

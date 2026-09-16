@@ -1,0 +1,32 @@
+{% load ui charts %}
+{% comment %}
+The one figure the dashboard leads with. Exactly one per view — a second hero
+is just a stat tile that has been shouted at.
+{% endcomment %}
+<div class="hero">
+  <div class="hero-main">
+    <span class="stat-label">{{ label }}</span>
+    <p class="hero-value">{{ value }}</p>
+    <div class="stat-meta">
+      {% if metric.direction == 'flat' %}
+        <span class="delta delta-flat">No change</span>
+      {% else %}
+        <span class="delta {% if metric.direction == 'up' %}delta-good{% else %}delta-bad{% endif %}">
+          {% if metric.direction == 'up' %}↑{% else %}↓{% endif %} {{ metric.delta|money }}
+        </span>
+      {% endif %}
+      <span class="stat-note">vs {{ period_label }}</span>
+    </div>
+    {% if breakdown %}
+      <div class="hero-breakdown">
+        {% for part in breakdown %}
+          <span class="hero-part"><span class="hero-part-label">{{ part.label }}</span>{{ part.value|money }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+  <div class="hero-trend">
+    {% sparkline trend "revenue" 200 56 "hero-spark" %}
+    <span class="stat-note">Last 12 months</span>
+  </div>
+</div>

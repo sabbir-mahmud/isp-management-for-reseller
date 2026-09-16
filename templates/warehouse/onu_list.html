@@ -5,10 +5,10 @@
 {% endblock %}
 {% block content %}
 <div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Total" value=totals.total %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="In stock" value=totals.in_stock %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Deployed" value=totals.assigned %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Faulty" value=totals.faulty %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Total" value=totals.total icon="onu" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="In stock" value=totals.in_stock icon="onu" tone="accent" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Deployed" value=totals.assigned icon="onu" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Faulty" value=totals.faulty icon="onu" %}</div>
 </div>
 <div class="card">
   {% include "partials/filters.html" %}

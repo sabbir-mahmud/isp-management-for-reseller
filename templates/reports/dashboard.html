@@ -1,9 +1,10 @@
 {% extends "base.html" %}
-{% load ui %}
+{% load ui charts icons %}
 
 {% block page_actions %}
-  <form method="get" class="d-flex gap-2">
-    <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
+  <form method="get">
+    <select name="period" class="form-select form-select-sm" onchange="this.form.submit()"
+            aria-label="Billing month">
       {% for option in period_options %}
         <option value="{{ option|date:'Y-m-d' }}" {% if option == period %}selected{% endif %}>
           {{ option|date:"F Y" }}
@@ -17,231 +18,260 @@
 {% endblock %}
 
 {% block content %}
+<div class="stack">
 
-{% comment %}
-Earnings first, gross second. The reseller's revenue is the commission — under
-either arrangement the rest of the money belongs upstream — so the headline
-figure is what the business actually keeps, with the gross shown beside it so
-the two are never confused.
-{% endcomment %}
-<div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="Revenue earned" value=revenue.value|money metric=revenue %}
-  </div>
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="Commission this month" value=commission_earned.value|money metric=commission_earned %}
-  </div>
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="Net profit" value=profit.net|money meta=profit.margin|percent|add:" margin" %}
-  </div>
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="Customers owe" value=outstanding|money meta="Unpaid across every period" %}
-  </div>
-</div>
-
-<div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="Billed to customers" value=billed.value|money metric=billed %}
-  </div>
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="Cash you collected" value=reseller_cash.value|money meta="Includes the upstream share" %}
-  </div>
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="Paid upstream directly" value=upstream_direct.value|money meta="Never touched your hands" %}
-  </div>
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="Collection rate" value=collection_rate|percent meta="Customer payments ÷ billed" %}
-  </div>
-</div>
-
-<div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="MRR (forecast)" value=mrr|money meta="Live subscriptions × price" %}
-  </div>
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="ARPU" value=arpu|money meta="Per active client" %}
-  </div>
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="You owe upstream" value=upstream.payable|money meta="Collected but not yet remitted" %}
-  </div>
-  <div class="col-6 col-xl-3">
-    {% include "partials/kpi.html" with label="Upstream owes you" value=upstream.receivable|money meta="Commission not yet paid across" %}
-  </div>
-</div>
-
-<div class="row g-3">
-  <div class="col-12 col-xl-8">
-    <div class="card h-100">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span>Earned revenue vs expenses — last 12 months</span>
-        <span class="small text-muted">
-          <span class="badge" style="background:var(--brand)">&nbsp;</span> commission + income
-          <span class="badge ms-2" style="background:#f59e0b">&nbsp;</span> expenses
-        </span>
+  {% comment %}
+  The hero is what the business earned — commission plus other income. Gross
+  collections are larger and sit below as context, because under either
+  settlement arrangement most of that money belongs upstream.
+  {% endcomment %}
+  <div class="row g-3">
+    <div class="col-12 col-xl-7">
+      {% include "partials/hero.html" with label="Revenue earned" value=revenue.value|money metric=revenue period_label=previous_period|date:"F" trend=trend breakdown=revenue_breakdown %}
+    </div>
+    <div class="col-12 col-xl-5">
+      <div class="row g-3 h-100">
+        <div class="col-6">
+          {% include "partials/kpi.html" with label="Net profit" value=profit.net|money meta=profit.margin|percent|add:" margin" icon="report" tone="accent" %}
+        </div>
+        <div class="col-6">
+          {% include "partials/kpi.html" with label="Customers owe" value=outstanding|money meta="Across every period" icon="invoices" %}
+        </div>
+        <div class="col-6">
+          {% include "partials/kpi.html" with label="You owe upstream" value=upstream.payable|money meta="Collected, not yet remitted" icon="upstream" %}
+        </div>
+        <div class="col-6">
+          {% include "partials/kpi.html" with label="Upstream owes you" value=upstream.receivable|money meta="Commission not yet paid" icon="payments" %}
+        </div>
       </div>
-      <div class="card-body">
-        {% comment %}
-        A CSS bar chart rather than a charting library: twelve bars do not
-        justify shipping a JS dependency, and this renders with no script.
-        {% endcomment %}
-        <div class="trend-grid">
-          {% for row in trend %}
-            <div class="trend-col" title="{{ row.label }}: {{ row.revenue|money }} in, {{ row.expenses|money }} out">
-              <div class="d-flex align-items-end gap-1" style="height:110px">
-                <div class="trend-bar flex-fill" style="height:{% widthratio row.revenue max_trend 100 %}%"></div>
-                <div class="trend-bar expense flex-fill" style="height:{% widthratio row.expenses max_trend 100 %}%"></div>
-              </div>
-              <div class="trend-label">{{ row.label }}</div>
+    </div>
+  </div>
+
+  <p class="section-title">This month</p>
+  <div class="row g-3">
+    <div class="col-6 col-xl-3">
+      {% include "partials/kpi.html" with label="Billed" value=billed.value|money metric=billed icon="invoices" %}
+    </div>
+    <div class="col-6 col-xl-3">
+      {% include "partials/kpi.html" with label="Customers paid" value=client_payments.value|money metric=client_payments icon="payments" %}
+    </div>
+    <div class="col-6 col-xl-3">
+      {% include "partials/kpi.html" with label="Cash you collected" value=reseller_cash.value|money meta="Includes the upstream share" icon="stock" %}
+    </div>
+    <div class="col-6 col-xl-3">
+      {% include "partials/kpi.html" with label="Expenses" value=expenses.value|money metric=expenses invert=1 icon="expenses" %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-8">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>Earned revenue vs expenses</span>
+          <span class="card-sub">Last 12 months</span>
+        </div>
+        <div class="card-body">
+          {% column_chart trend series=revenue_series chart_id="revenue-trend" %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>Settlement</span>
+          <a class="card-sub text-decoration-none" href="{% url 'settlement_list' %}">Details</a>
+        </div>
+        <div class="card-body">
+          <p class="stat-note mb-3">
+            {{ commission.default_mode_display }} by default at {{ commission.commission_percent }}% ·
+            {{ mode_mix.reseller }} pay you, {{ mode_mix.upstream }} pay {{ commission.upstream_name }}
+          </p>
+          <div class="breakdown">
+            <div class="breakdown-row">
+              <span class="breakdown-label">Customers paid</span>
+              <span class="breakdown-value">{{ commission.client_payments|money }}</span>
             </div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-xl-4">
-    <div class="card h-100">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span>Settlement · {{ commission.commission_percent }}%</span>
-        <a class="small text-decoration-none" href="{% url 'settlement_list' %}">Details</a>
-      </div>
-      <div class="card-body">
-        <div class="small text-muted mb-2">
-          {{ commission.default_mode_display }} by default ·
-          {{ mode_mix.reseller }} client(s) you collect from,
-          {{ mode_mix.upstream }} paying {{ commission.upstream_name }} directly
-        </div>
-        <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Customers paid</span>
-          <span class="numeric fw-semibold">{{ commission.client_payments|money }}</span>
-        </div>
-        <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Your commission</span>
-          <span class="numeric text-success fw-semibold">{{ commission.commission_earned|money }}</span>
-        </div>
-        <hr>
-        <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">To remit upstream</span>
-          <span class="numeric {% if commission.payable > 0 %}text-danger{% endif %}">{{ commission.payable|money }}</span>
-        </div>
-        <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Commission receivable</span>
-          <span class="numeric">{{ commission.commission_receivable|money }}</span>
-        </div>
-        <hr>
-        <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Expenses</span>
-          <span class="numeric">{{ profit.expenses|money }}</span>
-        </div>
-        <div class="d-flex justify-content-between">
-          <span class="fw-semibold">Net</span>
-          <span class="numeric fw-semibold {% if profit.net < 0 %}text-danger{% else %}text-success{% endif %}">
-            {{ profit.net|money }}
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="row g-3 mt-0">
-  <div class="col-12 col-xl-4">
-    <div class="card h-100">
-      <div class="card-header">Clients</div>
-      <div class="card-body">
-        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Total</span><span class="numeric fw-semibold">{{ clients.total }}</span></div>
-        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Active</span><span class="numeric text-success">{{ clients.active }}</span></div>
-        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Suspended</span><span class="numeric text-warning">{{ clients.suspended }}</span></div>
-        <div class="d-flex justify-content-between mb-3"><span class="text-muted">Pending install</span><span class="numeric">{{ clients.pending }}</span></div>
-        <div class="bar-track"><div class="bar-fill" style="width:{{ clients.active_percent }}%"></div></div>
-        <div class="small text-muted mt-1">{{ clients.active_percent|percent }} active</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-xl-4">
-    <div class="card h-100">
-      <div class="card-header">Inventory</div>
-      <div class="card-body">
-        <div class="d-flex justify-content-between mb-2"><span class="text-muted">ONUs in stock</span><span class="numeric fw-semibold">{{ inventory.in_stock }}</span></div>
-        <div class="d-flex justify-content-between mb-2"><span class="text-muted">ONUs deployed</span><span class="numeric">{{ inventory.assigned }}</span></div>
-        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Faulty</span><span class="numeric text-danger">{{ inventory.faulty }}</span></div>
-        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Stock value</span><span class="numeric">{{ inventory.stock_value|money }}</span></div>
-        {% if inventory.low_stock %}
-          <div class="alert alert-warning py-2 small mb-0 mt-2">
-            {{ inventory.low_stock }} item(s) at or below reorder level.
+            <div class="breakdown-row">
+              <span class="breakdown-label">Your commission</span>
+              <span class="breakdown-value text-success">{{ commission.commission_earned|money }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">To remit upstream</span>
+              <span class="breakdown-value">{{ commission.payable|money }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Commission receivable</span>
+              <span class="breakdown-value">{{ commission.commission_receivable|money }}</span>
+            </div>
           </div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-xl-4">
-    <div class="card h-100">
-      <div class="card-header">Money owed, by age</div>
-      <div class="card-body">
-        {% for bucket in aging %}
-          <div class="d-flex justify-content-between mb-2">
-            <span class="text-muted">{{ bucket.label }} <span class="badge text-bg-light">{{ bucket.count }}</span></span>
-            <span class="numeric">{{ bucket.amount|money }}</span>
+          <hr>
+          <div class="breakdown">
+            <div class="breakdown-row">
+              <span class="breakdown-label">Collection rate</span>
+              <span class="breakdown-value">{{ collection_rate|percent }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">MRR (forecast)</span>
+              <span class="breakdown-value">{{ mrr|money }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">ARPU</span>
+              <span class="breakdown-value">{{ arpu|money }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Churn</span>
+              <span class="breakdown-value">{{ churn_rate|percent }}</span>
+            </div>
           </div>
-        {% endfor %}
-        <hr>
-        <div class="d-flex justify-content-between mb-1">
-          <span class="text-muted small">Yours to chase</span>
-          <span class="numeric small">{{ outstanding_by_mode.reseller|money }}</span>
-        </div>
-        <div class="d-flex justify-content-between">
-          <span class="text-muted small">{{ commission.upstream_name|capfirst }} to chase</span>
-          <span class="numeric small">{{ outstanding_by_mode.upstream|money }}</span>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<div class="row g-3 mt-0">
-  <div class="col-12 col-xl-6">
-    <div class="card h-100">
-      <div class="card-header">Who owes the most</div>
-      <div class="table-wrap">
-        <table class="table table-sm table-hover mb-0">
-          <thead><tr><th>Client</th><th class="numeric">Outstanding</th></tr></thead>
-          <tbody>
-            {% for client in debtors %}
-              <tr>
-                <td><a class="text-decoration-none" href="{% url 'client_detail' client.pk %}">{{ client.name }}</a>
-                  <div class="small text-muted">{{ client.client_code }} · {{ client.phone }}</div>
-                </td>
-                <td class="numeric text-danger fw-semibold">{{ client.due|money }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="2">{% include "partials/empty.html" with title="Nobody is behind" hint="Every invoice is settled." %}</td></tr>
+  <div class="row g-3">
+    <div class="col-12 col-xl-4">
+      <div class="card h-100">
+        <div class="card-header"><span>Clients</span><span class="card-sub">{{ clients.total }} total</span></div>
+        <div class="card-body">
+          <div class="breakdown mb-3">
+            <div class="breakdown-row">
+              <span class="breakdown-label">Active</span>
+              <span class="breakdown-value text-success">{{ clients.active }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Suspended</span>
+              <span class="breakdown-value text-warning">{{ clients.suspended }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Pending install</span>
+              <span class="breakdown-value">{{ clients.pending }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Terminated</span>
+              <span class="breakdown-value text-muted">{{ clients.terminated }}</span>
+            </div>
+          </div>
+          <div class="meter" role="img" aria-label="{{ clients.active_percent|percent }} of clients active">
+            <div class="meter-fill" style="width:{{ clients.active_percent }}%"></div>
+          </div>
+          <p class="stat-note mt-2 mb-0">{{ clients.active_percent|percent }} active</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card h-100">
+        <div class="card-header"><span>Money owed, by age</span><span class="card-sub">{{ outstanding|money }}</span></div>
+        <div class="card-body">
+          <div class="breakdown">
+            {% for bucket in aging %}
+              <div class="breakdown-row">
+                <span class="breakdown-label">{{ bucket.label }} <span class="text-muted">· {{ bucket.count }}</span></span>
+                <span class="breakdown-value">{{ bucket.amount|money }}</span>
+                <span class="breakdown-track">
+                  <span class="breakdown-fill" style="width:{% widthratio bucket.amount outstanding 100 %}%"></span>
+                </span>
+              </div>
             {% endfor %}
-          </tbody>
-        </table>
+          </div>
+          <hr>
+          <div class="breakdown">
+            <div class="breakdown-row">
+              <span class="breakdown-label">Yours to chase</span>
+              <span class="breakdown-value">{{ outstanding_by_mode.reseller|money }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">{{ commission.upstream_name|capfirst }} to chase</span>
+              <span class="breakdown-value">{{ outstanding_by_mode.upstream|money }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card h-100">
+        <div class="card-header"><span>Inventory</span><span class="card-sub">{{ inventory.stock_value|money }}</span></div>
+        <div class="card-body">
+          <div class="breakdown">
+            <div class="breakdown-row">
+              <span class="breakdown-label">ONUs in stock</span>
+              <span class="breakdown-value">{{ inventory.in_stock }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">ONUs deployed</span>
+              <span class="breakdown-value">{{ inventory.assigned }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Faulty</span>
+              <span class="breakdown-value text-danger">{{ inventory.faulty }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Stock units</span>
+              <span class="breakdown-value">{{ inventory.stock_units }}</span>
+            </div>
+          </div>
+          {% if inventory.low_stock %}
+            <div class="alert alert-warning py-2 small mb-0 mt-3">
+              {{ inventory.low_stock }} item(s) at or below reorder level.
+            </div>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="col-12 col-xl-6">
-    <div class="card h-100">
-      <div class="card-header">Package mix</div>
-      <div class="table-wrap">
-        <table class="table table-sm mb-0">
-          <thead><tr><th>Package</th><th class="numeric">Subscribers</th><th class="numeric">Monthly value</th></tr></thead>
-          <tbody>
-            {% for row in package_mix %}
-              <tr>
-                <td>{{ row.package__name }}</td>
-                <td class="numeric">{{ row.subscribers }}</td>
-                <td class="numeric">{{ row.revenue|money }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="3">{% include "partials/empty.html" with title="No active subscriptions" %}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+  <div class="row g-3">
+    <div class="col-12 col-xl-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>Who owes the most</span>
+          <a class="card-sub text-decoration-none" href="{% url 'invoice_list' %}?status=overdue">All overdue</a>
+        </div>
+        <div class="table-wrap">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>Client</th><th class="numeric">Outstanding</th></tr></thead>
+            <tbody>
+              {% for client in debtors %}
+                <tr>
+                  <td>
+                    <a class="fw-semibold text-decoration-none" href="{% url 'client_detail' client.pk %}">{{ client.name }}</a>
+                    <div class="small text-muted">{{ client.client_code }} · {{ client.phone }}</div>
+                  </td>
+                  <td class="numeric text-danger fw-semibold">{{ client.due|money }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="2">{% include "partials/empty.html" with title="Nobody is behind" hint="Every invoice is settled." %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>Package mix</span>
+          <a class="card-sub text-decoration-none" href="{% url 'package_list' %}">Packages</a>
+        </div>
+        <div class="table-wrap">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>Package</th><th class="numeric">Subscribers</th><th class="numeric">Monthly value</th></tr></thead>
+            <tbody>
+              {% for row in package_mix %}
+                <tr>
+                  <td>{{ row.package__name }}</td>
+                  <td class="numeric">{{ row.subscribers }}</td>
+                  <td class="numeric">{{ row.revenue|money }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3">{% include "partials/empty.html" with title="No active subscriptions" %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>

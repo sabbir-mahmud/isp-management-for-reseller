@@ -10,8 +10,8 @@
   double count.
 </div>
 <div class="row g-3 mb-3">
-  <div class="col-6">{% include "partials/kpi.html" with label="Entries" value=totals.count %}</div>
-  <div class="col-6">{% include "partials/kpi.html" with label="Total" value=totals.amount|money %}</div>
+  <div class="col-6">{% include "partials/kpi.html" with label="Entries" value=totals.count icon="income" %}</div>
+  <div class="col-6">{% include "partials/kpi.html" with label="Total" value=totals.amount|money icon="income" tone="accent" %}</div>
 </div>
 <div class="card">
   {% include "partials/filters.html" %}

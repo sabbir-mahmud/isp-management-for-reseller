@@ -374,16 +374,6 @@ def pop_mix():
     )
 
 
-def trend_ceiling(trend: list[dict]) -> Decimal:
-    """The tallest bar in a trend, used to scale the chart.
-
-    Never zero: the template divides by it, and an all-zero month would
-    otherwise render as a division error rather than an empty chart.
-    """
-    values = [row["revenue"] for row in trend] + [row["expenses"] for row in trend]
-    return max(values + [Decimal("1.00")])
-
-
 def dashboard(period: date | None = None) -> dict:
     """Everything the dashboard renders, assembled once."""
     period = month_start(period)
@@ -413,7 +403,6 @@ def dashboard(period: date | None = None) -> dict:
         "upstream": upstream_position(),
         "profit": profit(period),
         "trend": trend,
-        "max_trend": trend_ceiling(trend),
         "aging": aging_buckets(),
         "debtors": top_debtors(),
         "package_mix": package_mix(),

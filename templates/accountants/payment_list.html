@@ -5,10 +5,10 @@
 {% endblock %}
 {% block content %}
 <div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Payments" value=totals.count %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Customers paid" value=totals.gross|money %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Cash you took" value=totals.reseller_cash|money meta="Includes the upstream share" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Your commission" value=totals.commission|money %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Payments" value=totals.count icon="payments" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Customers paid" value=totals.gross|money icon="payments" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Cash you took" value=totals.reseller_cash|money icon="stock" meta="Includes the upstream share" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Your commission" value=totals.commission|money icon="report" tone="accent" %}</div>
 </div>
 <div class="card">
   {% include "partials/filters.html" %}

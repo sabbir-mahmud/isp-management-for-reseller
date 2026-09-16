@@ -256,3 +256,110 @@ def test_nav_group_rejects_positional_arguments():
 
     with pytest.raises(TemplateSyntaxError):
         Template('{% load nav %}{% nav_group "Billing" %}{% endnav_group %}')
+
+
+# ---------------------------------------------------------------------------#
+# Charts
+# ---------------------------------------------------------------------------#
+
+
+def test_the_axis_ceiling_is_a_round_number():
+    from decimal import Decimal
+
+    from apps.core.templatetags.charts import nice_ceiling
+
+    assert nice_ceiling(13935.75) == Decimal("15000")
+    assert nice_ceiling(9) == Decimal("10")
+    assert nice_ceiling(0) == Decimal("1")  # never zero: bar heights divide by it
+
+
+def test_axis_ticks_are_compact():
+    from apps.core.templatetags.charts import compact
+
+    assert compact(0) == "0"
+    assert compact(7500) == "7.5K"
+    assert compact(13935) == "13.9K"
+    assert compact(1250000) == "1.2M"
+
+
+def test_the_chart_scales_every_bar_against_one_axis():
+    """Two y-scales would invent a correlation that is not in the data."""
+    from apps.core.templatetags.charts import column_chart
+
+    rows = [
+        {"label": "Jan", "revenue": 100, "expenses": 50},
+        {"label": "Feb", "revenue": 200, "expenses": 100},
+    ]
+    ctx = column_chart(rows, [("revenue", "Revenue"), ("expenses", "Expenses")])
+
+    heights = {
+        (band["label"], bar["key"]): bar["height"] for band in ctx["bands"] for bar in band["bars"]
+    }
+    # 200 is the peak, so the ceiling is 200 and Feb revenue is full height.
+    assert heights[("Feb", "revenue")] == 100.0
+    assert heights[("Jan", "revenue")] == 50.0
+    assert heights[("Feb", "expenses")] == 50.0
+    assert heights[("Jan", "expenses")] == 25.0
+
+
+def test_a_zero_value_draws_no_bar():
+    """A 1% floor keeps tiny values visible, but zero must read as zero."""
+    from apps.core.templatetags.charts import column_chart
+
+    ctx = column_chart(
+        [{"label": "Jan", "revenue": 0, "expenses": 500}], [("revenue", "R"), ("expenses", "E")]
+    )
+    bars = {bar["key"]: bar["height"] for bar in ctx["bands"][0]["bars"]}
+    assert bars["revenue"] == 0
+    assert bars["expenses"] > 0
+
+
+def test_an_empty_chart_reports_no_data_rather_than_dividing_by_zero():
+    from apps.core.templatetags.charts import column_chart
+
+    ctx = column_chart([], [("revenue", "R")])
+    assert ctx["has_data"] is False
+    ctx = column_chart([{"label": "Jan", "revenue": 0}], [("revenue", "R")])
+    assert ctx["has_data"] is False
+
+
+def test_the_chart_ships_a_legend_and_a_table_view(owner_client, client_record, period):
+    """Identity is never colour-alone, and the figures stay reachable."""
+    from decimal import Decimal
+
+    from apps.accountants.models import Invoice
+    from apps.accountants.services import generate_invoices, record_payment
+
+    generate_invoices(period)
+    record_payment(Invoice.objects.get(), Decimal("800.00"), received_on=period)
+
+    body = owner_client.get(reverse("dashboard")).content.decode()
+    assert 'class="legend-swatch"' in body
+    assert "Show the figures" in body
+
+
+def test_an_empty_dashboard_shows_the_chart_placeholder(owner_client):
+    """A fresh install has no money yet; the chart must not render an empty grid."""
+    body = owner_client.get(reverse("dashboard")).content.decode()
+    assert "Nothing to plot yet" in body
+
+
+def test_chart_series_colours_pass_the_palette_gates():
+    """Validated with the data-viz checker; pinned so a tweak cannot regress it."""
+    from apps.core.templatetags.charts import SERIES_COLORS
+
+    assert SERIES_COLORS["revenue"] == "#0d9488"
+    assert SERIES_COLORS["expenses"] == "#ea580c"
+
+
+def test_the_sparkline_needs_at_least_two_points():
+    from apps.core.templatetags.charts import sparkline
+
+    assert sparkline([], "revenue")["has_data"] is False
+    assert sparkline([{"revenue": 5}], "revenue")["has_data"] is False
+    assert sparkline([{"revenue": 5}, {"revenue": 9}], "revenue")["has_data"] is True
+
+
+def test_the_dashboard_leads_with_exactly_one_hero_figure(owner_client):
+    body = owner_client.get(reverse("dashboard")).content.decode()
+    assert body.count('class="hero-value"') == 1

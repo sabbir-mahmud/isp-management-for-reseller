@@ -73,8 +73,8 @@
 
   <div class="col-12 col-xl-8">
     <div class="row g-3 mb-3">
-      <div class="col-6">{% include "partials/kpi.html" with label="Outstanding" value=client.balance_due|money meta="Across unpaid invoices" %}</div>
-      <div class="col-6">{% include "partials/kpi.html" with label="Monthly" value=client.monthly_price|money meta=client.package.name %}</div>
+      <div class="col-6">{% include "partials/kpi.html" with label="Outstanding" value=client.balance_due|money icon="invoices" meta="Across unpaid invoices" %}</div>
+      <div class="col-6">{% include "partials/kpi.html" with label="Monthly" value=client.monthly_price|money icon="packages" tone="accent" meta=client.package.name %}</div>
     </div>
 
     <div class="card mb-3">

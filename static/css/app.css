@@ -3,6 +3,7 @@
 
 :root {
   --sidebar-width: 248px;
+  --content-max: 1560px;
   --brand: #0f766e;
   --brand-dark: #115e59;
   --ink: #0f172a;
@@ -372,9 +373,10 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
 .app-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 
 .app-header {
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: saturate(180%) blur(8px);
   border-bottom: 1px solid var(--line);
-  padding: 1rem 1.5rem;
+  padding: 0.9rem 1.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -384,6 +386,16 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
   z-index: 1020;
 }
 
+.app-header-inner {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .app-header .sidebar-toggle {
   color: var(--muted);
   border-color: var(--line);
@@ -391,21 +403,161 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
 }
 .app-header .sidebar-toggle:hover { color: var(--ink); background: #f1f5f9; }
 
-.app-header h1 { font-size: 1.25rem; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
-.app-header .subtitle { color: var(--muted); font-size: 0.875rem; margin: 0; }
+.app-header h1 { font-size: 1.25rem; font-weight: 650; margin: 0; letter-spacing: -0.015em; }
+.app-header .subtitle { color: var(--muted); font-size: 0.8125rem; margin: 0.1rem 0 0; }
+
+.page-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+/* A dense admin is unreadable at 2560px if the tables stretch the full width;
+   the column caps out and centres instead. */
 .app-body { padding: 1.5rem; flex: 1 1 auto; }
+.app-body-inner { max-width: var(--content-max); margin: 0 auto; }
+
+/* Vertical rhythm between the blocks on a page, so each screen does not set
+   its own spacing. */
+.stack > * + * { margin-top: 1rem; }
+.section-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 650;
+  color: var(--muted);
+  margin: 1.75rem 0 0.25rem;
+}
+.section-title:first-child { margin-top: 0; }
 
 /* ---- Cards & tables ---------------------------------------------------- */
 
-.card { border: 1px solid var(--line); border-radius: 0.6rem; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
-.card-header { background: var(--surface); border-bottom: 1px solid var(--line); font-weight: 600; }
+.card {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: var(--surface);
+}
 
-.kpi { padding: 1.1rem 1.25rem; height: 100%; }
-.kpi .kpi-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.kpi .kpi-value { font-size: 1.6rem; font-weight: 650; letter-spacing: -0.02em; margin: 0.25rem 0 0; }
-.kpi .kpi-meta { font-size: 0.8125rem; color: var(--muted); }
-.kpi .delta-up { color: #047857; }
-.kpi .delta-down { color: #b91c1c; }
+.card-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0.75rem 0.75rem 0 0;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.8rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.card-header .card-sub { font-weight: 400; color: var(--muted); font-size: 0.8125rem; }
+
+/* ---- Stat tiles ---- */
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem 1rem;
+  height: 100%;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+
+.stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.stat-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+/* Proportional figures, not tabular: at display sizes `tabular-nums` gives
+   every digit the width of a zero and a number like 121 reads loose. */
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  margin: 0.35rem 0 0;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.stat-meta {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.stat-note { font-size: 0.75rem; color: var(--muted); }
+
+.delta {
+  font-size: 0.75rem;
+  font-weight: 650;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.delta-good { background: #ecfdf5; color: #047857; }
+.delta-bad { background: #fef2f2; color: #b91c1c; }
+.delta-flat { background: #f1f5f9; color: var(--muted); }
+
+.stat-accent { border-color: rgba(13, 148, 136, 0.35); }
+.stat-accent .stat-icon { background: #ccfbf1; color: #0f766e; }
+
+/* ---- Hero figure ---- */
+
+.hero {
+  background: linear-gradient(135deg, #0f172a 0%, #134e4a 100%);
+  color: #fff;
+  border-radius: 0.75rem;
+  padding: 1.35rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  height: 100%;
+}
+.hero .stat-label { color: #8fb8b4; }
+.hero-value {
+  font-size: 3rem;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  margin: 0.35rem 0 0;
+}
+.hero .stat-note { color: #94a3b8; }
+.hero .delta-good { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+.hero .delta-bad { background: rgba(248, 113, 113, 0.16); color: #fca5a5; }
+.hero .delta-flat { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
+
+.hero-breakdown { display: flex; gap: 1.25rem; margin-top: 1rem; flex-wrap: wrap; }
+.hero-part { display: flex; flex-direction: column; font-size: 0.9375rem; font-weight: 600; }
+.hero-part-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8fb8b4;
+  font-weight: 600;
+}
+.hero-trend { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+.sparkline { display: block; }
+
+/* ---- Tables ---- */
 
 .table { --bs-table-bg: var(--surface); margin-bottom: 0; }
 .table > thead th {
@@ -413,28 +565,168 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 650;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
+  background: #fbfcfd;
+  padding: 0.6rem 0.75rem;
 }
-.table > tbody td { vertical-align: middle; }
+.table > tbody td { vertical-align: middle; padding: 0.65rem 0.75rem; }
+.table > tbody tr:last-child td { border-bottom: 0; }
 .table-wrap { overflow-x: auto; }
+.card > .table-wrap:last-child { border-radius: 0 0 0.75rem 0.75rem; overflow: hidden auto; }
 
 .numeric { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-.empty-state { padding: 3rem 1rem; text-align: center; color: var(--muted); }
+.empty-state { padding: 2.5rem 1rem; text-align: center; color: var(--muted); }
+.empty-state .empty-title { font-weight: 600; color: var(--ink); margin-bottom: 0.15rem; }
 
-/* ---- Bars (used by the trend and mix panels) --------------------------- */
+/* ---- Meter ------------------------------------------------------------- */
 
-.bar-track { background: #eef2f6; border-radius: 999px; height: 8px; overflow: hidden; }
-.bar-fill { background: var(--brand); height: 100%; border-radius: 999px; }
-.bar-fill.negative { background: #dc2626; }
+/* The track is a lighter step of the fill's own hue, so the state reads across
+   the whole bar rather than only where the fill stops. */
+.meter { background: #ccfbf1; border-radius: 999px; height: 8px; overflow: hidden; }
+.meter-fill { background: #0d9488; height: 100%; border-radius: 999px; }
+.meter-fill.warning { background: #d97706; }
+.meter-fill.danger { background: #dc2626; }
 
-.trend-grid { display: flex; align-items: flex-end; gap: 6px; height: 140px; }
-.trend-col { flex: 1 1 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-width: 0; }
-.trend-bar { background: var(--brand); border-radius: 3px 3px 0 0; min-height: 2px; }
-.trend-bar.expense { background: #f59e0b; }
-.trend-label { font-size: 0.65rem; color: var(--muted); text-align: center; white-space: nowrap; }
+/* ---- Chart ------------------------------------------------------------- */
+
+.chart-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+.chart-plot {
+  position: relative;
+  height: var(--plot-height, 180px);
+  padding-left: 42px;
+}
+
+.chart-axis { position: absolute; inset: 0 0 0 0; width: 42px; }
+.chart-tick {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 0.6875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-grid { position: absolute; inset: 0 0 0 42px; }
+/* Solid hairline, one step off the surface. Dashed grid reads as a threshold. */
+.chart-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line);
+}
+
+.chart-bands {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.chart-band {
+  flex: 1 1 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 4px 4px 0 0;
+  cursor: default;
+}
+.chart-band:hover, .chart-band:focus-visible { background: rgba(15, 23, 42, 0.04); outline: none; }
+
+/* A 2px surface gap separates the two columns in a band — white doing the
+   separating, rather than a stroke drawn round each bar. */
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 100%;
+  width: 100%;
+  justify-content: center;
+  padding: 0 2px;
+}
+
+/* Capped rather than filling the band: the leftover space is the air that
+   keeps a dense chart readable. Square at the baseline, rounded at the cap. */
+.chart-bar {
+  flex: 1 1 0;
+  max-width: 24px;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  transition: opacity 0.12s ease;
+}
+.chart-band:hover .chart-bar { opacity: 0.85; }
+
+.chart-labels {
+  display: flex;
+  gap: 2px;
+  padding-left: 42px;
+  margin-top: 0.4rem;
+}
+.chart-label {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.chart-table { margin-top: 0.9rem; }
+.chart-table summary {
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+.chart-table summary:hover { color: var(--ink); }
+.chart-table .table-wrap { margin-top: 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; }
+
+/* Tooltip driven by `data-tip`; one element reused for every band. */
+.chart-tooltip {
+  position: fixed;
+  z-index: 1080;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  max-width: 260px;
+  box-shadow: 0 4px 14px rgba(2, 6, 23, 0.3);
+}
+.chart-tooltip.visible { opacity: 1; }
+
+/* ---- Breakdown rows (aging, mixes) ------------------------------------- */
+
+.breakdown { display: flex; flex-direction: column; gap: 0.7rem; }
+.breakdown-row { display: grid; grid-template-columns: 1fr auto; gap: 0.2rem 0.75rem; }
+.breakdown-label { font-size: 0.8125rem; color: var(--muted); }
+.breakdown-value { font-size: 0.8125rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+.breakdown-track {
+  grid-column: 1 / -1;
+  height: 6px;
+  background: #eef2f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.breakdown-fill { height: 100%; border-radius: 999px; background: #0d9488; }
 
 /* ---- Forms ------------------------------------------------------------- */
 
@@ -490,6 +782,14 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
 
   .app-body { padding: 1rem; }
   .app-header { padding: 0.75rem 1rem; }
+  .hero { padding: 1.1rem; }
+  .hero-value { font-size: 2.25rem; }
+  .hero-trend { width: 100%; align-items: flex-start; }
+  .stat-value { font-size: 1.3rem; }
+  .chart-label { font-size: 0.625rem; }
+  .chart-plot, .chart-labels { padding-left: 34px; }
+  .chart-axis { width: 34px; }
+  .chart-grid { left: 34px; }
 }
 
 @media (min-width: 993px) {
