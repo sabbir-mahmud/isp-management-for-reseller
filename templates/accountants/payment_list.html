@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block page_actions %}
+  {% if perms.accountants.export_data %}<a class="btn btn-outline-secondary btn-sm" href="{% url 'export' 'payments' %}">Export CSV</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Payments" value=totals.count %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Customers paid" value=totals.gross|money %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Cash you took" value=totals.reseller_cash|money meta="Includes the upstream share" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Your commission" value=totals.commission|money %}</div>
+</div>
+<div class="card">
+  {% include "partials/filters.html" %}
+  <div class="table-wrap">
+    <table class="table table-hover align-middle">
+      <thead><tr><th>Date</th><th>Client</th><th>Invoice</th><th>Collected by</th><th>Method</th>
+                 <th>Reference</th><th class="numeric">Amount</th><th class="numeric">Commission</th></tr></thead>
+      <tbody>
+        {% for payment in payments %}
+          <tr>
+            <td class="small">{{ payment.received_on|date:"d M Y" }}</td>
+            <td><a class="text-decoration-none" href="{% url 'client_detail' payment.client.pk %}">{{ payment.client.name }}</a></td>
+            <td><a class="text-decoration-none small" href="{% url 'invoice_detail' payment.invoice.pk %}">{{ payment.invoice.number }}</a></td>
+            <td>
+              {% if payment.is_reseller_cash %}
+                <span class="badge text-bg-primary">You</span>
+              {% else %}
+                <span class="badge text-bg-secondary">Upstream</span>
+              {% endif %}
+            </td>
+            <td>{{ payment.get_method_display }}</td>
+            <td class="small text-muted">
+              {{ payment.reference|default:"—" }}
+              <div>{{ payment.created_by.username|default:"" }}</div>
+            </td>
+            <td class="numeric fw-semibold">{{ payment.amount|money }}</td>
+            <td class="numeric text-success">{{ payment.commission_amount|money }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">{% include "partials/empty.html" with title="No payments match" %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

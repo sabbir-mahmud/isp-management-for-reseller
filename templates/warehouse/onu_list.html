@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block page_actions %}
+  {% if perms.warehouse.add_onu %}<a class="btn btn-primary" href="{% url 'onu_add' %}">Add ONU</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Total" value=totals.total %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="In stock" value=totals.in_stock %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Deployed" value=totals.assigned %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Faulty" value=totals.faulty %}</div>
+</div>
+<div class="card">
+  {% include "partials/filters.html" %}
+  <div class="table-wrap">
+    <table class="table table-hover align-middle">
+      <thead><tr><th>Serial</th><th>Model</th><th class="numeric">Ports</th><th class="numeric">Cost</th>
+                 <th>Status</th><th>Installed at</th><th></th></tr></thead>
+      <tbody>{% include "warehouse/partials/onu_rows.html" %}</tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block page_actions %}
+  <form method="get">
+    <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
+      {% for option in period_options %}
+        <option value="{{ option|date:'Y-m-d' }}" {% if option == period %}selected{% endif %}>{{ option|date:"F Y" }}</option>
+      {% endfor %}
+    </select>
+  </form>
+{% endblock %}
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Billed" value=billed|money %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Customers paid" value=client_payments|money meta=collection_rate|percent|add:" of billed" %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Commission earned" value=commission_earned|money %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Outstanding" value=outstanding|money meta="All periods" %}</div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-xl-5">
+    <div class="card h-100">
+      <div class="card-header">Profit &amp; loss — {{ period|date:"F Y" }}</div>
+      <div class="card-body">
+        {% comment %}
+        Gross customer money is shown as context, then explicitly excluded: the
+        upstream share was never the reseller's revenue, so the P&L starts at
+        commission.
+        {% endcomment %}
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr><td class="text-muted">Customers paid (gross)</td><td class="numeric text-muted">{{ client_payments|money }}</td></tr>
+            <tr><td class="ps-3 small text-muted">— you collected</td><td class="numeric small text-muted">{{ reseller_cash|money }}</td></tr>
+            <tr><td class="ps-3 small text-muted">— paid {{ commission.upstream_name }} directly</td><td class="numeric small text-muted">{{ upstream_direct|money }}</td></tr>
+            <tr class="border-top"><td class="text-muted">Commission earned</td><td class="numeric">{{ commission_earned|money }}</td></tr>
+            <tr><td class="text-muted">Other income</td><td class="numeric">{{ other_income|money }}</td></tr>
+            <tr class="border-top"><td class="fw-semibold">Revenue</td><td class="numeric fw-semibold">{{ profit.revenue|money }}</td></tr>
+            <tr><td class="text-muted">Expenses</td><td class="numeric text-danger">−{{ profit.expenses|money }}</td></tr>
+            <tr class="border-top">
+              <td class="fw-semibold">Net</td>
+              <td class="numeric fw-semibold {% if profit.net < 0 %}text-danger{% else %}text-success{% endif %}">{{ profit.net|money }}</td>
+            </tr>
+            <tr><td class="text-muted">Margin</td><td class="numeric">{{ profit.margin|percent }}</td></tr>
+          </tbody>
+        </table>
+        <hr>
+        <div class="small text-muted mb-2">
+          Position with {{ commission.upstream_name }} ({{ commission.commission_percent }}% default)
+        </div>
+        <div class="d-flex justify-content-between"><span class="text-muted">To remit this month</span><span class="numeric">{{ upstream.payable|money }}</span></div>
+        <div class="d-flex justify-content-between"><span class="text-muted">Commission receivable</span><span class="numeric">{{ upstream.receivable|money }}</span></div>
+        <div class="d-flex justify-content-between border-top pt-2 mt-2">
+          <span class="text-muted small">All-time balance</span>
+          <span class="numeric small">
+            {{ upstream_all_time.payable|money }} owed / {{ upstream_all_time.receivable|money }} due
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <div class="card h-100">
+      <div class="card-header">Where the money went</div>
+      <div class="table-wrap">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Category</th><th class="numeric">Amount</th></tr></thead>
+          <tbody>
+            {% for row in expense_breakdown %}
+              <tr><td>{{ row.category|title }}</td><td class="numeric">{{ row.total|money }}</td></tr>
+            {% empty %}
+              <tr><td colspan="2" class="text-muted small p-3">No expenses this month.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-3">
+    <div class="card h-100">
+      <div class="card-header">Aged debt</div>
+      <div class="card-body">
+        {% for bucket in aging %}
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted small">{{ bucket.label }}</span>
+            <span class="numeric small">{{ bucket.amount|money }}</span>
+          </div>
+        {% endfor %}
+        <hr>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted small">Yours to chase</span>
+          <span class="numeric small">{{ outstanding_by_mode.reseller|money }}</span>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span class="text-muted small">{{ commission.upstream_name|capfirst }} to chase</span>
+          <span class="numeric small">{{ outstanding_by_mode.upstream|money }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header">Last 12 months</div>
+  <div class="table-wrap">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Month</th><th class="numeric">Customers paid</th><th class="numeric">Revenue earned</th>
+                 <th class="numeric">Expenses</th><th class="numeric">Net</th></tr></thead>
+      <tbody>
+        {% for row in trend %}
+          <tr>
+            <td>{{ row.period|date:"F Y" }}</td>
+            <td class="numeric text-muted">{{ row.gross|money }}</td>
+            <td class="numeric">{{ row.revenue|money }}</td>
+            <td class="numeric">{{ row.expenses|money }}</td>
+            <td class="numeric {% if row.net < 0 %}text-danger{% else %}text-success{% endif %}">{{ row.net|money }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

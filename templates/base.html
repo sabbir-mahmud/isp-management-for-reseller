@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ page_title|default:SITE_NAME }}{% endblock %} · {{ SITE_NAME }}</title>
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+<div class="app-shell">
+  {% include "layout/sidebar.html" %}
+
+  <div class="app-main">
+    <header class="app-header">
+      <div class="me-auto">
+        <h1>{% block page_title %}{{ page_title }}{% endblock %}</h1>
+        {% if page_subtitle %}<p class="subtitle">{{ page_subtitle }}</p>{% endif %}
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        {% block page_actions %}{% endblock %}
+      </div>
+    </header>
+
+    <main class="app-body">
+      {% include "partials/messages.html" %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script src="{% static 'vendor/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'vendor/htmx.min.js' %}"></script>
+<script>
+  // Send the CSRF token on every HTMX request so POSTs from the UI work
+  // without each template repeating the header.
+  document.body.addEventListener('htmx:configRequest', (event) => {
+    const token = document.querySelector('input[name=csrfmiddlewaretoken]');
+    if (token) { event.detail.headers['X-CSRFToken'] = token.value; }
+  });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

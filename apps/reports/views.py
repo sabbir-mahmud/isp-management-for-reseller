@@ -1,0 +1,216 @@
+"""The dashboard, the monthly P&L, and CSV exports."""
+
+import csv
+from datetime import date
+
+from django.db.models import Sum
+from django.http import HttpResponse
+from django.utils import timezone
+from django.views.generic import TemplateView
+
+from apps.accountants.models import Expense, Invoice, Payment
+from apps.accountants.services import upstream_position
+from apps.accounts.models import Client
+from apps.core.mixins import PageTitleMixin, StaffViewMixin
+from apps.core.utils import add_months, month_end, month_start
+
+from . import metrics
+
+
+def _period_from_request(request) -> date:
+    """Read `?period=YYYY-MM-DD` (or `YYYY-MM`), falling back to this month."""
+    raw = request.GET.get("period")
+    if not raw:
+        return month_start()
+    parts = raw.split("-")
+    try:
+        return month_start(date(int(parts[0]), int(parts[1]), 1))
+    except ValueError, IndexError:
+        return month_start()
+
+
+class DashboardView(StaffViewMixin, PageTitleMixin, TemplateView):
+    permission_required = "accountants.view_dashboard"
+    template_name = "reports/dashboard.html"
+    page_title = "Dashboard"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        period = _period_from_request(self.request)
+        context.update(metrics.dashboard(period))
+        context["page_subtitle"] = f"{period:%B %Y}"
+        context["period_options"] = [add_months(month_start(), -offset) for offset in range(12)]
+        return context
+
+
+class FinancialReportView(StaffViewMixin, PageTitleMixin, TemplateView):
+    """Month-by-month profit and loss, with the commission split spelled out."""
+
+    permission_required = "accountants.view_financial_report"
+    template_name = "reports/financial.html"
+    page_title = "Financial report"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        period = _period_from_request(self.request)
+        context["period"] = period
+        context["page_subtitle"] = f"{period:%B %Y}"
+        context["profit"] = metrics.profit(period)
+        context["commission"] = metrics.commission_split(period)
+        context["billed"] = metrics.billed(period)
+        context["client_payments"] = metrics.client_payments(period)
+        context["reseller_cash"] = metrics.reseller_cash(period)
+        context["upstream_direct"] = metrics.upstream_direct(period)
+        context["commission_earned"] = metrics.commission_earned(period)
+        context["other_income"] = metrics.other_income(period)
+        context["collection_rate"] = metrics.collection_rate(period)
+        context["outstanding"] = metrics.outstanding_total()
+        context["outstanding_by_mode"] = metrics.outstanding_by_mode()
+        context["upstream"] = upstream_position(period)
+        context["upstream_all_time"] = upstream_position()
+        context["trend"] = metrics.revenue_trend(12, period)
+        context["max_trend"] = metrics.trend_ceiling(context["trend"])
+        context["aging"] = metrics.aging_buckets()
+        context["expense_breakdown"] = _expense_breakdown(period)
+        context["period_options"] = [add_months(month_start(), -offset) for offset in range(12)]
+        return context
+
+
+def _expense_breakdown(period):
+    """Where the month's money went, largest category first."""
+    return (
+        Expense.objects.filter(occurred_on__range=(month_start(period), month_end(period)))
+        .values("category")
+        .annotate(total=Sum("amount"))
+        .order_by("-total")
+    )
+
+
+class ExportView(StaffViewMixin, TemplateView):
+    """Stream a CSV of one dataset.
+
+    Export is a permission of its own: the data leaves the building in a file
+    anyone can forward, which is a different risk from reading it on screen.
+    """
+
+    permission_required = "accountants.export_data"
+
+    DATASETS = {"clients", "invoices", "payments", "expenses"}
+
+    def get(self, request, dataset, *args, **kwargs):
+        if dataset not in self.DATASETS:
+            return HttpResponse("Unknown dataset.", status=404)
+
+        stamp = timezone.localdate().isoformat()
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="{dataset}-{stamp}.csv"'
+        writer = csv.writer(response)
+        getattr(self, f"_{dataset}")(writer)
+        return response
+
+    def _clients(self, writer):
+        writer.writerow(
+            [
+                "Code",
+                "Name",
+                "Username/IP",
+                "Phone",
+                "POP",
+                "Package",
+                "Monthly",
+                "Status",
+                "Joined",
+            ]
+        )
+        for client in Client.objects.with_related().order_by("client_code"):
+            writer.writerow(
+                [
+                    client.client_code,
+                    client.name,
+                    client.username,
+                    client.phone,
+                    client.pop.name if client.pop else "",
+                    client.package.name if client.package else "",
+                    client.monthly_price or 0,
+                    client.effective_collection_mode,
+                    client.get_status_display(),
+                    client.connection_date,
+                ]
+            )
+
+    def _invoices(self, writer):
+        writer.writerow(
+            [
+                "Number",
+                "Client",
+                "Period",
+                "Issued",
+                "Due",
+                "Total",
+                "Paid",
+                "Outstanding",
+                "Status",
+            ]
+        )
+        for invoice in Invoice.objects.with_related().order_by("-period", "number"):
+            writer.writerow(
+                [
+                    invoice.number,
+                    invoice.client.name,
+                    f"{invoice.period:%Y-%m}",
+                    invoice.issue_date,
+                    invoice.due_date,
+                    invoice.total,
+                    invoice.amount_paid,
+                    invoice.amount_due,
+                    invoice.get_collection_mode_display(),
+                    invoice.commission_percent,
+                    invoice.commission_amount,
+                    invoice.upstream_amount,
+                    invoice.get_status_display(),
+                ]
+            )
+
+    def _payments(self, writer):
+        writer.writerow(
+            [
+                "Date",
+                "Client",
+                "Invoice",
+                "Amount",
+                "Commission",
+                "Upstream share",
+                "Collected by",
+                "Method",
+                "Reference",
+                "Recorded by",
+            ]
+        )
+        for payment in Payment.objects.select_related("client", "invoice", "created_by"):
+            writer.writerow(
+                [
+                    payment.received_on,
+                    payment.client.name,
+                    payment.invoice.number,
+                    payment.amount,
+                    payment.commission_amount,
+                    payment.upstream_amount,
+                    payment.get_collection_mode_display(),
+                    payment.get_method_display(),
+                    payment.reference,
+                    payment.created_by.get_username() if payment.created_by else "",
+                ]
+            )
+
+    def _expenses(self, writer):
+        writer.writerow(["Date", "Category", "Description", "Amount", "Note"])
+        for expense in Expense.objects.all():
+            writer.writerow(
+                [
+                    expense.occurred_on,
+                    expense.get_category_display(),
+                    expense.description,
+                    expense.amount,
+                    expense.note,
+                ]
+            )

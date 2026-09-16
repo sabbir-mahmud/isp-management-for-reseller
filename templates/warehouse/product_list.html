@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block page_actions %}
+  {% if perms.warehouse.add_stockmovement %}<a class="btn btn-outline-secondary" href="{% url 'movement_add' %}">Record movement</a>{% endif %}
+  {% if perms.warehouse.add_product %}<a class="btn btn-primary" href="{% url 'product_add' %}">Add item</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Items" value=totals.skus %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Units on hand" value=totals.units %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Stock value" value=totals.value|money %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Low stock" value=low_stock meta="At or below reorder level" %}</div>
+</div>
+<div class="card">
+  {% include "partials/filters.html" %}
+  <div class="table-wrap">
+    <table class="table table-hover align-middle">
+      <thead><tr><th>Item</th><th>Category</th><th>SKU</th><th class="numeric">Qty</th>
+                 <th class="numeric">Unit price</th><th class="numeric">Value</th><th>Status</th><th></th></tr></thead>
+      <tbody>{% include "warehouse/partials/product_rows.html" %}</tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

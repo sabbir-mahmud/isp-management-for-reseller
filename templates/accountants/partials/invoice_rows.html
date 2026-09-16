@@ -1,0 +1,37 @@
+{% load ui %}
+{% for invoice in invoices %}
+  <tr>
+    <td><a class="fw-semibold text-decoration-none" href="{% url 'invoice_detail' invoice.pk %}">{{ invoice.number }}</a></td>
+    <td>
+      {{ invoice.client.name }}
+      <div class="small text-muted">
+        {{ invoice.client.client_code }} ·
+        {% if invoice.collected_by_reseller %}
+          <span class="text-body-secondary">you collect</span>
+        {% else %}
+          <span class="text-body-secondary">pays upstream</span>
+        {% endif %}
+      </div>
+    </td>
+    <td>{{ invoice.period|date:"M Y" }}</td>
+    <td class="small {% if invoice.is_overdue %}text-danger fw-semibold{% endif %}">
+      {{ invoice.due_date|date:"d M Y" }}
+      {% if invoice.is_overdue %}<div class="small">{{ invoice.days_overdue }} days late</div>{% endif %}
+    </td>
+    <td class="numeric">{{ invoice.total|money }}
+      <div class="small text-success">+{{ invoice.commission_amount|money }}</div>
+    </td>
+    <td class="numeric text-success">{{ invoice.amount_paid|money }}</td>
+    <td class="numeric {% if invoice.amount_due %}text-danger fw-semibold{% endif %}">{{ invoice.amount_due|money }}</td>
+    <td>{{ invoice.status|status_badge }}</td>
+    <td class="text-end">
+      {% if perms.accountants.add_payment and invoice.amount_due %}
+        <a class="btn btn-sm btn-primary" href="{% url 'payment_add' invoice.pk %}">
+          {% if invoice.collected_by_reseller %}Take payment{% else %}Mark paid{% endif %}
+        </a>
+      {% endif %}
+    </td>
+  </tr>
+{% empty %}
+  <tr><td colspan="9">{% include "partials/empty.html" with title="No invoices match" hint="Generate the month's invoices to get started." %}</td></tr>
+{% endfor %}

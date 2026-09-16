@@ -1,0 +1,50 @@
+# Local production-shaped stack: Postgres + Redis + the app under gunicorn.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: isp
+      POSTGRES_USER: isp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-isp-local-dev}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U isp -d isp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: .
+    # Migrations run before the server starts, so a fresh volume comes up ready.
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             gunicorn isp_management.wsgi:application --config gunicorn.conf.py"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in your .env}
+      DEBUG: "False"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      CSRF_TRUSTED_ORIGINS: http://localhost:8000
+      DATABASE_URL: postgres://isp:${POSTGRES_PASSWORD:-isp-local-dev}@db:5432/isp
+      REDIS_URL: redis://redis:6379/0
+      # TLS is terminated by the proxy in front of this stack, not here.
+      SECURE_SSL_REDIRECT: "False"
+      TRUST_PROXY_HEADERS: "True"
+      TIME_ZONE: Asia/Dhaka
+    ports:
+      - "8000:8000"
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+volumes:
+  pgdata:

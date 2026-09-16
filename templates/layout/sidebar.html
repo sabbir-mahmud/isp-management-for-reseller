@@ -1,0 +1,100 @@
+{% comment %}
+Primary navigation. Each entry is permission-gated, so a support technician
+simply does not see the billing section rather than clicking into a 403.
+{% endcomment %}
+<aside class="sidebar">
+  <a class="brand text-decoration-none" href="{% url 'dashboard' %}">{{ SITE_NAME }}</a>
+
+  <nav>
+    {% if perms.accountants.view_dashboard %}
+      <div class="nav-section">Overview</div>
+      <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+         href="{% url 'dashboard' %}">Dashboard</a>
+      {% if perms.accountants.view_financial_report %}
+        <a class="nav-link {% if request.resolver_match.url_name == 'financial_report' %}active{% endif %}"
+           href="{% url 'financial_report' %}">Financial report</a>
+      {% endif %}
+    {% endif %}
+
+    {% if perms.accounts.view_client %}
+      <div class="nav-section">Customers</div>
+      <a class="nav-link {% if request.resolver_match.url_name|slice:':6' == 'client' %}active{% endif %}"
+         href="{% url 'client_list' %}">Clients</a>
+      {% if perms.accounts.view_package %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'package' %}active{% endif %}"
+           href="{% url 'package_list' %}">Packages</a>
+      {% endif %}
+      {% if perms.warehouse.view_pop %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':3' == 'pop' %}active{% endif %}"
+           href="{% url 'pop_list' %}">POPs</a>
+      {% endif %}
+    {% endif %}
+
+    {% if perms.accountants.view_invoice %}
+      <div class="nav-section">Billing</div>
+      <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'invoice' %}active{% endif %}"
+         href="{% url 'invoice_list' %}">Invoices</a>
+      {% if perms.accountants.view_payment %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'payment' %}active{% endif %}"
+           href="{% url 'payment_list' %}">Payments</a>
+      {% endif %}
+      {% if perms.accountants.view_upstreamsettlement %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':10' == 'settlement' %}active{% endif %}"
+           href="{% url 'settlement_list' %}">Upstream</a>
+      {% endif %}
+      {% if perms.accountants.view_expense %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'expense' %}active{% endif %}"
+           href="{% url 'expense_list' %}">Expenses</a>
+      {% endif %}
+      {% if perms.accountants.view_income %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':6' == 'income' %}active{% endif %}"
+           href="{% url 'income_list' %}">Other income</a>
+      {% endif %}
+    {% endif %}
+
+    {% if perms.warehouse.view_product or perms.warehouse.view_onu %}
+      <div class="nav-section">Inventory</div>
+      {% if perms.warehouse.view_onu %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':3' == 'onu' %}active{% endif %}"
+           href="{% url 'onu_list' %}">ONUs</a>
+      {% endif %}
+      {% if perms.warehouse.view_product %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'product' %}active{% endif %}"
+           href="{% url 'product_list' %}">Stock</a>
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':8' == 'category' %}active{% endif %}"
+           href="{% url 'category_list' %}">Categories</a>
+      {% endif %}
+      {% if perms.warehouse.view_stockmovement %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':8' == 'movement' %}active{% endif %}"
+           href="{% url 'movement_list' %}">Movements</a>
+      {% endif %}
+    {% endif %}
+
+    {% if perms.users.view_profile or perms.accountants.change_billingsettings %}
+      <div class="nav-section">Administration</div>
+      {% if perms.users.view_profile %}
+        <a class="nav-link {% if request.resolver_match.url_name|slice:':5' == 'staff' %}active{% endif %}"
+           href="{% url 'staff_list' %}">Staff</a>
+      {% endif %}
+      {% if perms.accountants.change_billingsettings %}
+        <a class="nav-link {% if request.resolver_match.url_name == 'billing_settings' %}active{% endif %}"
+           href="{% url 'billing_settings' %}">Billing settings</a>
+      {% endif %}
+      {% if user.is_superuser %}
+        <a class="nav-link" href="{% url 'admin:index' %}">Django admin</a>
+      {% endif %}
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="text-white">{{ user.get_full_name|default:user.username }}</div>
+    <div class="text-secondary small mb-2">{{ current_role }}</div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-sm btn-outline-light" href="{% url 'password_change' %}">Password</a>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-light" type="submit">Sign out</button>
+      </form>
+    </div>
+  </div>
+</aside>

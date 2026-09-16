@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block page_actions %}
+  {% if perms.users.add_profile %}
+    <a class="btn btn-primary" href="{% url 'staff_add' %}">Add staff</a>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="table-wrap">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr><th>User</th><th>Name</th><th>Role</th><th>Phone</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for profile in profiles %}
+          <tr>
+            <td class="fw-semibold">{{ profile.user.username }}</td>
+            <td>{{ profile.user.get_full_name|default:"—" }}</td>
+            <td>{{ profile.get_role_display }}</td>
+            <td>{{ profile.phone|default:"—" }}</td>
+            <td>
+              {% if profile.user.is_active %}
+                <span class="badge text-bg-success">Active</span>
+              {% else %}
+                <span class="badge text-bg-secondary">Disabled</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if perms.users.change_profile %}
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'staff_edit' profile.user.pk %}">Edit</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">{% include "partials/empty.html" with title="No staff yet" %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

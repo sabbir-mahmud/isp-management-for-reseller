@@ -1,0 +1,36 @@
+{% load ui %}
+{% comment %}
+Pagination that keeps the active filters. `querystring` rewrites the current
+query rather than replacing it, so page 2 of a search is still that search.
+{% endcomment %}
+{% if page_obj.paginator.num_pages > 1 %}
+  <nav class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
+    <small class="text-muted">
+      Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of
+      {{ page_obj.paginator.count }}
+    </small>
+    <ul class="pagination pagination-sm mb-0">
+      {% comment %}
+      `previous_page_number` raises EmptyPage on page 1, and a template does not
+      swallow that, so the guard has to wrap the call and not just the styling.
+      {% endcomment %}
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="{% querystring page=page_obj.previous_page_number %}">Previous</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+      {% endif %}
+      <li class="page-item disabled">
+        <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+      </li>
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="{% querystring page=page_obj.next_page_number %}">Next</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endif %}

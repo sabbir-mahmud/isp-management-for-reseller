@@ -1,0 +1,17 @@
+{% load ui %}
+{% comment %} One KPI tile. `metric` is a metrics.Money when a delta is wanted. {% endcomment %}
+<div class="card kpi">
+  <div class="kpi-label">{{ label }}</div>
+  <p class="kpi-value">{{ value }}</p>
+  {% if metric %}
+    <div class="kpi-meta">
+      <span class="delta-{{ metric.direction }}">
+        {% if metric.direction == 'up' %}▲{% elif metric.direction == 'down' %}▼{% else %}■{% endif %}
+        {{ metric.delta|money }}
+      </span>
+      vs last month
+    </div>
+  {% elif meta %}
+    <div class="kpi-meta">{{ meta }}</div>
+  {% endif %}
+</div>

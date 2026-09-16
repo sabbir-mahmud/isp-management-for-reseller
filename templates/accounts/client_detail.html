@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block page_actions %}
+  {% if perms.accounts.change_client %}
+    <a class="btn btn-outline-secondary" href="{% url 'client_edit' client.pk %}">Edit</a>
+  {% endif %}
+  {% if perms.accounts.change_client %}
+    <form method="post" action="{% url 'client_status' client.pk %}" class="d-flex gap-2">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <select name="status" class="form-select form-select-sm">
+        {% for value, label in client.Status.choices %}
+          <option value="{{ value }}" {% if client.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-sm btn-outline-primary" type="submit">Apply</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-xl-4">
+    <div class="card mb-3">
+      <div class="card-header">Connection</div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted">Status</dt><dd class="col-7">{{ client.status|status_badge }}</dd>
+          <dt class="col-5 text-muted">Username / IP</dt><dd class="col-7">{{ client.username }}</dd>
+          <dt class="col-5 text-muted">POP</dt><dd class="col-7">{{ client.pop.name|default:"—" }}</dd>
+          <dt class="col-5 text-muted">ONU</dt><dd class="col-7">{{ client.onu.serial|default:"Not assigned" }}</dd>
+          <dt class="col-5 text-muted">Connected</dt><dd class="col-7">{{ client.connection_date|date:"d M Y" }}</dd>
+          <dt class="col-5 text-muted">Bills on</dt><dd class="col-7">Day {{ client.billing_day }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header">Contact</div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted">Phone</dt><dd class="col-7">{{ client.phone }}</dd>
+          <dt class="col-5 text-muted">Email</dt><dd class="col-7">{{ client.email|default:"—" }}</dd>
+          <dt class="col-5 text-muted">NID</dt><dd class="col-7">{{ client.nid|default:"—" }}</dd>
+          <dt class="col-5 text-muted">Address</dt><dd class="col-7">{{ client.address }}</dd>
+        </dl>
+        {% if client.notes %}<hr><p class="small mb-0 text-muted">{{ client.notes }}</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Plan history</div>
+      <div class="table-wrap">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Package</th><th class="numeric">Price</th><th>From</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for sub in subscriptions %}
+              <tr>
+                <td>{{ sub.package.name }}</td>
+                <td class="numeric">{{ sub.net_monthly|money }}</td>
+                <td class="small">{{ sub.start_date|date:"M Y" }}</td>
+                <td>{{ sub.status|status_badge }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted small p-3">No subscription on record.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-8">
+    <div class="row g-3 mb-3">
+      <div class="col-6">{% include "partials/kpi.html" with label="Outstanding" value=client.balance_due|money meta="Across unpaid invoices" %}</div>
+      <div class="col-6">{% include "partials/kpi.html" with label="Monthly" value=client.monthly_price|money meta=client.package.name %}</div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header">Invoices</div>
+      <div class="table-wrap">
+        <table class="table table-hover table-sm mb-0">
+          <thead><tr><th>Number</th><th>Period</th><th>Due</th><th class="numeric">Total</th><th class="numeric">Paid</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for invoice in invoices %}
+              <tr>
+                <td><a class="text-decoration-none" href="{% url 'invoice_detail' invoice.pk %}">{{ invoice.number }}</a></td>
+                <td>{{ invoice.period|date:"M Y" }}</td>
+                <td class="small {% if invoice.is_overdue %}text-danger{% endif %}">{{ invoice.due_date|date:"d M" }}</td>
+                <td class="numeric">{{ invoice.total|money }}</td>
+                <td class="numeric">{{ invoice.amount_paid|money }}</td>
+                <td>{{ invoice.status|status_badge }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-muted small p-3">No invoices raised yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Payments</div>
+      <div class="table-wrap">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Date</th><th>Invoice</th><th>Method</th><th>Reference</th><th class="numeric">Amount</th></tr></thead>
+          <tbody>
+            {% for payment in payments %}
+              <tr>
+                <td class="small">{{ payment.received_on|date:"d M Y" }}</td>
+                <td class="small">{{ payment.invoice.number }}</td>
+                <td class="small">{{ payment.get_method_display }}</td>
+                <td class="small text-muted">{{ payment.reference|default:"—" }}</td>
+                <td class="numeric text-success">{{ payment.amount|money }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-muted small p-3">Nothing received yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

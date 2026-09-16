@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="form-page">
+  <div class="card border-danger-subtle">
+    <div class="card-body">
+      <p class="mb-2">Delete <strong>{{ object }}</strong>?</p>
+      {% if warning %}<div class="alert alert-warning py-2 small">{{ warning }}</div>{% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <div class="d-flex gap-2">
+          <button class="btn btn-danger" type="submit">Yes, delete</button>
+          <a class="btn btn-outline-secondary" href="{{ request.META.HTTP_REFERER|default:'/' }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

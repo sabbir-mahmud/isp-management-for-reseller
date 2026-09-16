@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block page_actions %}
+  {% if perms.accountants.add_upstreamsettlement %}
+    <a class="btn btn-outline-primary" href="{% url 'settlement_add' %}?kind=remittance">Record remittance</a>
+    <a class="btn btn-primary" href="{% url 'settlement_add' %}?kind=commission_payout">Record commission received</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="alert alert-light border py-2 small">
+  Default arrangement: <strong>{{ settings_row.get_collection_mode_display }}</strong>
+  at <strong>{{ settings_row.commission_percent }}%</strong>.
+  Individual clients can override it on their own record.
+</div>
+
+{% comment %}
+Two independent balances, shown side by side because they arise from opposite
+arrangements and settle separately.
+{% endcomment %}
+<div class="row g-3 mb-3">
+  <div class="col-12 col-xl-6">
+    <div class="card h-100">
+      <div class="card-header">You owe {{ upstream_name }}</div>
+      <div class="card-body">
+        <p class="small text-muted">
+          Customers paid you, and this share of that money belongs upstream.
+        </p>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Upstream share of what you collected</span>
+          <span class="numeric">{{ position.owed_upstream|money }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Already remitted</span>
+          <span class="numeric text-success">−{{ position.remitted|money }}</span>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between">
+          <span class="fw-semibold">Still to remit</span>
+          <span class="numeric fw-semibold {% if position.payable > 0 %}text-danger{% endif %}">
+            {{ position.payable|money }}
+          </span>
+        </div>
+        <div class="small text-muted mt-2">
+          This month alone: {{ month_position.payable|money }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card h-100">
+      <div class="card-header">{{ upstream_name }} owes you</div>
+      <div class="card-body">
+        <p class="small text-muted">
+          Commission on bills your customers paid upstream directly.
+        </p>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Commission earned</span>
+          <span class="numeric">{{ position.commission_earned_upstream|money }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Already received</span>
+          <span class="numeric text-success">−{{ position.commission_received|money }}</span>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between">
+          <span class="fw-semibold">Still to collect</span>
+          <span class="numeric fw-semibold {% if position.receivable > 0 %}text-success{% endif %}">
+            {{ position.receivable|money }}
+          </span>
+        </div>
+        <div class="small text-muted mt-2">
+          This month alone: {{ month_position.receivable|money }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  {% include "partials/filters.html" %}
+  <div class="table-wrap">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr><th>Settled</th><th>Direction</th><th>Month</th><th>Reference</th>
+            <th>Recorded by</th><th class="numeric">Amount</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for settlement in settlements %}
+          <tr>
+            <td class="small">{{ settlement.settled_on|date:"d M Y" }}</td>
+            <td>
+              {% if settlement.is_outgoing %}
+                <span class="badge text-bg-warning">Paid upstream</span>
+              {% else %}
+                <span class="badge text-bg-success">Commission received</span>
+              {% endif %}
+              {% if settlement.note %}<div class="small text-muted">{{ settlement.note }}</div>{% endif %}
+            </td>
+            <td class="small">{{ settlement.period|date:"M Y" }}</td>
+            <td class="small text-muted">{{ settlement.reference|default:"—" }}</td>
+            <td class="small text-muted">{{ settlement.created_by.username|default:"—" }}</td>
+            <td class="numeric fw-semibold {% if settlement.is_outgoing %}text-danger{% else %}text-success{% endif %}">
+              {% if settlement.is_outgoing %}−{% endif %}{{ settlement.amount|money }}
+            </td>
+            <td class="text-end">
+              {% if perms.accountants.delete_upstreamsettlement %}
+                <a class="btn btn-sm btn-outline-danger" href="{% url 'settlement_delete' settlement.pk %}">Delete</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">
+            {% include "partials/empty.html" with title="No settlements yet" hint="Record what you remit upstream, and the commission they pay you." %}
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

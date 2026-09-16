@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block page_actions %}
+  {% if perms.accountants.export_data %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'export' 'clients' %}">Export CSV</a>
+  {% endif %}
+  {% if perms.accounts.add_client %}
+    <a class="btn btn-primary" href="{% url 'client_add' %}">Add client</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Total" value=status_counts.total %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Active" value=status_counts.active %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Suspended" value=status_counts.suspended %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Pending install" value=status_counts.pending %}</div>
+</div>
+
+<div class="card">
+  {% include "partials/filters.html" %}
+  <div class="table-wrap">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Client</th><th>Contact</th><th>Package</th>
+          <th class="numeric">Monthly</th><th>POP</th><th>Status</th>
+          <th class="numeric">Owes</th><th></th>
+        </tr>
+      </thead>
+      <tbody>{% include "accounts/partials/client_rows.html" %}</tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

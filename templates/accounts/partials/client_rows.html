@@ -1,0 +1,34 @@
+{% load ui %}
+{% for client in clients %}
+  <tr>
+    <td>
+      <a class="fw-semibold text-decoration-none" href="{% url 'client_detail' client.pk %}">{{ client.name }}</a>
+      <div class="small text-muted">{{ client.client_code }} · {{ client.username }}</div>
+    </td>
+    <td>
+      <div>{{ client.phone }}</div>
+      {% if client.address %}<div class="small text-muted text-truncate" style="max-width:220px">{{ client.address }}</div>{% endif %}
+    </td>
+    <td>{% if client.package %}{{ client.package.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+    <td class="numeric">{% if client.monthly_price %}{{ client.monthly_price|money }}{% else %}—{% endif %}</td>
+    <td>{{ client.pop.name|default:"—" }}</td>
+    <td>{{ client.status|status_badge }}</td>
+    <td class="numeric">
+      {% if client.balance_due %}
+        <span class="text-danger fw-semibold">{{ client.balance_due|money }}</span>
+      {% else %}<span class="text-muted">—</span>{% endif %}
+    </td>
+    <td class="text-end">
+      {% if perms.accounts.change_client %}
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'client_edit' client.pk %}">Edit</a>
+      {% endif %}
+      {% if perms.accounts.delete_client %}
+        <a class="btn btn-sm btn-outline-danger" href="{% url 'client_delete' client.pk %}">Archive</a>
+      {% endif %}
+    </td>
+  </tr>
+{% empty %}
+  <tr><td colspan="8">
+    {% include "partials/empty.html" with title="No clients match" hint="Adjust the search, or add your first client." %}
+  </td></tr>
+{% endfor %}

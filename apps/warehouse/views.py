@@ -1,171 +1,234 @@
-# imports
-from django.contrib.auth.decorators import login_required
-from django.contrib.messages.views import SuccessMessageMixin
-from django.core.paginator import Paginator
-from django.shortcuts import render
-from django.utils.decorators import method_decorator
-from django.views.generic.edit import CreateView, DeleteView, UpdateView
+"""Inventory screens: stock, serialised ONUs and the movement ledger."""
 
-from .filters import WarehouseOnuFilter, WarehouseProductFilter
-from .forms import CategoryForm, WarehouseOnuForm, WarehouseProductForm
-from .models import Category, Onu, Product
+from django.contrib import messages
+from django.db.models import Count, F, Q, Sum, Value
+from django.shortcuts import redirect
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-# Create your views here.
+from apps.accounts.views import FilteredListView
+from apps.core.aggregates import money_sum
+from apps.core.mixins import CrudViewMixin, PageTitleMixin, StaffViewMixin
 
-# -------------------------------------------------#
-# Warehouse product category view
-# -------------------------------------------------#
+from .filters import OnuFilter, ProductFilter, StockMovementFilter
+from .forms import CategoryForm, OnuForm, ProductForm, StockMovementForm
+from .models import Category, Onu, Product, StockMovement
 
 
-@login_required(login_url='login')
-def category_list(request):
-    category = Category.objects.all()
-    context = {'category': category}
-    return render(request, 'warehouse/category_list.html', context)
+class ProductListView(FilteredListView):
+    permission_required = "warehouse.view_product"
+    model = Product
+    filterset_class = ProductFilter
+    template_name = "warehouse/product_list.html"
+    htmx_template_name = "warehouse/partials/product_rows.html"
+    context_object_name = "products"
+    page_title = "Stock"
+    page_subtitle = "Cables, routers, spares — what is on the shelf"
+
+    def get_queryset(self):
+        queryset = Product.objects.select_related("category")
+        self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        return self.filterset.qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["totals"] = Product.objects.aggregate(
+            skus=Count("pk"),
+            units=Sum("quantity", default=Value(0)),
+            value=money_sum(F("quantity") * F("unit_price")),
+        )
+        context["low_stock"] = Product.objects.low_stock().count()
+        return context
 
 
-#---------------------------------------------------#
-# Category create view
-#---------------------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class CategoryCreateView(SuccessMessageMixin, CreateView):
-    form_class = CategoryForm
-    template_name = 'warehouse/category_add_form.html'
-    success_url = '/warehouse/category'
-    success_message = 'category was created'
-    error_message = 'category was not created'
+class ProductCreateView(CrudViewMixin, CreateView):
+    permission_required = "warehouse.add_product"
+    model = Product
+    form_class = ProductForm
+    template_name = "form.html"
+    success_url = reverse_lazy("product_list")
+    success_message = "%(name)s was added to stock."
+    page_title = "Add stock item"
 
-#---------------------------------------------------#
-# Category update view
-#---------------------------------------------------#
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        opening = form.cleaned_data.get("opening_quantity") or 0
+        if opening:
+            StockMovement.objects.create(
+                product=self.object,
+                kind=StockMovement.Kind.IN,
+                quantity=opening,
+                reason="Opening stock",
+                created_by=self.request.user,
+            )
+        return response
 
 
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class CategoryUpdateView(SuccessMessageMixin, UpdateView):
+class ProductUpdateView(CrudViewMixin, UpdateView):
+    permission_required = "warehouse.change_product"
+    model = Product
+    form_class = ProductForm
+    template_name = "form.html"
+    success_url = reverse_lazy("product_list")
+    success_message = "%(name)s was updated."
+    page_title = "Edit stock item"
+
+
+class ProductDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
+    permission_required = "warehouse.delete_product"
+    model = Product
+    template_name = "confirm_delete.html"
+    success_url = reverse_lazy("product_list")
+    page_title = "Delete stock item"
+
+
+# ---------------------------------------------------------------------------#
+# Categories
+# ---------------------------------------------------------------------------#
+
+
+class CategoryListView(StaffViewMixin, PageTitleMixin, ListView):
+    permission_required = "warehouse.view_category"
+    model = Category
+    template_name = "warehouse/category_list.html"
+    context_object_name = "categories"
+    paginate_by = 50
+    page_title = "Categories"
+
+    def get_queryset(self):
+        return Category.objects.annotate(products_count=Count("products")).order_by("name")
+
+
+class CategoryCreateView(CrudViewMixin, CreateView):
+    permission_required = "warehouse.add_category"
     model = Category
     form_class = CategoryForm
-    template_name = 'warehouse/category_update_form.html'
-    success_url = '/warehouse/category'
-    success_message = 'category was updated'
-    error_message = 'category was not updated'
+    template_name = "form.html"
+    success_url = reverse_lazy("category_list")
+    success_message = "Category %(name)s was created."
+    page_title = "Add category"
 
 
-#---------------------------------------------#
-# Category delete view
-#---------------------------------------------#
-
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class CategoryDeleteView(SuccessMessageMixin, DeleteView):
+class CategoryUpdateView(CrudViewMixin, UpdateView):
+    permission_required = "warehouse.change_category"
     model = Category
-    template_name = 'warehouse/category_delete_confirm.html'
-    success_url = '/warehouse/category'
-    success_message = 'category was deleted'
-    error_message = 'category was not deleted'
+    form_class = CategoryForm
+    template_name = "form.html"
+    success_url = reverse_lazy("category_list")
+    success_message = "Category %(name)s was updated."
+    page_title = "Edit category"
 
 
-#------------------------------------#
-# Warehouse products Views
-#------------------------------------#
+class CategoryDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
+    permission_required = "warehouse.delete_category"
+    model = Category
+    template_name = "confirm_delete.html"
+    success_url = reverse_lazy("category_list")
+    page_title = "Delete category"
+
+    def form_valid(self, form):
+        category = self.get_object()
+        if category.products.exists():
+            messages.error(self.request, f"{category.name} still holds products; move them first.")
+            return redirect("category_list")
+        return super().form_valid(form)
 
 
-@login_required(login_url='login')
-def warehouse_view(request):
-    products = Product.objects.all().order_by('-id')
-    filter = WarehouseProductFilter(request.GET, queryset=products)
-    products = filter.qs
-    paginator = Paginator(products, 25)
-    page_number = request.GET.get('paginator')
-    products = paginator.get_page(page_number)
-    context = {'products': products, 'filter': filter}
-    return render(request, 'warehouse/warehouse.html', context)
+# ---------------------------------------------------------------------------#
+# ONUs
+# ---------------------------------------------------------------------------#
 
 
-#------------------------------------#
-# Warehouse product add Views
-#------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class WarehouseProductAddView(SuccessMessageMixin, CreateView):
-    template_name = 'warehouse/warehouse_add.html'
-    form_class = WarehouseProductForm
-    success_url = '/warehouse'
-    success_message = 'Product added successfully'
-    error_message = 'Product not added'
-
-
-#------------------------------------#
-# Warehouse product update Views
-#------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class WarehouseProductUpdateView(SuccessMessageMixin, UpdateView):
-    model = Product
-    template_name = 'warehouse/warehouse_update.html'
-    form_class = WarehouseProductForm
-    success_url = '/warehouse'
-    success_message = 'Product added successfully'
-    error_message = 'Product not added'
-
-
-#------------------------------------#
-# Warehouse product delete Views
-#------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class WarehouseProductDeleteView(SuccessMessageMixin, DeleteView):
-    model = Product
-    template_name = 'warehouse/warehouse_delete.html'
-    success_url = '/warehouse'
-    success_message = 'Product deleted successfully'
-    error_message = 'Product not deleted'
-
-
-#------------------------------------#
-# Onu views
-# showing all onu
-#------------------------------------#
-@login_required(login_url='login')
-def onu_view(request):
-    onu = Onu.objects.all().order_by('-id')
-    filter = WarehouseOnuFilter(request.GET, queryset=onu)
-    onus = filter.qs
-    paginator = Paginator(onus, 25)
-    page_number = request.GET.get('paginator')
-    onus = paginator.get_page(page_number)
-    context = {'onus': onus, 'filter': filter}
-    return render(request, 'onu/onu.html', context)
-
-
-#------------------------------------#
-# Onu add views
-#------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class WarehouseOnuAddView(SuccessMessageMixin, CreateView):
-    template_name = 'onu/onu_add.html'
-    form_class = WarehouseOnuForm
-    success_url = '/onu'
-    success_message = 'Onu added successfully'
-    error_message = 'Onu not added'
-
-
-#------------------------------------#
-# Onu update views
-#------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class WarehouseOnuUpdateView(SuccessMessageMixin, UpdateView):
+class OnuListView(FilteredListView):
+    permission_required = "warehouse.view_onu"
     model = Onu
-    template_name = 'onu/onu_update.html'
-    form_class = WarehouseOnuForm
-    success_url = '/onu'
-    success_message = 'Onu added successfully'
-    error_message = 'Onu not added'
+    filterset_class = OnuFilter
+    template_name = "warehouse/onu_list.html"
+    htmx_template_name = "warehouse/partials/onu_rows.html"
+    context_object_name = "onus"
+    page_title = "ONUs"
+    page_subtitle = "Serialised devices, in stock and in the field"
 
-#------------------------------------#
-# Onu delete views
-#------------------------------------#
+    def get_queryset(self):
+        queryset = Onu.objects.select_related("client")
+        self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        return self.filterset.qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["totals"] = Onu.objects.aggregate(
+            total=Count("pk"),
+            in_stock=Count("pk", filter=Q(status=Onu.Status.IN_STOCK)),
+            assigned=Count("pk", filter=Q(status=Onu.Status.ASSIGNED)),
+            faulty=Count("pk", filter=Q(status=Onu.Status.FAULTY)),
+        )
+        return context
 
 
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class WarehouseOnuDeleteView(SuccessMessageMixin, DeleteView):
+class OnuCreateView(CrudViewMixin, CreateView):
+    permission_required = "warehouse.add_onu"
     model = Onu
-    template_name = 'onu/onu_delete.html'
-    success_url = '/onu'
-    success_message = 'Onu deleted successfully'
-    error_message = 'Onu not deleted'
+    form_class = OnuForm
+    template_name = "form.html"
+    success_url = reverse_lazy("onu_list")
+    success_message = "ONU %(serial)s was added."
+    page_title = "Add ONU"
+
+
+class OnuUpdateView(CrudViewMixin, UpdateView):
+    permission_required = "warehouse.change_onu"
+    model = Onu
+    form_class = OnuForm
+    template_name = "form.html"
+    success_url = reverse_lazy("onu_list")
+    success_message = "ONU %(serial)s was updated."
+    page_title = "Edit ONU"
+
+
+class OnuDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
+    permission_required = "warehouse.delete_onu"
+    model = Onu
+    template_name = "confirm_delete.html"
+    success_url = reverse_lazy("onu_list")
+    page_title = "Delete ONU"
+
+    def form_valid(self, form):
+        onu = self.get_object()
+        if onu.assigned_client:
+            messages.error(
+                self.request,
+                f"ONU {onu.serial} is installed at {onu.assigned_client.name}. "
+                "Unassign it from the client first.",
+            )
+            return redirect("onu_list")
+        return super().form_valid(form)
+
+
+# ---------------------------------------------------------------------------#
+# Stock movements
+# ---------------------------------------------------------------------------#
+
+
+class StockMovementListView(FilteredListView):
+    permission_required = "warehouse.view_stockmovement"
+    model = StockMovement
+    filterset_class = StockMovementFilter
+    template_name = "warehouse/movement_list.html"
+    context_object_name = "movements"
+    page_title = "Stock movements"
+    page_subtitle = "Every receipt, issue and correction"
+
+    def get_queryset(self):
+        queryset = StockMovement.objects.select_related("product", "created_by")
+        self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        return self.filterset.qs
+
+
+class StockMovementCreateView(CrudViewMixin, CreateView):
+    permission_required = "warehouse.add_stockmovement"
+    model = StockMovement
+    form_class = StockMovementForm
+    template_name = "form.html"
+    success_url = reverse_lazy("movement_list")
+    success_message = "Stock movement recorded."
+    page_title = "Record stock movement"

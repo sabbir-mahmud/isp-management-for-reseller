@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block page_actions %}
+  {% if perms.warehouse.add_category %}<a class="btn btn-primary" href="{% url 'category_add' %}">Add category</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="table-wrap">
+    <table class="table table-hover align-middle">
+      <thead><tr><th>Category</th><th>Description</th><th class="numeric">Items</th><th></th></tr></thead>
+      <tbody>
+        {% for category in categories %}
+          <tr>
+            <td class="fw-semibold">{{ category.name }}</td>
+            <td class="text-muted small">{{ category.description|default:"—" }}</td>
+            <td class="numeric">{{ category.products_count }}</td>
+            <td class="text-end">
+              {% if perms.warehouse.change_category %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'category_edit' category.pk %}">Edit</a>{% endif %}
+              {% if perms.warehouse.delete_category %}<a class="btn btn-sm btn-outline-danger" href="{% url 'category_delete' category.pk %}">Delete</a>{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">{% include "partials/empty.html" with title="No categories yet" %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

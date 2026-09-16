@@ -1,71 +1,165 @@
-# isp-management-for-reseller
+# ISP Manager
 
-Internet service provider management system for resellers — client billing,
-package management, ONU/warehouse inventory, and a month/year accounting
-dashboard.
+Back office for an internet service provider reseller: customers, subscriptions,
+monthly invoicing, payment collection, inventory, and the reports that tell you
+whether the business is making money.
 
 Runs on **Python 3.14** and **Django 6.1**.
 
-## Apps
+> **Scope:** this system does not talk to MikroTik, Cisco or any network
+> hardware. It records and reports on the business. Nothing here provisions or
+> disconnects a connection.
 
-| App | Responsibility |
+## What it does
+
+| Area | Detail |
 | --- | --- |
-| `apps.accounts` | Clients, service packages, authentication |
-| `apps.warehouse` | Product categories, products, ONU devices, POPs |
-| `apps.accountants` | Months/years, investments, earnings, commission, dashboard |
+| **Customers** | Clients with status, POP, assigned ONU, contact and NID details; one-box search across name, code, phone, username and NID |
+| **Subscriptions** | Plan and price per client, with the price frozen at sign-up so re-pricing a package never rewrites history |
+| **Billing** | Monthly invoice generation (idempotent, with a dry-run preview), partial payments, cancellations, aged-debt tracking |
+| **Settlement** | Both reseller arrangements — you collect and remit upstream, or clients pay upstream and you draw commission — with a running balance each way |
+| **Money** | Expenses and non-subscription income, commission tracking, monthly P&L |
+| **Inventory** | Serialised ONUs with assignment tracking, stock items with a movement ledger instead of an editable quantity |
+| **Reporting** | Dashboard (collections, MRR, ARPU, churn, collection rate, aged debt, top debtors), financial report, CSV exports |
+| **Access** | Four roles backed by real Django permissions, throttled login, audit stamps on every record |
 
-## Local setup
+## The two reseller arrangements
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
+Resellers settle with their upstream operator in one of two ways, and the
+system supports both — including a mix of the two in one customer base.
 
-pip install -r requirements.txt        # add -r requirements-dev.txt for linting
+| | **You collect** | **Client pays upstream** |
+| --- | --- | --- |
+| Who the customer pays | you | the upstream operator, online |
+| What you hold | the full bill | nothing |
+| What you earn | your commission, kept from what you collected | your commission, paid to you afterwards |
+| Running balance | **you owe upstream** the rest of what you collected | **upstream owes you** the commission |
 
-cp .env.example .env
-python -c "from django.core.management.utils import get_random_secret_key as g; print(g())"
-# paste the value into SECRET_KEY in .env, and set DEBUG=True
+Set the default under **Billing → Settings**, and override it on any individual
+client who pays the other way. The commission rate resolves per client too:
 
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+```
+the client's own rate  →  the package's rate  →  the rate in billing settings
 ```
 
-The app is then at http://127.0.0.1:8000/ (login at `/login/`, Django admin at
-`/admin/`).
+Both are recorded on each invoice as it is raised, so changing the arrangement
+or the rate later never rewrites what past months were worth.
+
+**Billing → Upstream** shows the two running balances and the settlements
+behind them: what you have remitted, and what commission you have been paid.
+
+> One rule worth knowing: money you remit upstream is **not** an expense. It
+> was never your revenue — your revenue is the commission — so record it as a
+> settlement, never in the expense ledger, or the same money is deducted twice.
+> Every profit figure in the app follows this rule.
+
+## Quick start
+
+```bash
+make install                  # virtualenv + dependencies
+cp .env.example .env
+
+python -c "from django.core.management.utils import get_random_secret_key as g; print(g())"
+# paste into SECRET_KEY in .env, and set DEBUG=True for local work
+
+make migrate
+make seed                     # optional: 60 clients and 6 months of billing history
+make superuser                # or sign in as the seeded `owner`
+make run
+```
+
+Then open http://127.0.0.1:8000/.
+
+The seeded logins are `owner`, `manager`, `accountant` and `support`, all with
+the password `demopass123`. Sign in as each to see how much of the application
+a role can reach. The demo deliberately mixes both settlement arrangements, so
+the upstream page shows a real balance in each direction.
+
+## Running it for real
+
+```bash
+docker compose up --build     # Postgres + Redis + gunicorn
+```
+
+Or deploy the image anywhere that can run it. The essentials:
+
+1. `SECRET_KEY`, `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` set, `DEBUG=False`.
+2. `DATABASE_URL` pointing at Postgres.
+3. `REDIS_URL` set once you run more than one worker — the login throttle
+   counts failures in the cache, and a per-process cache lets each worker
+   count separately.
+4. `python manage.py migrate` on release (the `Procfile` does this).
+5. The two scheduled jobs below.
+
+Verify a deployment with `make check`, which runs Django's system checks, the
+production hardening audit, and confirms models and migrations agree.
+
+### Scheduled jobs
+
+```cron
+# Raise the month's invoices, on the 1st at 01:00
+0 1 1 * * cd /app && python manage.py generate_invoices
+
+# Flag invoices that have passed their due date, daily at 02:00
+0 2 * * * cd /app && python manage.py refresh_overdue
+```
+
+`generate_invoices` skips clients who already have an invoice for the month, so
+re-running it after a partial failure is safe. Preview first with
+`make invoices ARGS="--dry-run"`.
+
+## Roles
+
+| Role | Can |
+| --- | --- |
+| **Owner** | Everything, including staff accounts and deleting financial records |
+| **Manager** | Clients, inventory and billing; can record settlements but not delete them |
+| **Accountant** | Invoices, payments, settlements, ledgers and reports; read-only on customers and inventory |
+| **Support** | View clients and devices, change a client's status; no access to money |
+
+Roles are defined in `apps/users/roles.py` and applied as Django groups by
+`sync_roles`, which runs automatically after every `migrate`. Editing that
+matrix is the only supported way to change access — permissions granted by hand
+in the admin are removed on the next sync.
+
+## Development
+
+```bash
+make test        # 160 tests
+make coverage    # with a coverage report
+make lint        # ruff check + format check
+make format      # apply fixes
+make check       # system checks, migration drift, deployment audit
+make help        # every target
+```
+
+Tests live in `tests/` and run against a real database through pytest-django.
+The suite covers billing rules, both settlement arrangements and the
+commission arithmetic, metric definitions, role permissions, the login
+throttle, model constraints and every page rendering.
 
 ## Configuration
 
-All configuration is read from the environment (or a local `.env`); see
-`.env.example` for the full list. Nothing in `isp_management/settings.py`
-needs editing to move between environments.
+Everything is read from the environment; see `.env.example` for the full list
+with notes. Nothing in `isp_management/settings.py` needs editing to move
+between environments.
 
 | Variable | Notes |
 | --- | --- |
-| `SECRET_KEY` | **Required.** No default — the app refuses to start without it. |
-| `DEBUG` | Defaults to `False`. |
-| `ALLOWED_HOSTS` | Comma-separated. Required in production. |
-| `CSRF_TRUSTED_ORIGINS` | Comma-separated, scheme included. |
-| `DATABASE_URL` | Omit for local SQLite; set to a `postgres://…` URL in production. |
+| `SECRET_KEY` | **Required.** The app refuses to start without it |
+| `DEBUG` | Defaults to `False` |
+| `ALLOWED_HOSTS` | Comma-separated; required in production |
+| `DATABASE_URL` | Omit for local SQLite; `postgres://…` in production |
+| `REDIS_URL` | Shared cache; needed with more than one worker |
+| `SITE_NAME` / `CURRENCY_SYMBOL` | Branding and currency display |
+| `ADMIN_URL` | Moves the Django admin off its default path |
 
-With `DEBUG=False` the security settings (SSL redirect, HSTS, secure cookies)
-switch on automatically.
+With `DEBUG=False`, TLS redirects, HSTS, secure cookies and the rest switch on
+automatically.
 
-## Checks
+## Further reading
 
-```bash
-python manage.py check              # system checks
-python manage.py check --deploy     # production hardening audit
-ruff check .                        # lint
-```
-
-## Deployment
-
-`Procfile` runs migrations on release and serves through gunicorn. Static files
-are served by WhiteNoise with hashed, compressed manifests — run
-`python manage.py collectstatic` as part of the build.
-
-```bash
-DEBUG=False python manage.py collectstatic --noinput
-gunicorn isp_management.wsgi
-```
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the layers fit together,
+  the money model, the deletion policy, and what was deliberately left out
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — month-end routine, backups,
+  and what to do when something looks wrong

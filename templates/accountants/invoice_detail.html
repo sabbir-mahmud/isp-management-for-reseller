@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block page_actions %}
+  {% if perms.accountants.add_payment and invoice.amount_due %}
+    <a class="btn btn-primary" href="{% url 'payment_add' invoice.pk %}">
+      {% if invoice.collected_by_reseller %}Take payment{% else %}Record upstream payment{% endif %}
+    </a>
+  {% endif %}
+  {% if perms.accountants.change_invoice %}
+    <a class="btn btn-outline-secondary" href="{% url 'invoice_edit' invoice.pk %}">Edit</a>
+    {% if invoice.status != 'cancelled' %}
+      <form method="post" action="{% url 'invoice_cancel' invoice.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger" type="submit">Cancel invoice</button>
+      </form>
+    {% endif %}
+  {% endif %}
+{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-xl-8">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between">
+        <span>{{ invoice.number }}</span>
+        <span>{{ invoice.status|status_badge }}</span>
+      </div>
+      <div class="card-body">
+        <div class="row small mb-3">
+          <div class="col-6 col-md-3"><div class="text-muted">Client</div>
+            <a class="text-decoration-none" href="{% url 'client_detail' invoice.client.pk %}">{{ invoice.client.name }}</a></div>
+          <div class="col-6 col-md-3"><div class="text-muted">Period</div>{{ invoice.period|date:"F Y" }}</div>
+          <div class="col-6 col-md-3"><div class="text-muted">Issued</div>{{ invoice.issue_date|date:"d M Y" }}</div>
+          <div class="col-6 col-md-3"><div class="text-muted">Due</div>
+            <span class="{% if invoice.is_overdue %}text-danger fw-semibold{% endif %}">{{ invoice.due_date|date:"d M Y" }}</span></div>
+        </div>
+
+        <div class="alert {% if invoice.collected_by_reseller %}alert-primary{% else %}alert-secondary{% endif %} py-2 small">
+          {% if invoice.collected_by_reseller %}
+            <strong>You collect this bill.</strong> You keep
+            {{ invoice.commission_amount|money }} ({{ invoice.commission_percent }}%) and owe
+            {{ invoice.upstream_amount|money }} upstream once it is paid.
+          {% else %}
+            <strong>The customer pays {{ invoice.payee }} directly.</strong> None of this money
+            reaches you; you earn {{ invoice.commission_amount|money }}
+            ({{ invoice.commission_percent }}%) once they pay.
+          {% endif %}
+        </div>
+
+        <table class="table table-sm">
+          <thead><tr><th>Description</th><th class="numeric">Qty</th><th class="numeric">Unit</th><th class="numeric">Amount</th></tr></thead>
+          <tbody>
+            {% for line in invoice.lines.all %}
+              <tr>
+                <td>{{ line.description }}</td>
+                <td class="numeric">{{ line.quantity }}</td>
+                <td class="numeric">{{ line.unit_price|money }}</td>
+                <td class="numeric">{{ line.line_total|money }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted small">No line items; the total below was entered directly.</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr><td colspan="3" class="numeric text-muted">Subtotal</td><td class="numeric">{{ invoice.subtotal|money }}</td></tr>
+            {% if invoice.discount %}
+              <tr><td colspan="3" class="numeric text-muted">Discount</td><td class="numeric">−{{ invoice.discount|money }}</td></tr>
+            {% endif %}
+            <tr><td colspan="3" class="numeric fw-semibold">Total</td><td class="numeric fw-semibold">{{ invoice.total|money }}</td></tr>
+            <tr><td colspan="3" class="numeric text-success">Paid</td><td class="numeric text-success">{{ invoice.amount_paid|money }}</td></tr>
+            <tr><td colspan="3" class="numeric fw-semibold">Outstanding</td>
+                <td class="numeric fw-semibold {% if invoice.amount_due %}text-danger{% endif %}">{{ invoice.amount_due|money }}</td></tr>
+            <tr><td colspan="3" class="numeric text-muted small">Your commission ({{ invoice.commission_percent }}%)</td>
+                <td class="numeric small text-success">{{ invoice.commission_amount|money }}</td></tr>
+            <tr><td colspan="3" class="numeric text-muted small">Upstream share</td>
+                <td class="numeric small text-muted">{{ invoice.upstream_amount|money }}</td></tr>
+          </tfoot>
+        </table>
+        {% if invoice.note %}<p class="small text-muted mb-0">{{ invoice.note }}</p>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <div class="card">
+      <div class="card-header">Payments</div>
+      <div class="table-wrap">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Date</th><th>Method</th><th class="numeric">Amount</th><th></th></tr></thead>
+          <tbody>
+            {% for payment in invoice.payments.all %}
+              <tr>
+                <td class="small">{{ payment.received_on|date:"d M Y" }}</td>
+                <td class="small">{{ payment.get_method_display }}
+                  {% if payment.reference %}<div class="text-muted">{{ payment.reference }}</div>{% endif %}</td>
+                <td class="numeric text-success">{{ payment.amount|money }}</td>
+                <td class="text-end">
+                  {% if perms.accountants.delete_payment %}
+                    <a class="btn btn-sm btn-outline-danger" href="{% url 'payment_delete' payment.pk %}">Reverse</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted small p-3">
+              {% if invoice.collected_by_reseller %}
+                Nothing received against this invoice.
+              {% else %}
+                Not yet shown as paid on the upstream statement.
+              {% endif %}
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

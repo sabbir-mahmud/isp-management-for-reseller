@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: isp_test
+          POSTGRES_USER: isp
+          POSTGRES_PASSWORD: isp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U isp" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+
+    env:
+      # Long and random enough to satisfy the deploy audit (security.W009);
+      # it is a throwaway CI value and protects nothing real.
+      SECRET_KEY: ci-3f8b1d9c47a25e6084bb7c1fd35a92e7460d8ab1c5f27e93
+      DEBUG: "False"
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      DATABASE_URL: postgres://isp:isp@localhost:5432/isp_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+
+      - run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Django system checks
+        run: python manage.py check
+
+      - name: Models and migrations agree
+        # Catches a model edit that was committed without its migration.
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Migrations apply to an empty database
+        run: python manage.py migrate --noinput
+
+      - name: Tests
+        run: pytest --cov=apps --cov-report=term-missing
+
+      - name: Production hardening audit
+        run: python manage.py check --deploy --fail-level WARNING
+        env:
+          SECURE_SSL_REDIRECT: "True"

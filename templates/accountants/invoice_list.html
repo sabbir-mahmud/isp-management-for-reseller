@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block page_actions %}
+  {% if perms.accountants.export_data %}<a class="btn btn-outline-secondary btn-sm" href="{% url 'export' 'invoices' %}">Export CSV</a>{% endif %}
+  {% if perms.accountants.add_invoice %}
+    <a class="btn btn-outline-primary" href="{% url 'invoice_add' %}">New invoice</a>
+    <a class="btn btn-primary" href="{% url 'invoice_generate' %}">Generate month</a>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Invoices" value=totals.count %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Billed" value=totals.billed|money %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Your commission" value=totals.commission|money %}</div>
+  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Outstanding" value=totals.due|money %}</div>
+</div>
+<div class="card">
+  {% include "partials/filters.html" %}
+  <div class="table-wrap">
+    <table class="table table-hover align-middle">
+      <thead><tr><th>Number</th><th>Client</th><th>Period</th><th>Due</th>
+                 <th class="numeric">Total / commission</th><th class="numeric">Paid</th>
+                 <th class="numeric">Owing</th><th>Status</th><th></th></tr></thead>
+      <tbody>{% include "accountants/partials/invoice_rows.html" %}</tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

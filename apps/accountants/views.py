@@ -1,358 +1,446 @@
-import calendar
+"""Billing screens: invoices, payments and the two manual ledgers."""
 
-from django.contrib.auth.decorators import login_required
-from django.contrib.messages.views import SuccessMessageMixin
-from django.core.paginator import Paginator
-from django.db.models import Count, Q, Sum
-from django.shortcuts import redirect, render
-from django.utils import timezone
-from django.utils.decorators import method_decorator
-from django.views.generic.edit import CreateView, DeleteView, UpdateView
+from decimal import Decimal
 
-from apps.accounts.models import Clients
-from apps.warehouse.models import Onu
+from django.contrib import messages
+from django.db.models import Case, Count, DecimalField, F, Value, When
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
+from django.views.generic import CreateView, DeleteView, DetailView, FormView, UpdateView
 
-from .forms import CommissionForm, EarnForm, InvestForm, MonthForm, YearForm
-from .models import Commission, Earn, Invest, Month, Year
+from apps.accounts.views import FilteredListView
+from apps.core.aggregates import money_sum
+from apps.core.choices import CollectionMode
+from apps.core.mixins import CrudViewMixin, PageTitleMixin, StaffViewMixin
+from apps.core.utils import month_start
 
-#----------------------------#
-# Period helpers
-#----------------------------#
+from .filters import ExpenseFilter, IncomeFilter, InvoiceFilter, PaymentFilter, SettlementFilter
+from .forms import (
+    BillingSettingsForm,
+    ExpenseForm,
+    GenerateInvoicesForm,
+    IncomeForm,
+    InvoiceForm,
+    PaymentForm,
+    SettlementForm,
+)
+from .models import BillingSettings, Expense, Income, Invoice, Payment, UpstreamSettlement
+from .services import (
+    BillingError,
+    cancel_invoice,
+    generate_invoices,
+    record_payment,
+    upstream_position,
+)
 
-def current_period():
-    """Return the (Month, Year) rows for today, creating them if missing.
 
-    Month/Year are user-managed lookup tables, so a fresh install has none.
-    Creating on demand keeps the dashboard from 500ing on first load.
+class InvoiceListView(FilteredListView):
+    permission_required = "accountants.view_invoice"
+    model = Invoice
+    filterset_class = InvoiceFilter
+    template_name = "accountants/invoice_list.html"
+    htmx_template_name = "accountants/partials/invoice_rows.html"
+    context_object_name = "invoices"
+    page_title = "Invoices"
+    page_subtitle = "What was billed, and what is still owed"
+
+    def get_queryset(self):
+        self.filterset = self.filterset_class(
+            self.request.GET, queryset=Invoice.objects.with_related()
+        )
+        return self.filterset.qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        rows = self.filterset.qs.aggregate(
+            count=Count("pk"),
+            billed=money_sum("total"),
+            paid=money_sum("amount_paid"),
+            commission=money_sum("commission_amount"),
+        )
+        rows["due"] = rows["billed"] - rows["paid"]
+        context["totals"] = rows
+        return context
+
+
+class InvoiceDetailView(StaffViewMixin, PageTitleMixin, DetailView):
+    permission_required = "accountants.view_invoice"
+    model = Invoice
+    template_name = "accountants/invoice_detail.html"
+    context_object_name = "invoice"
+
+    def get_queryset(self):
+        return Invoice.objects.with_related().prefetch_related("lines", "payments")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_title"] = self.object.number
+        context["page_subtitle"] = f"{self.object.client.name} · {self.object.period:%B %Y}"
+        context["payment_form"] = PaymentForm(invoice=self.object)
+        return context
+
+
+class InvoiceCreateView(CrudViewMixin, CreateView):
+    permission_required = "accountants.add_invoice"
+    model = Invoice
+    form_class = InvoiceForm
+    template_name = "form.html"
+    success_message = "Invoice created."
+    page_title = "New invoice"
+
+
+class InvoiceUpdateView(CrudViewMixin, UpdateView):
+    permission_required = "accountants.change_invoice"
+    model = Invoice
+    form_class = InvoiceForm
+    template_name = "form.html"
+    success_message = "Invoice updated."
+    page_title = "Edit invoice"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.object.recalculate()
+        return response
+
+
+class InvoiceCancelView(StaffViewMixin, DetailView):
+    permission_required = "accountants.change_invoice"
+    model = Invoice
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        invoice = self.get_object()
+        try:
+            cancel_invoice(invoice, actor=request.user)
+            messages.success(request, f"{invoice.number} was cancelled.")
+        except BillingError as exc:
+            messages.error(request, str(exc))
+        return redirect("invoice_detail", pk=invoice.pk)
+
+
+class GenerateInvoicesView(StaffViewMixin, PageTitleMixin, FormView):
+    """Raise the whole month's invoices from the UI.
+
+    Shows a dry run first — an operator should see what a batch will do
+    before it writes a few hundred rows.
     """
-    today = timezone.localdate()
-    month, _ = Month.objects.get_or_create(name=calendar.month_name[today.month])
-    year, _ = Year.objects.get_or_create(name=str(today.year))
-    return month, year
 
+    permission_required = "accountants.add_invoice"
+    form_class = GenerateInvoicesForm
+    template_name = "accountants/generate_invoices.html"
+    page_title = "Generate monthly invoices"
 
-def mark_active(month, year):
-    """Flag the given rows active and clear the flag everywhere else."""
-    Month.objects.exclude(pk=month.pk).filter(active=True).update(active=False)
-    Month.objects.filter(pk=month.pk, active=False).update(active=True)
-    Year.objects.exclude(pk=year.pk).filter(active=True).update(active=False)
-    Year.objects.filter(pk=year.pk, active=False).update(active=True)
+    def get_initial(self):
+        return {"period": month_start()}
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        period = self.request.GET.get("period")
+        preview_period = month_start(_parse_date(period)) if period else month_start()
+        context["preview"] = generate_invoices(preview_period, dry_run=True)
+        context["preview_period"] = preview_period
+        return context
 
-def previous_period(month, year):
-    """Return the (Month, Year) preceding the given pair, or (None, None)."""
-    today = timezone.localdate()
-    prev_month_no = today.month - 1 or 12
-    prev_year_no = today.year - 1 if today.month == 1 else today.year
-    return (
-        Month.objects.filter(name=calendar.month_name[prev_month_no]).first(),
-        Year.objects.filter(name=str(prev_year_no)).first(),
-    )
-
-
-def period_total(model, field, month, year):
-    """Sum `field` over the rows of `model` in the given period (0 when empty)."""
-    if month is None or year is None:
-        return 0
-    return model.objects.filter(month=month, year=year).aggregate(
-        total=Sum(field)
-    )["total"] or 0
-
-
-#----------------------------#
-# ISP Owner Dashboard
-#----------------------------#
-
-
-@login_required(login_url='login')
-def dashboard(request):
-    month, year = current_period()
-    mark_active(month, year)
-
-    # A single Commission row drives the reseller's cut; seed it on first load.
-    commission_row, _ = Commission.objects.get_or_create(pk=1)
-    commission = commission_row.commission
-
-    # client counts, in one query instead of three
-    client_counts = Clients.objects.aggregate(
-        total=Count('pk'),
-        active=Count('pk', filter=Q(status='active')),
-        inactive=Count('pk', filter=Q(status='inactive')),
-    )
-
-    # onu counts, likewise
-    onu_counts = Onu.objects.aggregate(
-        total=Count('pk'),
-        active=Count('pk', filter=Q(status='Active')),
-        stored=Count('pk', filter=Q(status='Stored')),
-        damaged=Count('pk', filter=Q(status='Damaged')),
-    )
-
-    # billing
-    collected_bill = Clients.objects.filter(status='active').aggregate(
-        total=Sum('pack__price')
-    )['total'] or 0
-    profit_via_bill = (collected_bill * commission) / 100
-    upstream_bill = collected_bill - profit_via_bill
-
-    # lifetime profit
-    earn = Earn.objects.aggregate(total=Sum('earn_amount'))['total'] or 0
-    invest = Invest.objects.aggregate(total=Sum('invest_amount'))['total'] or 0
-    profit = f'loss {invest - earn}' if earn < invest else earn - invest
-
-    prev_month, prev_year = previous_period(month, year)
-
-    context = {
-        "clients": client_counts['total'],
-        "activeClients": client_counts['active'],
-        "inactiveClients": client_counts['inactive'],
-        "onu": onu_counts['total'],
-        "activeOnu": onu_counts['active'],
-        "storedOnu": onu_counts['stored'],
-        "damagedOnu": onu_counts['damaged'],
-        "collected_bill": collected_bill,
-        "profit_via_bill": profit_via_bill,
-        "upsteam_bill": upstream_bill,
-        "earn": earn,
-        "invest": invest,
-        "profit": profit,
-        "this_month_invest": period_total(Invest, 'invest_amount', month, year),
-        "this_month_earn": period_total(Earn, 'earn_amount', month, year),
-        "previous_month_invest": period_total(
-            Invest, 'invest_amount', prev_month, prev_year),
-        "previous_month_earn": period_total(
-            Earn, 'earn_amount', prev_month, prev_year),
-    }
-    return render(request, 'dashboard/dashboard.html', context)
-
-
-#----------------------------#
-# Months
-#----------------------------#
-@login_required(login_url='login')
-def months(request):
-    months = Month.objects.all()
-    paginator = Paginator(months, 25)
-    page_number = request.GET.get('paginator')
-    months = paginator.get_page(page_number)
-    context = {'months': months}
-    return render(request, 'accountants/months.html', context)
-
-# ----------------------------#
-# Month Create View
-# ----------------------------#
-
-
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class MonthAddView(SuccessMessageMixin, CreateView):
-    form_class = MonthForm
-    template_name = 'accountants/month_form.html'
-    success_url = '/dashboard/months'
-    success_message = 'month was created'
-    error_message = 'month was not created'
-
-
-# ----------------------------#
-# Month Update View
-# ----------------------------#
-
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class MonthUpdateView(SuccessMessageMixin, UpdateView):
-    model = Month
-    form_class = MonthForm
-    template_name = 'accountants/month_update.html'
-    success_url = '/dashboard/months'
-    success_message = 'Month was updated'
-    error_message = 'Month was not updated'
-
-
-#---------------------------#
-# Month delete
-#---------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class MonthDelete(SuccessMessageMixin, DeleteView):
-    model = Month
-    template_name = 'accountants/month_delete_confirm.html'
-    success_url = '/dashboard/months'
-    success_message = 'Month was deleted'
-    error_message = 'Month was not deleted'
-
-# --------------------------------#
-# Year
-#---------------------------------#
-
-
-@login_required(login_url='login')
-def yearView(request):
-    years = Year.objects.all()
-    paginator = Paginator(years, 25)
-    page = request.GET.get('paginator')
-    years = paginator.get_page(page)
-    context = {
-        'years': years
-    }
-    return render(request, 'accountants/year.html', context)
-
-
-#----------------------------------#
-# Year add View
-#----------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class YearAddView(SuccessMessageMixin, CreateView):
-    form_class = YearForm
-    template_name = 'accountants/year_form.html'
-    success_url = '/dashboard/years'
-    success_message = 'Year was created'
-    error_message = 'Year was not created'
-
-
-#-----------------------------------#
-# Year update view
-#-----------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class YearUpdateView(SuccessMessageMixin, UpdateView):
-    model = Year
-    form_class = YearForm
-    template_name = 'accountants/year_form.html'
-    success_url = '/dashboard/years'
-    success_message = 'Year was updated'
-    error_message = 'Year was not updated'
-
-
-#------------------------------------#
-# Year delete view
-#------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class YearDeleteView(SuccessMessageMixin, DeleteView):
-    model = Year
-    template_name = 'accountants/year_confirm_delete.html'
-    success_url = '/dashboard/years'
-    success_message = 'Year was deleted'
-    error_message = 'Year was not deleted'
-
-
-#--------------------------------------#
-# invest view
-#--------------------------------------#
-
-@login_required(login_url='login')
-def investView(request):
-    invests = Invest.objects.all()
-    paginator = Paginator(invests, 25)
-    page = request.GET.get('paginator')
-    invests = paginator.get_page(page)
-    context = {
-        "invests": invests
-    }
-    return render(request, 'accountants/invest.html', context)
-
-
-#---------------------------------------#
-# invest add view
-#---------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class InvestAddView(SuccessMessageMixin, CreateView):
-    form_class = InvestForm
-    template_name = 'accountants/invest_add_form.html'
-    success_url = '/dashboard/invests'
-    success_message = 'Invest Details was created'
-    error_message = 'Invest Details was not created'
-
-
-#-----------------------------------------#
-# invest update view
-#-----------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class InvestUpdateView(SuccessMessageMixin, UpdateView):
-    model = Invest
-    form_class = InvestForm
-    template_name = 'accountants/invest_update_form.html'
-    success_url = '/dashboard/invests'
-    success_message = 'Invest Details was updated'
-    error_message = 'Invest Details was not updated'
-
-
-#------------------------------------------#
-# invest delete from
-#------------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class InvestDeleteView(SuccessMessageMixin, DeleteView):
-    model = Invest
-    template_name = 'accountants/invest_delete_confirm.html'
-    success_url = '/dashboard/invests'
-    success_message = 'Invest Details was deleted'
-    error_message = 'Invest Details was not deleted'
-
-
-#-----------------------------------------#
-# Earning views
-#-----------------------------------------#
-@login_required(login_url='login')
-def earningView(request):
-    earnings = Earn.objects.all()
-    paginator = Paginator(earnings, 25)
-    page = request.GET.get('paginator')
-    earnings = paginator.get_page(page)
-    context = {
-        "earnings": earnings
-    }
-    return render(request, 'accountants/earning.html', context)
-
-
-#-----------------------------------------#
-# Earning add view
-#-----------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class EarningAddView(SuccessMessageMixin, CreateView):
-    form_class = EarnForm
-    template_name = 'accountants/earn_add_form.html'
-    success_url = '/dashboard/earnings'
-    success_message = 'Earning details was created'
-    error_message = 'Earning details was not created'
-
-
-#------------------------------------------#
-# Earning update view
-#------------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class EarningUpdateView(SuccessMessageMixin, UpdateView):
-    model = Earn
-    form_class = EarnForm
-    template_name = 'accountants/earn_add_form.html'
-    success_url = '/dashboard/earnings'
-    success_message = 'Earning details was updated'
-    error_message = 'Earning details was not updated'
-
-
-#--------------------------------------------#
-# Earning delete view
-#--------------------------------------------#
-@method_decorator(login_required(login_url='login'), name='dispatch')
-class EarningDeleteView(SuccessMessageMixin, DeleteView):
-    model = Earn
-    template_name = 'accountants/earn_delete_confirm.html'
-    success_url = '/dashboard/earnings'
-    success_message = 'Earnings details was deleted'
-    error_message = 'Earning details was not deleted'
-
-
-#--------------------------------------------#
-# commission view
-#--------------------------------------------#
-@login_required(login_url='login')
-def commissionView(request):
-    commission, _ = Commission.objects.get_or_create(pk=1)
-    form = CommissionForm(instance=commission)
-    context = {
-        "commission": commission,
-        "form": form
-    }
-    if request.method == "POST":
-        form = CommissionForm(request.POST, instance=commission)
-        if form.is_valid():
-            form.save()
-            return redirect('dashboard')
+    def form_valid(self, form):
+        result = generate_invoices(form.cleaned_data["period"], actor=self.request.user)
+        if result.created_count:
+            messages.success(
+                self.request,
+                f"{result.created_count} invoice(s) raised for {result.period:%B %Y}, "
+                f"totalling {result.billed_total}.",
+            )
         else:
-            return render(request, 'accountants/commission.html', context)
+            messages.info(self.request, f"Nothing to bill for {result.period:%B %Y}.")
+        return redirect(f"{reverse('invoice_list')}?period={result.period:%Y-%m-%d}")
 
-    return render(request, 'accountants/commission.html', context)
+
+def _parse_date(value):
+    from datetime import date
+
+    try:
+        parts = [int(p) for p in value.split("-")]
+        return date(parts[0], parts[1], parts[2] if len(parts) > 2 else 1)
+    except ValueError, IndexError, AttributeError:
+        return None
+
+
+# ---------------------------------------------------------------------------#
+# Payments
+# ---------------------------------------------------------------------------#
+
+
+class PaymentListView(FilteredListView):
+    permission_required = "accountants.view_payment"
+    model = Payment
+    filterset_class = PaymentFilter
+    template_name = "accountants/payment_list.html"
+    context_object_name = "payments"
+    page_title = "Payments"
+    page_subtitle = "Cash actually received"
+
+    def get_queryset(self):
+        queryset = Payment.objects.select_related("client", "invoice", "created_by")
+        self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        return self.filterset.qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # The keys deliberately avoid the column names they sum: an alias that
+        # shadows a field makes the `F("amount")` below resolve to the other
+        # aggregate, and Django refuses with "'amount' is an aggregate".
+        context["totals"] = self.filterset.qs.aggregate(
+            count=Count("pk"),
+            gross=money_sum("amount"),
+            commission=money_sum("commission_amount"),
+            reseller_cash=money_sum(
+                Case(
+                    When(collection_mode=CollectionMode.RESELLER, then=F("amount")),
+                    default=Value(Decimal("0.00")),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            ),
+        )
+        return context
+
+
+class PaymentCreateView(StaffViewMixin, PageTitleMixin, FormView):
+    """Record a payment against the invoice named in the URL."""
+
+    permission_required = "accountants.add_payment"
+    form_class = PaymentForm
+    template_name = "form.html"
+    page_title = "Record payment"
+
+    @property
+    def invoice(self):
+        if not hasattr(self, "_invoice"):
+            self._invoice = get_object_or_404(Invoice, pk=self.kwargs["pk"])
+        return self._invoice
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["invoice"] = self.invoice
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_subtitle"] = (
+            f"{self.invoice.number} · {self.invoice.client.name} · "
+            f"{self.invoice.amount_due} outstanding"
+        )
+        return context
+
+    def form_valid(self, form):
+        try:
+            record_payment(
+                self.invoice,
+                form.cleaned_data["amount"],
+                method=form.cleaned_data["method"],
+                received_on=form.cleaned_data["received_on"],
+                reference=form.cleaned_data.get("reference", ""),
+                actor=self.request.user,
+            )
+        except BillingError as exc:
+            form.add_error(None, str(exc))
+            return self.form_invalid(form)
+        messages.success(self.request, "Payment recorded.")
+        return redirect("invoice_detail", pk=self.invoice.pk)
+
+
+class PaymentDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
+    permission_required = "accountants.delete_payment"
+    model = Payment
+    template_name = "confirm_delete.html"
+    page_title = "Reverse payment"
+
+    def get_success_url(self):
+        return reverse("invoice_detail", args=[self.object.invoice_id])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["warning"] = "Reversing a payment puts the amount back on the invoice."
+        return context
+
+
+# ---------------------------------------------------------------------------#
+# Upstream settlement
+# ---------------------------------------------------------------------------#
+
+
+class SettlementListView(FilteredListView):
+    """The running position with the upstream operator, and how it got there."""
+
+    permission_required = "accountants.view_upstreamsettlement"
+    model = UpstreamSettlement
+    filterset_class = SettlementFilter
+    template_name = "accountants/settlement_list.html"
+    context_object_name = "settlements"
+    page_title = "Upstream"
+    page_subtitle = "What you owe them, and what they owe you"
+
+    def get_queryset(self):
+        queryset = UpstreamSettlement.objects.select_related("created_by")
+        self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        return self.filterset.qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        settings_row = BillingSettings.load()
+        context["settings_row"] = settings_row
+        context["upstream_name"] = settings_row.upstream_name or "Upstream operator"
+        # All-time is the number that answers "are we square"; the month view
+        # is for reconciling a single statement.
+        context["position"] = upstream_position()
+        context["month_position"] = upstream_position(month_start())
+        context["this_month"] = month_start()
+        return context
+
+
+class SettlementCreateView(CrudViewMixin, CreateView):
+    permission_required = "accountants.add_upstreamsettlement"
+    model = UpstreamSettlement
+    form_class = SettlementForm
+    template_name = "form.html"
+    success_url = reverse_lazy("settlement_list")
+    success_message = "Settlement recorded."
+    page_title = "Record settlement"
+
+    def get_initial(self):
+        return {"period": month_start(), "kind": self.request.GET.get("kind") or None}
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["notice"] = (
+            "A remittance to the upstream operator is not an expense — that share was "
+            "never your revenue, so recording it in both places would deduct it twice."
+        )
+        return context
+
+
+class SettlementDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
+    permission_required = "accountants.delete_upstreamsettlement"
+    model = UpstreamSettlement
+    template_name = "confirm_delete.html"
+    success_url = reverse_lazy("settlement_list")
+    page_title = "Delete settlement"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["warning"] = (
+            "Removing this settlement changes your position with the upstream operator."
+        )
+        return context
+
+
+# ---------------------------------------------------------------------------#
+# Ledgers
+# ---------------------------------------------------------------------------#
+
+
+class ExpenseListView(FilteredListView):
+    permission_required = "accountants.view_expense"
+    model = Expense
+    filterset_class = ExpenseFilter
+    template_name = "accountants/expense_list.html"
+    context_object_name = "expenses"
+    page_title = "Expenses"
+    page_subtitle = "Money out: bandwidth, salaries, hardware"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["totals"] = self.filterset.qs.aggregate(
+            count=Count("pk"), amount=money_sum("amount")
+        )
+        return context
+
+
+class ExpenseCreateView(CrudViewMixin, CreateView):
+    permission_required = "accountants.add_expense"
+    model = Expense
+    form_class = ExpenseForm
+    template_name = "form.html"
+    success_url = reverse_lazy("expense_list")
+    success_message = "Expense recorded."
+    page_title = "Add expense"
+
+
+class ExpenseUpdateView(CrudViewMixin, UpdateView):
+    permission_required = "accountants.change_expense"
+    model = Expense
+    form_class = ExpenseForm
+    template_name = "form.html"
+    success_url = reverse_lazy("expense_list")
+    success_message = "Expense updated."
+    page_title = "Edit expense"
+
+
+class ExpenseDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
+    permission_required = "accountants.delete_expense"
+    model = Expense
+    template_name = "confirm_delete.html"
+    success_url = reverse_lazy("expense_list")
+    page_title = "Delete expense"
+
+
+class IncomeListView(FilteredListView):
+    permission_required = "accountants.view_income"
+    model = Income
+    filterset_class = IncomeFilter
+    template_name = "accountants/income_list.html"
+    context_object_name = "incomes"
+    page_title = "Other income"
+    page_subtitle = "Installations, hardware sales, repairs — not subscriptions"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["totals"] = self.filterset.qs.aggregate(
+            count=Count("pk"), amount=money_sum("amount")
+        )
+        return context
+
+
+class IncomeCreateView(CrudViewMixin, CreateView):
+    permission_required = "accountants.add_income"
+    model = Income
+    form_class = IncomeForm
+    template_name = "form.html"
+    success_url = reverse_lazy("income_list")
+    success_message = "Income recorded."
+    page_title = "Add income"
+
+
+class IncomeUpdateView(CrudViewMixin, UpdateView):
+    permission_required = "accountants.change_income"
+    model = Income
+    form_class = IncomeForm
+    template_name = "form.html"
+    success_url = reverse_lazy("income_list")
+    success_message = "Income updated."
+    page_title = "Edit income"
+
+
+class IncomeDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
+    permission_required = "accountants.delete_income"
+    model = Income
+    template_name = "confirm_delete.html"
+    success_url = reverse_lazy("income_list")
+    page_title = "Delete income"
+
+
+# ---------------------------------------------------------------------------#
+# Settings
+# ---------------------------------------------------------------------------#
+
+
+class BillingSettingsView(CrudViewMixin, UpdateView):
+    permission_required = "accountants.change_billingsettings"
+    model = BillingSettings
+    form_class = BillingSettingsForm
+    template_name = "form.html"
+    success_url = reverse_lazy("dashboard")
+    success_message = "Billing settings saved."
+    page_title = "Billing settings"
+    page_subtitle = "Commission split, invoice numbering and due dates"
+
+    def get_object(self, queryset=None):
+        return BillingSettings.load()
