@@ -25,56 +25,349 @@ body {
 .sidebar {
   width: var(--sidebar-width);
   flex: 0 0 var(--sidebar-width);
-  background: var(--ink);
+  background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
   color: #cbd5e1;
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  transition: width 0.18s ease, transform 0.22s ease;
+  z-index: 1040;
 }
 
-.sidebar .brand {
-  font-weight: 650;
-  color: #fff;
-  padding: 1.15rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  letter-spacing: -0.01em;
-}
+/* A thin, dark scrollbar: the default light one cuts a bright stripe down
+   the side of the panel on Windows. */
+.sidebar-nav { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
 
-.sidebar .nav-section {
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #64748b;
-  padding: 1rem 1.25rem 0.35rem;
-}
+/* ---- Brand ---- */
 
-.sidebar .nav-link {
-  color: #cbd5e1;
-  padding: 0.5rem 1.25rem;
-  border-left: 3px solid transparent;
+.sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
+  padding: 0.9rem 0.85rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  min-height: 62px;
 }
 
-.sidebar .nav-link:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-decoration: none;
+  color: #fff;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.brand-mark {
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--brand) 0%, #0ea5a4 100%);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+}
+
+.brand-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.brand-name {
+  font-weight: 650;
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brand-tag { font-size: 0.6875rem; color: #64748b; white-space: nowrap; }
+
+.sidebar-close,
+.sidebar-toggle {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  border-radius: 8px;
+  padding: 0.3rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.sidebar-close:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.sidebar-close { display: none; }
+
+/* ---- Nav ---- */
+
+.sidebar-nav { flex: 1 1 auto; overflow-y: auto; padding: 0.5rem 0.6rem 1rem; }
+
+.sidebar .nav-link {
+  position: relative;
+  color: #b8c4d4;
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 1px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.sidebar .nav-icon {
+  flex: 0 0 18px;
+  display: grid;
+  place-items: center;
+  color: #7c8ba1;
+  transition: color 0.12s ease;
+}
+
+.sidebar .nav-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar .nav-link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.sidebar .nav-link:hover .nav-icon { color: #cbd5e1; }
 
 .sidebar .nav-link.active {
-  background: rgba(15, 118, 110, 0.18);
-  border-left-color: var(--brand);
+  background: rgba(13, 148, 136, 0.16);
   color: #fff;
   font-weight: 550;
 }
+.sidebar .nav-link.active .nav-icon { color: #2dd4bf; }
 
-.sidebar .sidebar-footer {
-  margin-top: auto;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.8125rem;
+/* The active marker is a rail on the panel edge rather than a border on the
+   link, so the rounded pill keeps its shape. */
+.sidebar .nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: -0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand);
 }
+
+.sidebar .nav-link:focus-visible,
+.footer-btn:focus-visible,
+.sidebar-toggle:focus-visible {
+  outline: 2px solid #2dd4bf;
+  outline-offset: 2px;
+}
+
+.nav-badge {
+  flex: 0 0 auto;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  line-height: 1;
+  padding: 0.22rem 0.4rem;
+  border-radius: 999px;
+  min-width: 19px;
+  text-align: center;
+}
+.nav-badge-danger { background: #b91c1c; color: #fff; }
+.nav-badge-warning { background: #b45309; color: #fff; }
+
+/* ---- Nested groups ---- */
+
+.nav-group { margin-bottom: 1px; }
+
+.nav-parent {
+  width: 100%;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  color: #b8c4d4;
+}
+
+.nav-caret {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #5b6b82;
+  transition: transform 0.18s ease, color 0.12s ease;
+}
+.nav-group.open > .nav-parent .nav-caret { transform: rotate(90deg); color: #94a3b8; }
+.nav-parent:hover .nav-caret { color: #cbd5e1; }
+
+/* A group holding the open page stays legible while collapsed. */
+.nav-group.open > .nav-parent { color: #fff; }
+.nav-group.open > .nav-parent .nav-icon { color: #cbd5e1; }
+
+/* The count moves to the parent when the group is shut, so a closed section
+   never hides the fact that something needs attention. */
+.nav-group.open > .nav-parent .group-badge { display: none; }
+
+/* 0fr -> 1fr animates to the children's real height without hardcoding one. */
+.nav-children {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.18s ease;
+}
+.nav-group.open > .nav-children { grid-template-rows: 1fr; }
+.nav-children-inner { overflow: hidden; }
+
+/* The tree rail: one vertical line down the group, aligned under the parent
+   icon so the indent reads as containment rather than as padding. */
+.nav-children-inner {
+  position: relative;
+  padding: 1px 0 2px 1.55rem;
+}
+.nav-children-inner::before {
+  content: "";
+  position: absolute;
+  left: 1.05rem;
+  top: 0.1rem;
+  bottom: 0.35rem;
+  width: 1px;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.nav-children .nav-link {
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.6rem;
+  gap: 0.55rem;
+}
+.nav-children .nav-icon { flex-basis: 16px; }
+.nav-children .nav-icon svg { width: 16px; height: 16px; }
+
+/* Children sit inside a clipped container, so the panel-edge rail the
+   top-level items use would be cut off. They get a tick on the tree instead. */
+.nav-children .nav-link.active::before {
+  left: -0.5rem;
+  top: 50%;
+  height: 14px;
+  width: 2px;
+  border-radius: 2px;
+}
+
+/* ---- Footer ---- */
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 0.75rem 0.6rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.65rem 0.6rem;
+  min-width: 0;
+}
+
+.avatar {
+  flex: 0 0 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.18);
+  color: #e2e8f0;
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.user-meta { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.user-name {
+  color: #f1f5f9;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-role { color: #64748b; font-size: 0.6875rem; }
+
+.footer-actions { display: flex; gap: 0.35rem; }
+.footer-actions form { flex: 1 1 0; display: flex; }
+
+.footer-btn {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: transparent;
+  color: #b8c4d4;
+  font-size: 0.75rem;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.footer-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+
+/* ---- Collapsed (desktop icon rail) ---- */
+
+body.sidebar-collapsed { --sidebar-width: 68px; }
+body.sidebar-collapsed .brand-text,
+body.sidebar-collapsed .nav-text,
+body.sidebar-collapsed .nav-caret,
+body.sidebar-collapsed .user-meta { display: none; }
+body.sidebar-collapsed .sidebar-brand,
+body.sidebar-collapsed .user-card { justify-content: center; padding-inline: 0.5rem; }
+body.sidebar-collapsed .brand-link { justify-content: center; }
+body.sidebar-collapsed .sidebar .nav-link { justify-content: center; padding-inline: 0.5rem; }
+body.sidebar-collapsed .footer-actions { flex-direction: column; }
+/* Keep the count visible on the rail, as a dot on the icon. */
+body.sidebar-collapsed .nav-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
+  overflow: hidden;
+}
+/* On the icon rail there is no room for a tree, so every child is shown as a
+   flat icon and the group headers step out of the way. Nothing becomes
+   unreachable just because the panel is narrow. */
+body.sidebar-collapsed .nav-parent { display: none; }
+body.sidebar-collapsed .nav-children { grid-template-rows: 1fr; }
+body.sidebar-collapsed .nav-children-inner { padding: 0; }
+body.sidebar-collapsed .nav-children-inner::before { display: none; }
+body.sidebar-collapsed .nav-children .nav-link { padding: 0.5rem; }
+body.sidebar-collapsed .nav-children .nav-icon svg { width: 18px; height: 18px; }
+body.sidebar-collapsed .nav-group {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+}
+body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
+
+/* ---- Backdrop (mobile only) ---- */
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.55);
+  z-index: 1035;
+}
+
+/* ---- Main column ---- */
 
 .app-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 
@@ -86,7 +379,17 @@ body {
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
 }
+
+.app-header .sidebar-toggle {
+  color: var(--muted);
+  border-color: var(--line);
+  padding: 0.4rem;
+}
+.app-header .sidebar-toggle:hover { color: var(--ink); background: #f1f5f9; }
 
 .app-header h1 { font-size: 1.25rem; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
 .app-header .subtitle { color: var(--muted); font-size: 0.875rem; margin: 0; }
@@ -154,11 +457,48 @@ body {
 /* ---- Responsive -------------------------------------------------------- */
 
 @media (max-width: 992px) {
-  .app-shell { flex-direction: column; }
-  .sidebar { width: 100%; flex: none; height: auto; position: static; }
-  .sidebar nav { display: none; }
-  .sidebar.open nav { display: block; }
+  /* Below this width the sidebar becomes an off-canvas drawer. Previously it
+     was simply hidden with no way to open it, which left the whole
+     application unnavigable on a phone. */
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 272px;
+    flex: none;
+    transform: translateX(-100%);
+    box-shadow: 0 0 40px rgba(2, 6, 23, 0.4);
+  }
+  body.sidebar-open .sidebar { transform: translateX(0); }
+  body.sidebar-open .sidebar-backdrop { display: block; }
+
+  .sidebar-close { display: grid; }
+
+  /* The icon rail is a desktop affordance; on a drawer it just hides labels. */
+  body.sidebar-collapsed { --sidebar-width: 272px; }
+  body.sidebar-collapsed .brand-text,
+  body.sidebar-collapsed .nav-text,
+  body.sidebar-collapsed .user-meta { display: flex; }
+  body.sidebar-collapsed .nav-parent { display: flex; }
+  body.sidebar-collapsed .nav-children { grid-template-rows: 0fr; }
+  body.sidebar-collapsed .nav-group.open > .nav-children { grid-template-rows: 1fr; }
+  body.sidebar-collapsed .nav-children-inner { padding: 1px 0 2px 1.55rem; }
+  body.sidebar-collapsed .nav-children-inner::before { display: block; }
+  body.sidebar-collapsed .nav-group { border-top: 0; margin-top: 0; padding-top: 0; }
+  body.sidebar-collapsed .sidebar .nav-link { justify-content: flex-start; padding-inline: 0.65rem; }
+  body.sidebar-collapsed .nav-badge { position: static; min-width: 19px; height: auto; padding: 0.22rem 0.4rem; font-size: 0.6875rem; }
+  body.sidebar-collapsed .footer-actions { flex-direction: row; }
+
   .app-body { padding: 1rem; }
+  .app-header { padding: 0.75rem 1rem; }
+}
+
+@media (min-width: 993px) {
+  /* Nothing to open on desktop: the panel is always in the layout. */
+  .sidebar-backdrop { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .sidebar .nav-link, .footer-btn, .nav-children, .nav-caret { transition: none; }
 }
 
 .htmx-request .htmx-indicator { visibility: visible; }

@@ -1,100 +1,121 @@
+{% load icons nav ui %}
 {% comment %}
-Primary navigation. Each entry is permission-gated, so a support technician
-simply does not see the billing section rather than clicking into a 403.
-{% endcomment %}
-<aside class="sidebar">
-  <a class="brand text-decoration-none" href="{% url 'dashboard' %}">{{ SITE_NAME }}</a>
+Primary navigation.
 
-  <nav>
+Links are grouped into collapsible sections; the group holding the current
+page arrives already expanded. Everything is permission-gated, so a support
+technician simply does not see the billing section rather than clicking into
+a 403 — and a group whose every child is hidden renders nothing at all.
+{% endcomment %}
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+
+  <div class="sidebar-brand">
+    <a class="brand-link" href="{% url 'dashboard' %}">
+      <span class="brand-mark" aria-hidden="true">{{ SITE_INITIALS }}</span>
+      <span class="brand-text">
+        <span class="brand-name">{{ SITE_NAME }}</span>
+        <span class="brand-tag">Reseller back office</span>
+      </span>
+    </a>
+    <button type="button" class="sidebar-close" data-sidebar-close aria-label="Close navigation">
+      {% icon "close" 20 %}
+    </button>
+  </div>
+
+  <nav class="sidebar-nav">
+
+    {% comment %} Single pages sit at the top level; a group of one is just noise. {% endcomment %}
     {% if perms.accountants.view_dashboard %}
-      <div class="nav-section">Overview</div>
-      <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
-         href="{% url 'dashboard' %}">Dashboard</a>
-      {% if perms.accountants.view_financial_report %}
-        <a class="nav-link {% if request.resolver_match.url_name == 'financial_report' %}active{% endif %}"
-           href="{% url 'financial_report' %}">Financial report</a>
-      {% endif %}
+      {% nav_item "dashboard" "Dashboard" "dashboard" %}
+    {% endif %}
+    {% if perms.accountants.view_financial_report %}
+      {% nav_item "financial_report" "Financial report" "report" %}
     {% endif %}
 
     {% if perms.accounts.view_client %}
-      <div class="nav-section">Customers</div>
-      <a class="nav-link {% if request.resolver_match.url_name|slice:':6' == 'client' %}active{% endif %}"
-         href="{% url 'client_list' %}">Clients</a>
-      {% if perms.accounts.view_package %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'package' %}active{% endif %}"
-           href="{% url 'package_list' %}">Packages</a>
-      {% endif %}
-      {% if perms.warehouse.view_pop %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':3' == 'pop' %}active{% endif %}"
-           href="{% url 'pop_list' %}">POPs</a>
-      {% endif %}
+      {% nav_group label="Customers" icon="clients" slug="customers" %}
+        {% nav_item "client_list" "Clients" "clients" %}
+        {% if perms.accounts.view_package %}
+          {% nav_item "package_list" "Packages" "packages" %}
+        {% endif %}
+        {% if perms.warehouse.view_pop %}
+          {% nav_item "pop_list" "POPs" "pops" %}
+        {% endif %}
+      {% endnav_group %}
     {% endif %}
 
     {% if perms.accountants.view_invoice %}
-      <div class="nav-section">Billing</div>
-      <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'invoice' %}active{% endif %}"
-         href="{% url 'invoice_list' %}">Invoices</a>
-      {% if perms.accountants.view_payment %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'payment' %}active{% endif %}"
-           href="{% url 'payment_list' %}">Payments</a>
-      {% endif %}
-      {% if perms.accountants.view_upstreamsettlement %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':10' == 'settlement' %}active{% endif %}"
-           href="{% url 'settlement_list' %}">Upstream</a>
-      {% endif %}
-      {% if perms.accountants.view_expense %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'expense' %}active{% endif %}"
-           href="{% url 'expense_list' %}">Expenses</a>
-      {% endif %}
-      {% if perms.accountants.view_income %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':6' == 'income' %}active{% endif %}"
-           href="{% url 'income_list' %}">Other income</a>
-      {% endif %}
+      {% nav_group label="Billing" icon="invoices" slug="billing" badge=nav_badges.overdue_invoices %}
+        {% nav_item "invoice_list" "Invoices" "invoices" badge=nav_badges.overdue_invoices %}
+        {% if perms.accountants.view_payment %}
+          {% nav_item "payment_list" "Payments" "payments" %}
+        {% endif %}
+        {% if perms.accountants.view_upstreamsettlement %}
+          {% nav_item "settlement_list" "Upstream" "upstream" %}
+        {% endif %}
+        {% if perms.accountants.view_expense %}
+          {% nav_item "expense_list" "Expenses" "expenses" %}
+        {% endif %}
+        {% if perms.accountants.view_income %}
+          {% nav_item "income_list" "Other income" "income" %}
+        {% endif %}
+      {% endnav_group %}
     {% endif %}
 
     {% if perms.warehouse.view_product or perms.warehouse.view_onu %}
-      <div class="nav-section">Inventory</div>
-      {% if perms.warehouse.view_onu %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':3' == 'onu' %}active{% endif %}"
-           href="{% url 'onu_list' %}">ONUs</a>
-      {% endif %}
-      {% if perms.warehouse.view_product %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':7' == 'product' %}active{% endif %}"
-           href="{% url 'product_list' %}">Stock</a>
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':8' == 'category' %}active{% endif %}"
-           href="{% url 'category_list' %}">Categories</a>
-      {% endif %}
-      {% if perms.warehouse.view_stockmovement %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':8' == 'movement' %}active{% endif %}"
-           href="{% url 'movement_list' %}">Movements</a>
-      {% endif %}
+      {% nav_group label="Inventory" icon="stock" slug="inventory" badge=nav_badges.low_stock badge_tone="warning" %}
+        {% if perms.warehouse.view_onu %}
+          {% nav_item "onu_list" "ONUs" "onu" %}
+        {% endif %}
+        {% if perms.warehouse.view_product %}
+          {% nav_item "product_list" "Stock" "packages" badge=nav_badges.low_stock badge_tone="warning" %}
+          {% nav_item "category_list" "Categories" "categories" %}
+        {% endif %}
+        {% if perms.warehouse.view_stockmovement %}
+          {% nav_item "movement_list" "Movements" "movements" %}
+        {% endif %}
+      {% endnav_group %}
     {% endif %}
 
     {% if perms.users.view_profile or perms.accountants.change_billingsettings %}
-      <div class="nav-section">Administration</div>
-      {% if perms.users.view_profile %}
-        <a class="nav-link {% if request.resolver_match.url_name|slice:':5' == 'staff' %}active{% endif %}"
-           href="{% url 'staff_list' %}">Staff</a>
-      {% endif %}
-      {% if perms.accountants.change_billingsettings %}
-        <a class="nav-link {% if request.resolver_match.url_name == 'billing_settings' %}active{% endif %}"
-           href="{% url 'billing_settings' %}">Billing settings</a>
-      {% endif %}
-      {% if user.is_superuser %}
-        <a class="nav-link" href="{% url 'admin:index' %}">Django admin</a>
-      {% endif %}
+      {% nav_group label="Administration" icon="admin" slug="admin" %}
+        {% if perms.users.view_profile %}
+          {% nav_item "staff_list" "Staff" "staff" %}
+        {% endif %}
+        {% if perms.accountants.change_billingsettings %}
+          {% nav_item "billing_settings" "Billing settings" "settings" %}
+        {% endif %}
+        {% if user.is_superuser %}
+          <a class="nav-link" href="{% url 'admin:index' %}" title="Django admin">
+            <span class="nav-icon">{% icon "admin" %}</span>
+            <span class="nav-text">Django admin</span>
+          </a>
+        {% endif %}
+      {% endnav_group %}
     {% endif %}
   </nav>
 
   <div class="sidebar-footer">
-    <div class="text-white">{{ user.get_full_name|default:user.username }}</div>
-    <div class="text-secondary small mb-2">{{ current_role }}</div>
-    <div class="d-flex gap-2">
-      <a class="btn btn-sm btn-outline-light" href="{% url 'password_change' %}">Password</a>
+    <div class="user-card">
+      <span class="avatar" aria-hidden="true">{{ user.get_full_name|default:user.username|initials }}</span>
+      <span class="user-meta">
+        <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+        <span class="user-role">{{ current_role }}</span>
+      </span>
+    </div>
+    <div class="footer-actions">
+      <a class="footer-btn" href="{% url 'password_change' %}" title="Change password">
+        {% icon "key" 16 %}<span class="nav-text">Password</span>
+      </a>
       <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
-        <button class="btn btn-sm btn-outline-light" type="submit">Sign out</button>
+        <button class="footer-btn" type="submit" title="Sign out">
+          {% icon "logout" 16 %}<span class="nav-text">Sign out</span>
+        </button>
       </form>
     </div>
   </div>
 </aside>
+
+{% comment %} Backdrop for the mobile drawer; clicking it closes the sidebar. {% endcomment %}
+<div class="sidebar-backdrop" data-sidebar-close aria-hidden="true"></div>

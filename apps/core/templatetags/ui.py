@@ -67,6 +67,13 @@ def status_badge(value):
 
 
 @register.filter
+def initials(value, limit=2):
+    """First letters of the first couple of words, for an avatar chip."""
+    words = [word for word in str(value or "").split() if word]
+    return "".join(word[0] for word in words[:limit]).upper() or "?"
+
+
+@register.filter
 def percent(value):
     try:
         return f"{float(value or 0):.1f}%"

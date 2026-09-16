@@ -1,4 +1,4 @@
-{% load static %}
+{% load static icons %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,6 +14,10 @@
 
   <div class="app-main">
     <header class="app-header">
+      <button type="button" class="sidebar-toggle" data-sidebar-toggle
+              aria-controls="sidebar" aria-label="Toggle navigation">
+        {% icon "menu" 20 %}
+      </button>
       <div class="me-auto">
         <h1>{% block page_title %}{{ page_title }}{% endblock %}</h1>
         {% if page_subtitle %}<p class="subtitle">{{ page_subtitle }}</p>{% endif %}
@@ -39,6 +43,90 @@
     const token = document.querySelector('input[name=csrfmiddlewaretoken]');
     if (token) { event.detail.headers['X-CSRFToken'] = token.value; }
   });
+
+  // Sidebar. One button does two jobs: on a phone it opens the drawer, on a
+  // desktop it collapses the panel to an icon rail. The desktop preference is
+  // remembered per browser; the drawer state deliberately is not, so a new
+  // page never loads with the navigation covering the content.
+  (function () {
+    const body = document.body;
+    const MOBILE = '(max-width: 992px)';
+    const KEY = 'sidebar-collapsed';
+
+    const isMobile = () => window.matchMedia(MOBILE).matches;
+
+    // Storage throws in some privacy modes, so every access is guarded and the
+    // sidebar simply starts expanded when it is unavailable.
+    const store = {
+      get() { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } },
+      set(v) { try { localStorage.setItem(KEY, v ? '1' : '0'); } catch { /* ignore */ } },
+    };
+
+    if (store.get()) { body.classList.add('sidebar-collapsed'); }
+
+    const closeDrawer = () => body.classList.remove('sidebar-open');
+
+    document.querySelectorAll('[data-sidebar-toggle]').forEach((el) => {
+      el.addEventListener('click', () => {
+        if (isMobile()) {
+          body.classList.toggle('sidebar-open');
+        } else {
+          const collapsed = body.classList.toggle('sidebar-collapsed');
+          store.set(collapsed);
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-sidebar-close]').forEach((el) => {
+      el.addEventListener('click', closeDrawer);
+    });
+
+    // Following a link inside the drawer should close it.
+    document.querySelectorAll('.sidebar-nav a').forEach((link) => {
+      link.addEventListener('click', () => { if (isMobile()) closeDrawer(); });
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeDrawer();
+    });
+
+    // Resizing past the breakpoint must not leave the drawer class stuck on.
+    window.matchMedia(MOBILE).addEventListener('change', closeDrawer);
+
+    // Nested groups. The server already opened the group holding the current
+    // page; a stored preference applies to the others. The active group is
+    // deliberately left alone, so you can always see where you are.
+    const GROUPS_KEY = 'sidebar-groups';
+    const groups = {
+      get() {
+        try { return JSON.parse(localStorage.getItem(GROUPS_KEY)) || {}; } catch { return {}; }
+      },
+      set(state) {
+        try { localStorage.setItem(GROUPS_KEY, JSON.stringify(state)); } catch { /* ignore */ }
+      },
+    };
+
+    const stored = groups.get();
+    document.querySelectorAll('[data-nav-group]').forEach((group) => {
+      const slug = group.dataset.navGroup;
+      const parent = group.querySelector('.nav-parent');
+      const holdsCurrentPage = group.classList.contains('open');
+
+      if (!holdsCurrentPage && slug in stored) {
+        group.classList.toggle('open', stored[slug]);
+      }
+      if (parent) {
+        parent.setAttribute('aria-expanded', String(group.classList.contains('open')));
+        parent.addEventListener('click', () => {
+          const open = group.classList.toggle('open');
+          parent.setAttribute('aria-expanded', String(open));
+          const state = groups.get();
+          state[slug] = open;
+          groups.set(state);
+        });
+      }
+    });
+  })();
 </script>
 {% block scripts %}{% endblock %}
 </body>

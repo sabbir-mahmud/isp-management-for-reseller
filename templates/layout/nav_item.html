@@ -1,0 +1,7 @@
+{% load icons %}
+<a class="nav-link{% if is_active %} active{% endif %}" href="{{ url }}"
+   {% if is_active %}aria-current="page"{% endif %} title="{{ label }}">
+  <span class="nav-icon">{% icon icon_name %}</span>
+  <span class="nav-text">{{ label }}</span>
+  {% if badge %}<span class="nav-badge nav-badge-{{ badge_tone }}">{{ badge }}</span>{% endif %}
+</a>
