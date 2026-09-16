@@ -34,6 +34,17 @@ def sort_header(context, key, label, numeric=False):
     }
 
 
+@register.simple_tag(takes_context=True)
+def has_active_filters(context, filterset):
+    """Whether any of the filterset's own fields is currently applied.
+
+    `page` and `sort` are in the query string too, but resetting is about the
+    search — not about sending the reader back to page 1 of an unsorted list.
+    """
+    request = context["request"]
+    return any(request.GET.get(name) for name in filterset.form.fields)
+
+
 @register.inclusion_tag("partials/active_filters.html", takes_context=True)
 def active_filters(context, filterset):
     """Pills naming each applied filter, each able to clear just itself.

@@ -21,9 +21,17 @@ wide treatment and the rest sit beside it.
         </div>
       {% endif %}
     {% endfor %}
+    {% comment %}
+    Reset stays in the row whether or not it can do anything, so applying a
+    filter never shifts Apply sideways under the reader's cursor.
+    {% endcomment %}
+    {% has_active_filters filter as filters_on %}
     <div class="toolbar-actions">
       <button class="btn btn-primary btn-sm" type="submit">Apply</button>
-      <a class="btn btn-link btn-sm text-decoration-none" href="{{ request.path }}">Reset</a>
+      <a class="btn-reset{% if not filters_on %} is-idle{% endif %}" href="{{ request.path }}"
+         {% if filters_on %}title="Clear every filter"{% else %}aria-disabled="true" tabindex="-1"{% endif %}>
+        {% icon "reset" 14 %}Reset
+      </a>
     </div>
   </form>
 

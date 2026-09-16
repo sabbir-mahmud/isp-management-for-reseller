@@ -1,44 +1,44 @@
 {% load ui %}
 {% for client in clients %}
   <tr>
-    <td>
+    <td class="col-id">
       <div class="cell-identity">
         <span class="avatar avatar-sm" aria-hidden="true">{{ client.name|initials }}</span>
         <span class="cell-identity-text">
-          <a class="fw-semibold text-decoration-none" href="{% url 'client_detail' client.pk %}">{{ client.name }}</a>
+          <a class="cell-identity-name" href="{% url 'client_detail' client.pk %}">{{ client.name }}</a>
           <span class="cell-sub">{{ client.client_code }} · {{ client.username }}</span>
         </span>
       </div>
     </td>
-    <td>
-      <div>{{ client.phone }}</div>
-      {% if client.address %}<div class="cell-sub text-truncate" style="max-width:220px">{{ client.address }}</div>{% endif %}
+    <td class="col-text">
+      <span>{{ client.phone }}</span>
+      <span class="cell-sub">{{ client.address|default:"—" }}</span>
     </td>
     <td>
       {% if client.package %}
         {{ client.package.name }}
-        <div class="cell-sub">
+        <span class="cell-sub">
           {% if client.pays_upstream_directly %}Pays upstream{% else %}You collect{% endif %}
-        </div>
+        </span>
       {% else %}
         <span class="text-muted">No plan</span>
       {% endif %}
     </td>
-    <td class="numeric">{% if client.monthly_price %}{{ client.monthly_price|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+    <td class="numeric col-money">{% if client.monthly_price %}{{ client.monthly_price|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
     <td>{{ client.pop.name|default:"—" }}</td>
-    <td>{{ client.status|status_badge }}</td>
-    <td class="numeric">
+    <td class="col-status">{{ client.status|status_badge }}</td>
+    <td class="numeric col-money">
       {% if client.balance_due %}
         <span class="text-danger fw-semibold">{{ client.balance_due|money }}</span>
       {% else %}<span class="text-muted">—</span>{% endif %}
     </td>
-    <td class="text-end">
+    <td class="col-actions">
       <div class="row-actions">
         {% if perms.accounts.change_client %}
-          <a class="btn btn-sm btn-outline-secondary" href="{% url 'client_edit' client.pk %}">Edit</a>
+          <a class="row-action" href="{% url 'client_edit' client.pk %}">Edit</a>
         {% endif %}
         {% if perms.accounts.delete_client %}
-          <a class="btn btn-sm btn-outline-danger" href="{% url 'client_delete' client.pk %}">Archive</a>
+          <a class="row-action row-action-danger" href="{% url 'client_delete' client.pk %}">Archive</a>
         {% endif %}
       </div>
     </td>

@@ -25,13 +25,13 @@ Index page skeleton, shared verbatim with packages and POPs:
         <thead>
           <tr>
             {% sort_header "name" "Client" %}
-            <th>Contact</th>
+            <th class="col-text">Contact</th>
             <th>Package</th>
-            <th class="numeric">Monthly</th>
+            <th class="numeric col-money">Monthly fee</th>
             {% sort_header "pop" "POP" %}
             {% sort_header "status" "Status" %}
-            {% sort_header "owes" "Owes" numeric=True %}
-            <th class="col-actions"></th>
+            {% sort_header "owes" "Balance due" numeric=True %}
+            <th class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody>{% include "accounts/partials/client_rows.html" %}</tbody>

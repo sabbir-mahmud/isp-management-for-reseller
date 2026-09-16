@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load ui tables %}
+{% load ui tables icons %}
 {% comment %} Same skeleton as clients and POPs. {% endcomment %}
 
 {% block page_actions %}
@@ -21,30 +21,30 @@
             {% sort_header "name" "Package" %}
             {% sort_header "speed" "Speed" numeric=True %}
             <th class="numeric">GGC / FNA</th>
-            {% sort_header "price" "Monthly" numeric=True %}
+            {% sort_header "price" "Monthly price" numeric=True %}
             <th class="numeric">Commission</th>
             {% sort_header "subscribers" "Subscribers" %}
-            {% sort_header "revenue" "Monthly value" numeric=True %}
-            <th class="col-actions"></th>
+            {% sort_header "revenue" "Monthly revenue" numeric=True %}
+            <th class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for package in packages %}
             <tr{% if not package.is_active %} class="row-muted"{% endif %}>
-              <td>
+              <td class="col-id">
                 <div class="cell-identity">
-                  <span class="badge-mark" aria-hidden="true">{{ package.bandwidth_mbps }}</span>
+                  <span class="cell-mark" aria-hidden="true">{% icon "packages" 15 %}</span>
                   <span class="cell-identity-text">
-                    <span class="fw-semibold">{{ package.name }}</span>
+                    <span class="cell-identity-name">{{ package.name }}</span>
                     <span class="cell-sub">
-                      {% if package.description %}{{ package.description }}{% else %}{{ package.ggc_mbps }} GGC · {{ package.fna_mbps }} FNA{% endif %}
+                      {% if package.description %}{{ package.description }}{% elif package.is_active %}On sale{% else %}Retired{% endif %}
                     </span>
                   </span>
                 </div>
               </td>
               <td class="numeric fw-semibold">{{ package.bandwidth_mbps }}<span class="unit"> Mbps</span></td>
               <td class="numeric cell-sub">{{ package.ggc_mbps }} / {{ package.fna_mbps }}</td>
-              <td class="numeric fw-semibold">{{ package.monthly_price|money }}</td>
+              <td class="numeric col-money fw-semibold">{{ package.monthly_price|money }}</td>
               <td class="numeric">
                 {% if package.commission_percent is not None %}
                   {{ package.commission_percent }}%
@@ -62,14 +62,14 @@
                   </span>
                 </div>
               </td>
-              <td class="numeric">{{ package.monthly_revenue|money }}</td>
-              <td class="text-end col-actions">
+              <td class="numeric col-money">{{ package.monthly_revenue|money }}</td>
+              <td class="col-actions">
                 <div class="row-actions">
                   {% if perms.accounts.change_package %}
-                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'package_edit' package.pk %}">Edit</a>
+                    <a class="row-action" href="{% url 'package_edit' package.pk %}">Edit</a>
                   {% endif %}
                   {% if perms.accounts.delete_package %}
-                    <a class="btn btn-sm btn-outline-danger" href="{% url 'package_delete' package.pk %}">Delete</a>
+                    <a class="row-action row-action-danger" href="{% url 'package_delete' package.pk %}">Delete</a>
                   {% endif %}
                 </div>
               </td>

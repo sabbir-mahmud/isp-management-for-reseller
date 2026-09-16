@@ -16,15 +16,18 @@
     {% include "partials/toolbar.html" %}
     <div class="table-wrap">
       <table class="table table-hover align-middle index-table">
+        {% comment %}
+        No sortable headings here, unlike the other two indexes: the rows are
+        ordered as a tree, and re-sorting them would flatten the hierarchy this
+        table exists to show.
+        {% endcomment %}
         <thead>
           <tr>
-            <th>POP</th>
-            <th>Code</th>
-            <th>Address</th>
-            <th class="col-load">Client load</th>
-            <th class="numeric">Active</th>
-            <th>Status</th>
-            <th class="col-actions"></th>
+            <th class="col-id">POP</th>
+            <th class="col-text col-text-wide">Address</th>
+            <th class="col-load">Clients</th>
+            <th class="col-status">Status</th>
+            <th class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -35,18 +38,23 @@
               is the shape of the network, and an alphabetical list throws that
               away.
               {% endcomment %}
-              <td>
-                <span class="tree-row" style="--depth:{{ pop.depth }}">
+              <td class="col-id">
+                <div class="cell-identity is-tree" style="--depth:{{ pop.depth }}">
                   {% if pop.depth %}<span class="tree-branch" aria-hidden="true"></span>{% endif %}
-                  <span class="tree-icon">{% icon "pops" 15 %}</span>
+                  <span class="cell-mark" aria-hidden="true">{% icon "pops" 15 %}</span>
                   <span class="cell-identity-text">
-                    <span class="fw-semibold">{{ pop.name }}</span>
-                    {% if pop.parent %}<span class="cell-sub">via {{ pop.parent.name }}</span>{% endif %}
+                    <span class="cell-identity-name">{{ pop.name }}</span>
+                    <span class="cell-sub">
+                      {{ pop.code|default:"No code" }}{% if pop.parent %} · via {{ pop.parent.name }}{% endif %}
+                    </span>
                   </span>
-                </span>
+                </div>
               </td>
-              <td class="cell-sub">{{ pop.code|default:"—" }}</td>
-              <td class="cell-sub text-truncate" style="max-width:240px">{{ pop.address|default:"—" }}</td>
+              <td class="col-text col-text-wide"><span class="cell-sub">{{ pop.address|default:"—" }}</span></td>
+              {% comment %}
+              Total and active share one cell. As two columns the count sat
+              next to a Status badge and read as a second status.
+              {% endcomment %}
               <td class="col-load">
                 <div class="load-cell">
                   <span class="load-count">{{ pop.clients_total }}</span>
@@ -54,25 +62,25 @@
                     <span class="breakdown-fill" style="width:{% widthratio pop.clients_total busiest 100 %}%"></span>
                   </span>
                 </div>
+                <span class="load-sub">{{ pop.clients_active }} active</span>
               </td>
-              <td class="numeric text-success">{{ pop.clients_active }}</td>
-              <td>
+              <td class="col-status">
                 {% if pop.is_active %}<span class="badge text-bg-success">Active</span>
                 {% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}
               </td>
-              <td class="text-end col-actions">
+              <td class="col-actions">
                 <div class="row-actions">
                   {% if perms.warehouse.change_pop %}
-                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'pop_edit' pop.pk %}">Edit</a>
+                    <a class="row-action" href="{% url 'pop_edit' pop.pk %}">Edit</a>
                   {% endif %}
                   {% if perms.warehouse.delete_pop %}
-                    <a class="btn btn-sm btn-outline-danger" href="{% url 'pop_delete' pop.pk %}">Delete</a>
+                    <a class="row-action row-action-danger" href="{% url 'pop_delete' pop.pk %}">Delete</a>
                   {% endif %}
                 </div>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="7">
+            <tr><td colspan="5">
               {% include "partials/empty.html" with title="No POPs match" hint="Adjust the search, or add a point of presence." %}
             </td></tr>
           {% endfor %}
