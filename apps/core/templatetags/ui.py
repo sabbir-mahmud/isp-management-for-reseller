@@ -128,3 +128,12 @@ def age(value, today=None):
     if months:
         parts.append(f"{months} month{'s' if months != 1 else ''}")
     return " ".join(parts)
+
+
+@register.filter
+def absolute(value):
+    """The size of a number without its sign, for templates that print their own."""
+    try:
+        return abs(value)
+    except TypeError:
+        return value

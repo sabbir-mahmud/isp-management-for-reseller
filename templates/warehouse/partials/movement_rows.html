@@ -1,0 +1,43 @@
+{% load ui %}
+{% for movement in movements %}
+  <tr>
+    <td>
+      <span class="fw-semibold">{{ movement.occurred_on|date:"d M Y" }}</span>
+      <span class="cell-sub">
+        {% if movement.created_by %}by {{ movement.created_by.get_full_name|default:movement.created_by.username }}{% else %}—{% endif %}
+      </span>
+    </td>
+    <td class="col-id">
+      <a class="cell-identity-name" href="?product={{ movement.product_id }}">{{ movement.product.name }}</a>
+      <span class="cell-sub">{{ movement.product.model|default:movement.product.sku|default:"" }}</span>
+    </td>
+    <td>
+      <div class="cell-identity">
+        <span class="direction-mark {% if movement.kind == 'in' %}is-in{% elif movement.kind == 'out' %}is-out{% else %}is-adjust{% endif %}" aria-hidden="true">
+          {% if movement.kind == 'in' %}↓{% elif movement.kind == 'out' %}↑{% else %}±{% endif %}
+        </span>
+        <span class="fw-semibold">{{ movement.get_kind_display }}</span>
+      </div>
+    </td>
+    <td class="numeric col-money">
+      {% comment %} The sign says what it did to the shelf, whatever the type. {% endcomment %}
+      {% if movement.kind == 'in' %}
+        <span class="qty qty-in">+{{ movement.quantity }}</span>
+      {% elif movement.kind == 'out' %}
+        <span class="qty qty-out">−{{ movement.quantity }}</span>
+      {% elif movement.quantity < 0 %}
+        <span class="qty qty-out">−{{ movement.quantity|absolute }}</span>
+      {% else %}
+        <span class="qty qty-in">+{{ movement.quantity }}</span>
+      {% endif %}
+    </td>
+    <td class="col-text col-text-wide">
+      <span title="{{ movement.reason }}">{{ movement.reason|default:"—" }}</span>
+      {% if movement.reference %}<span class="cell-sub cell-mono" title="Reference">{{ movement.reference }}</span>{% endif %}
+    </td>
+  </tr>
+{% empty %}
+  <tr><td colspan="5">
+    {% include "partials/empty.html" with title="No movements match" hint="Receipts, issues and stock-take corrections appear here." %}
+  </td></tr>
+{% endfor %}

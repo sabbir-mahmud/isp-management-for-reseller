@@ -1,42 +1,81 @@
 {% extends "base.html" %}
+{% load ui tables %}
+{% comment %}
+Who has access, then what each role means (the cards are also the role
+filter), then everyone. The summary and the cards are the whole team;
+the table follows the search.
+{% endcomment %}
+
 {% block page_actions %}
   {% if perms.users.add_profile %}
-    <a class="btn btn-primary" href="{% url 'staff_add' %}">Add staff</a>
+    <a class="btn btn-primary btn-sm" href="{% url 'staff_add' %}">Add staff</a>
   {% endif %}
 {% endblock %}
+
 {% block content %}
-<div class="card">
-  <div class="table-wrap">
-    <table class="table table-hover align-middle">
-      <thead>
-        <tr><th>User</th><th>Name</th><th>Role</th><th>Phone</th><th>Status</th><th></th></tr>
-      </thead>
-      <tbody>
-        {% for profile in profiles %}
-          <tr>
-            <td class="fw-semibold">{{ profile.user.username }}</td>
-            <td>{{ profile.user.get_full_name|default:"—" }}</td>
-            <td>{{ profile.get_role_display }}</td>
-            <td>{{ profile.phone|default:"—" }}</td>
-            <td>
-              {% if profile.user.is_active %}
-                <span class="badge text-bg-success">Active</span>
-              {% else %}
-                <span class="badge text-bg-secondary">Disabled</span>
-              {% endif %}
-            </td>
-            <td class="text-end">
-              {% if perms.users.change_profile %}
-                <a class="btn btn-sm btn-outline-secondary" href="{% url 'staff_edit' profile.user.pk %}">Edit</a>
-              {% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="6">{% include "partials/empty.html" with title="No staff yet" %}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="stack">
+  {% if totals.owners == 1 %}
+    <div class="form-notice mb-0">
+      <strong>Only one owner can sign in.</strong>
+      If that account is lost, nobody can manage staff or billing settings. Consider a second owner.
+    </div>
+  {% endif %}
+
+  <div class="summary-strip">
+    <div class="summary-item">
+      <span class="stat-label">Team</span>
+      <span class="summary-value">{{ totals.active }}</span>
+      <span class="stat-note">can sign in{% if totals.disabled %}, {{ totals.disabled }} disabled{% endif %}</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Owners</span>
+      <span class="summary-value{% if totals.owners < 2 %} text-warning-emphasis{% endif %}">{{ totals.owners }}</span>
+      <span class="stat-note">Full access, including staff</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Active this month</span>
+      <span class="summary-value">{{ totals.recent }}</span>
+      <span class="stat-note">Signed in within 30 days</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Never signed in</span>
+      <span class="summary-value{% if totals.never %} text-warning-emphasis{% endif %}">{{ totals.never }}</span>
+      <span class="stat-note">{% if totals.never %}Accounts not yet used{% else %}Everyone has signed in{% endif %}</span>
+    </div>
   </div>
-  {% include "partials/pagination.html" %}
+
+  <div class="role-cards" role="group" aria-label="Filter by role">
+    {% for role in roles %}
+      <a class="role-card role-{{ role.value }}{% if role.is_active %} is-on{% endif %}" href="{{ role.url }}"
+         {% if role.is_active %}aria-current="true" title="Show every role"{% endif %}>
+        <span class="role-card-head">
+          <span class="role-tag role-{{ role.value }}">{{ role.label }}</span>
+          <span class="role-card-count">{{ role.count }}</span>
+        </span>
+        <span class="role-card-text">{{ role.description }}</span>
+      </a>
+    {% endfor %}
+  </div>
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "name" "Person" %}
+            {% sort_header "role" "Role" %}
+            <th>Phone</th>
+            {% sort_header "seen" "Last sign-in" %}
+            {% sort_header "joined" "Added" %}
+            <th class="col-status">Access</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>{% include "users/partials/staff_rows.html" %}</tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
 </div>
 {% endblock %}

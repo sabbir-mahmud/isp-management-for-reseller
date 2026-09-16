@@ -1,40 +1,15 @@
-from datetime import timedelta
-
 import django_filters
 from django import forms
 from django.db.models import Q
-from django.utils import timezone
 
 from apps.core.choices import CollectionMode
-from apps.core.utils import add_months, month_start, previous_month
+from apps.core.utils import date_window
 
 from .models import Expense, Income, Invoice, Payment, UpstreamSettlement
 
 #: `<input type="month">` posts `YYYY-MM`, which a plain DateField rejects —
 #: and a rejected filter is silently dropped, showing every month instead.
 MONTH_FORMATS = ["%Y-%m", "%Y-%m-%d"]
-
-
-def date_window(key, today=None):
-    """`(first, last)` dates, both inclusive, of a named window — or None.
-
-    Shared by the `when` filters and the summary chips built from them, so a
-    chip and the filter it applies can never disagree about a boundary.
-    """
-    today = today or timezone.localdate()
-    if key == "today":
-        return today, today
-    if key == "7d":
-        return today - timedelta(days=6), today
-    if key == "month":
-        return month_start(today), today
-    if key == "last_month":
-        return previous_month(today), month_start(today) - timedelta(days=1)
-    if key == "3m":
-        return add_months(month_start(today), -2), today
-    if key == "year":
-        return today.replace(month=1, day=1), today
-    return None
 
 
 class InvoiceFilter(django_filters.FilterSet):

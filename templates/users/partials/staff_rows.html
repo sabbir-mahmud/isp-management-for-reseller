@@ -1,0 +1,63 @@
+{% load ui %}
+{% for person in people %}
+  {% with profile=person.profile %}
+  <tr{% if not person.is_active %} class="row-muted"{% endif %}>
+    <td class="col-id">
+      <div class="cell-identity">
+        <span class="avatar avatar-sm{% if profile %} role-avatar role-{{ profile.role }}{% endif %}" aria-hidden="true">
+          {{ person.get_full_name|default:person.username|initials }}
+        </span>
+        <span class="cell-identity-text">
+          <span class="cell-identity-name">
+            {{ person.get_full_name|default:person.username }}
+            {% if person.pk == request.user.pk %}<span class="tag tag-accent ms-1">You</span>{% endif %}
+          </span>
+          <span class="cell-sub">@{{ person.username }}{% if person.email %} · {{ person.email }}{% endif %}</span>
+        </span>
+      </div>
+    </td>
+    <td>
+      {% if profile %}
+        <span class="role-tag role-{{ profile.role }}">{{ profile.get_role_display }}</span>
+      {% elif person.is_superuser %}
+        <span class="role-tag role-owner" title="A superuser with no staff profile">Owner</span>
+        <span class="cell-sub">No profile yet</span>
+      {% else %}
+        <span class="text-muted">No role</span>
+      {% endif %}
+    </td>
+    <td>{% if profile.phone %}<a class="cell-link" href="tel:{{ profile.phone }}">{{ profile.phone }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+    <td>
+      {% if person.last_login %}
+        {% with seen=person.last_login|age %}
+          <span>{% if seen == "today" %}Today{% else %}{{ seen }} ago{% endif %}</span>
+        {% endwith %}
+        <span class="cell-sub">{{ person.last_login|date:"d M Y, H:i" }}</span>
+      {% else %}
+        <span class="text-muted">Never</span>
+      {% endif %}
+    </td>
+    <td>
+      {{ person.date_joined|date:"d M Y" }}
+    </td>
+    <td class="col-status">
+      {% if person.is_active %}
+        <span class="badge text-bg-success">Can sign in</span>
+      {% else %}
+        <span class="badge text-bg-secondary">Disabled</span>
+      {% endif %}
+    </td>
+    <td class="col-actions">
+      <div class="row-actions">
+        {% if perms.users.change_profile %}
+          <a class="row-action" href="{% url 'staff_edit' person.pk %}">Edit</a>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+  {% endwith %}
+{% empty %}
+  <tr><td colspan="7">
+    {% include "partials/empty.html" with title="Nobody matches" hint="Adjust the search, or add someone who works with you." %}
+  </td></tr>
+{% endfor %}

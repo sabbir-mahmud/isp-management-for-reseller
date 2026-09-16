@@ -1,0 +1,61 @@
+{% extends "form.html" %}
+{% load ui %}
+{% comment %}
+The shared sectioned form, headed — when editing — by who the account
+belongs to and how it has been used.
+{% endcomment %}
+
+{% block form_intro %}
+  {% if person %}
+    <div class="profile staff-card">
+      <div class="profile-head">
+        <span class="avatar avatar-lg role-avatar role-{{ person_role }}" aria-hidden="true">
+          {{ person.get_full_name|default:person.username|initials }}
+        </span>
+        <div class="profile-identity">
+          <h2 class="profile-name">{{ person.get_full_name|default:person.username }}</h2>
+          <div class="profile-tags">
+            <span class="role-tag role-{{ person_role }}">{{ person_role|capfirst }}</span>
+            <span class="tag">@{{ person.username }}</span>
+            {% if is_self %}<span class="tag tag-accent">This is you</span>{% endif %}
+            {% if not person.is_active %}<span class="tag tag-danger">Disabled</span>{% endif %}
+            {% if person.is_superuser %}<span class="tag" title="Bypasses role permissions">Superuser</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="profile-facts">
+        <div class="fact">
+          <span class="fact-label">Last sign-in</span>
+          <span class="fact-value">
+            {% if person.last_login %}{{ person.last_login|date:"d M Y, H:i" }}{% else %}Never{% endif %}
+          </span>
+        </div>
+        <div class="fact">
+          <span class="fact-label">Added</span>
+          <span class="fact-value">{{ person.date_joined|date:"d M Y" }}</span>
+        </div>
+        <div class="fact">
+          <span class="fact-label">Email</span>
+          <span class="fact-value">{{ person.email|default:"—" }}</span>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block form_scripts %}
+<script>
+  // Highlight the description of whichever role is picked.
+  (function () {
+    const radios = document.querySelectorAll('input[name=role]');
+    const rows = document.querySelectorAll('[data-role-guide]');
+    if (!radios.length || !rows.length) { return; }
+    const update = () => {
+      const picked = (document.querySelector('input[name=role]:checked') || {}).value;
+      rows.forEach((row) => row.classList.toggle('is-on', row.dataset.roleGuide === picked));
+    };
+    radios.forEach((radio) => radio.addEventListener('change', update));
+    update();
+  })();
+</script>
+{% endblock %}

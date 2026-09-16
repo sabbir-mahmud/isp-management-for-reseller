@@ -1,0 +1,62 @@
+{% extends "form.html" %}
+{% comment %}
+The shared form, plus a live preview of the count a movement leaves behind.
+{% endcomment %}
+{% block form_scripts %}
+{{ stock_levels|json_script:"stock-levels" }}
+<script>
+  // What this movement does to the shelf, before it is saved. The server
+  // re-checks every figure; this only saves a round trip to find out.
+  (function () {
+    const addon = document.querySelector('[data-stock-preview]');
+    const form = addon && addon.closest('form');
+    if (!form) { return; }
+    const levels = JSON.parse(document.getElementById('stock-levels').textContent);
+    const product = form.querySelector('[name=product]');
+    const quantity = form.querySelector('[name=quantity]');
+    const $ = (name) => addon.querySelector('[data-' + name + ']');
+
+    function update() {
+      const level = levels[product.value];
+      const kind = (form.querySelector('[name=kind]:checked') || {}).value;
+      const raw = parseInt(quantity.value, 10);
+      addon.hidden = !level;
+      if (!level) { return; }
+
+      $('before').textContent = level.quantity;
+      // Received and issued take a positive count; the type sets the sign.
+      const wrongSign = kind !== 'adjust' && raw <= 0;
+      let change = NaN;
+      if (!Number.isNaN(raw) && !wrongSign) {
+        change = kind === 'in' ? raw : kind === 'out' ? -raw : kind === 'adjust' ? raw : NaN;
+      }
+      const after = level.quantity + change;
+      const known = !Number.isNaN(change);
+      const signed = (n, plus) => (n < 0 ? '−' : plus && n > 0 ? '+' : '') + Math.abs(n);
+
+      $('after').textContent = known ? signed(after, false) : '—';
+      $('change').textContent = known ? signed(change, true) : '';
+
+      let note = '';
+      let tone = '';
+      if (wrongSign && !Number.isNaN(raw)) {
+        note = 'Use a positive number; the type sets the direction.'; tone = 'bad';
+      } else if (known && after < 0) {
+        note = 'That is more than is on hand.'; tone = 'bad';
+      } else if (known && after === 0) {
+        note = 'This empties the shelf.'; tone = 'warn';
+      } else if (known && level.reorder && after <= level.reorder) {
+        note = 'At or under the reorder level of ' + level.reorder + '.'; tone = 'warn';
+      }
+      $('note').textContent = note;
+      addon.dataset.tone = tone;
+    }
+
+    [product, quantity, ...form.querySelectorAll('[name=kind]')].forEach((el) => {
+      el.addEventListener('input', update);
+      el.addEventListener('change', update);
+    });
+    update();
+  })();
+</script>
+{% endblock %}

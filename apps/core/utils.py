@@ -90,3 +90,25 @@ def filtered_url(request, **params) -> str:
     query.pop("page", None)
     encoded = query.urlencode()
     return f"?{encoded}" if encoded else "?"
+
+
+def date_window(key, today=None):
+    """`(first, last)` dates, both inclusive, of a named window — or None.
+
+    Shared by the `when` filters and the summary chips built from them, so a
+    chip and the filter it applies can never disagree about a boundary.
+    """
+    today = today or timezone.localdate()
+    if key == "today":
+        return today, today
+    if key == "7d":
+        return today - dt.timedelta(days=6), today
+    if key == "month":
+        return month_start(today), today
+    if key == "last_month":
+        return previous_month(today), month_start(today) - dt.timedelta(days=1)
+    if key == "3m":
+        return add_months(month_start(today), -2), today
+    if key == "year":
+        return today.replace(month=1, day=1), today
+    return None

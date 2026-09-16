@@ -87,6 +87,18 @@ ROLE_MATRIX: dict[str, dict[str, tuple[str, ...]]] = {
     },
 }
 
+#: What each role is for, in the words the staff screens use. Kept beside the
+#: matrix so a change to one is made looking at the other.
+ROLE_DESCRIPTIONS: dict[str, str] = {
+    Role.OWNER: "Everything, including staff accounts, billing settings and deleting records.",
+    Role.MANAGER: "Runs the day: clients, packages, stock and billing. Cannot remove money "
+    "records or manage staff.",
+    Role.ACCOUNTANT: "The books: invoices, payments, ledgers, upstream and reports. Reads "
+    "clients and stock.",
+    Role.SUPPORT: "Front line: looks clients up, edits their details and ONUs, issues "
+    "stock. No money screens beyond reading invoices.",
+}
+
 GROUP_NAMES = {role: f"role:{role}" for role in ROLE_MATRIX}
 
 # Permissions that are not one of Django's four defaults.

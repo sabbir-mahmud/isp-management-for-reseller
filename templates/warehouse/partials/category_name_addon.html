@@ -1,0 +1,18 @@
+{% comment %}
+Under the category name: the names already taken, and a warning the moment
+the typed one matches one of them. Driven by `category_form.html`.
+{% endcomment %}
+<p class="field-error name-clash" data-name-clash hidden role="status">
+  <b></b> already exists — use it, or choose a different name.
+</p>
+{% if form.other_names %}
+  <div class="existing-names">
+    <span class="existing-label">Already in use</span>
+    {% for other in form.other_names|slice:":12" %}
+      <span class="existing-chip" data-existing="{{ other }}">{{ other }}</span>
+    {% endfor %}
+    {% if form.other_names|length > 12 %}
+      <span class="existing-more">and {{ form.other_names|length|add:"-12" }} more</span>
+    {% endif %}
+  </div>
+{% endif %}

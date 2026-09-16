@@ -1547,6 +1547,207 @@ a.model-row:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px
   letter-spacing: 0.01em;
 }
 
+/* ---- Stock ------------------------------------------------------------- */
+
+.stock-alert-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  border-color: #fde68a;
+  border-left-color: #d97706;
+  background: #fffbeb;
+  color: #78350f;
+}
+.stock-alert-warning a { color: #b45309; white-space: nowrap; }
+.reorder-item {
+  display: inline-block;
+  margin: 0.15rem 0 0 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  font-size: 0.75rem;
+}
+.reorder-item b { font-variant-numeric: tabular-nums; margin-left: 0.2rem; }
+.reorder-item.is-out { background: #fee2e2; color: #991b1b; }
+
+/* Items and categories are things, not people: square initials. */
+.avatar-square { border-radius: 7px; }
+.cell-mono-inline { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* On hand: the count, and a bar scaled so the reorder point is its middle. */
+.stock-cell { display: flex; align-items: center; gap: 0.6rem; }
+.stock-count { font-weight: 700; min-width: 2.5ch; font-variant-numeric: tabular-nums; }
+.stock-meter {
+  position: relative;
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: #eef2f6;
+  overflow: hidden;
+}
+.stock-meter-fill { display: block; height: 100%; max-width: 100%; border-radius: 999px; background: #0d9488; }
+.stock-meter-mark { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; }
+.stock-cell.is-low .stock-count { color: #b45309; }
+.stock-cell.is-low .stock-meter-fill { background: #f59e0b; }
+.stock-cell.is-out .stock-count { color: #b91c1c; }
+
+/* ---- Category form ----------------------------------------------------- */
+
+.category-holdings { margin-bottom: 1rem; }
+.category-holdings .profile-balance a { color: var(--brand-dark); font-weight: 600; }
+
+/* The typed name matches one already taken. */
+.form-control.is-clashing { border-color: #f59e0b; }
+.form-control.is-clashing:focus { border-color: #d97706; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18); }
+.name-clash { color: #b45309; }
+.name-clash[hidden] { display: none; }
+
+.existing-names { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-top: 0.6rem; }
+.existing-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+  margin-right: 0.2rem;
+}
+.existing-chip {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.existing-chip.is-match { background: #fef3c7; color: #92400e; box-shadow: inset 0 0 0 1px #f59e0b; }
+.existing-more { font-size: 0.75rem; color: var(--muted); }
+
+.char-count { margin-top: 0.3rem; text-align: right; font-size: 0.6875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.char-count.is-near { color: #b45309; font-weight: 600; }
+
+/* The row this category will be, drawn with the list's own cell styles. */
+.row-preview {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed #dbe3ec;
+  border-radius: 0.55rem;
+  background: #f8fafc;
+}
+.row-preview-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.row-preview .cell-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-preview .is-placeholder { color: #a8b3c2; }
+
+/* ---- Staff ------------------------------------------------------------- */
+
+/* One colour per role, on the tag, the avatar and the role card alike. */
+.role-owner { --role: #7c3aed; --role-bg: #ede9fe; --role-ink: #6d28d9; }
+.role-manager { --role: #0f766e; --role-bg: #ccfbf1; --role-ink: #0f766e; }
+.role-accountant { --role: #2563eb; --role-bg: #dbeafe; --role-ink: #1d4ed8; }
+.role-support { --role: #d97706; --role-bg: #fef3c7; --role-ink: #b45309; }
+
+.role-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  padding: 0.18rem 0.5rem;
+  border-radius: 5px;
+  background: var(--role-bg, #f1f5f9);
+  color: var(--role-ink, #475569);
+  white-space: nowrap;
+}
+.avatar.role-avatar { background: var(--role-bg); color: var(--role-ink); }
+
+.role-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.8rem 0.95rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--role);
+  border-radius: 0.6rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.role-card:hover { background: #fbfcfd; border-color: #cbd5e1; border-top-color: var(--role); }
+.role-card.is-on { background: var(--role-bg); border-color: var(--role); box-shadow: inset 0 0 0 1px var(--role); }
+.role-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.role-card-head { display: flex; align-items: center; justify-content: space-between; }
+.role-card-count { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.role-card-text { font-size: 0.75rem; color: var(--muted); line-height: 1.45; }
+
+.staff-card { margin-bottom: 1rem; }
+
+/* Under the role tiles: what each role means, the chosen one lit. */
+.role-guide { margin: 0.8rem 0 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.role-guide-row {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.45rem;
+  transition: background 0.12s ease;
+}
+.role-guide-row dt { margin: 0; }
+.role-guide-row dd { margin: 0; font-size: 0.8125rem; color: var(--muted); line-height: 1.45; }
+.role-guide-row.is-on { background: var(--role-bg); }
+.role-guide-row.is-on dd { color: var(--ink); }
+
+@media (max-width: 992px) {
+  .role-guide-row { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+}
+
+/* ---- Movements --------------------------------------------------------- */
+
+.direction-mark.is-adjust { background: #f1f5f9; color: #475569; }
+.qty { font-weight: 700; font-variant-numeric: tabular-nums; }
+.qty-in { color: #047857; }
+.qty-out { color: #b91c1c; }
+
+/* Before → after, under the quantity on the movement form. */
+.stock-preview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 0.7rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px dashed #dbe3ec;
+  border-radius: 0.55rem;
+  background: #f8fafc;
+}
+.stock-preview[hidden] { display: none; }
+.stock-preview-step { display: flex; flex-direction: column; }
+.stock-preview-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.stock-preview-step b { font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+.stock-preview-arrow { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.stock-preview-note { flex-basis: 100%; font-size: 0.8125rem; font-weight: 600; }
+.stock-preview-note:empty { display: none; }
+.stock-preview[data-tone="warn"] { border-color: #fde68a; background: #fffbeb; }
+.stock-preview[data-tone="warn"] .stock-preview-note { color: #b45309; }
+.stock-preview[data-tone="bad"] { border-color: #fecaca; background: #fef2f2; }
+.stock-preview[data-tone="bad"] .stock-preview-note { color: #b91c1c; }
+
 /* ---- Period stepper ---------------------------------------------------- */
 
 .period-nav { display: inline-flex; align-items: center; gap: 0.25rem; }

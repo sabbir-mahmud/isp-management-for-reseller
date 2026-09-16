@@ -1,29 +1,102 @@
 {% extends "base.html" %}
+{% load ui tables %}
+{% comment %}
+Each category with what it holds and what that is worth, so the list says
+where the money on the shelf sits, not only what the groups are called.
+{% endcomment %}
+
 {% block page_actions %}
-  {% if perms.warehouse.add_category %}<a class="btn btn-primary" href="{% url 'category_add' %}">Add category</a>{% endif %}
+  {% if perms.warehouse.add_category %}
+    <a class="btn btn-primary btn-sm" href="{% url 'category_add' %}">Add category</a>
+  {% endif %}
 {% endblock %}
+
 {% block content %}
-<div class="card">
-  <div class="table-wrap">
-    <table class="table table-hover align-middle">
-      <thead><tr><th>Category</th><th>Description</th><th class="numeric">Items</th><th></th></tr></thead>
-      <tbody>
-        {% for category in categories %}
-          <tr>
-            <td class="fw-semibold">{{ category.name }}</td>
-            <td class="text-muted small">{{ category.description|default:"—" }}</td>
-            <td class="numeric">{{ category.products_count }}</td>
-            <td class="text-end">
-              {% if perms.warehouse.change_category %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'category_edit' category.pk %}">Edit</a>{% endif %}
-              {% if perms.warehouse.delete_category %}<a class="btn btn-sm btn-outline-danger" href="{% url 'category_delete' category.pk %}">Delete</a>{% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="4">{% include "partials/empty.html" with title="No categories yet" %}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="stack">
+  <div class="summary-strip">
+    <div class="summary-item">
+      <span class="stat-label">Categories</span>
+      <span class="summary-value">{{ totals.count }}</span>
+      <span class="stat-note">{% if totals.empty %}{{ totals.empty }} with nothing in {{ totals.empty|pluralize:"it,them" }}{% else %}All in use{% endif %}</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Items</span>
+      <span class="summary-value">{{ totals.items }}</span>
+      <span class="stat-note">Across every category</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Stock value</span>
+      <span class="summary-value summary-accent">{{ totals.value|money }}</span>
+      <span class="stat-note">At unit price</span>
+    </div>
   </div>
-  {% include "partials/pagination.html" %}
+
+  <div class="card index-card">
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "name" "Category" %}
+            {% sort_header "items" "Items" numeric=True %}
+            {% sort_header "units" "Units" numeric=True %}
+            {% sort_header "value" "Stock value" %}
+            <th>Needs attention</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for category in categories %}
+            <tr{% if not category.products_count %} class="row-muted"{% endif %}>
+              <td class="col-id">
+                <div class="cell-identity">
+                  <span class="avatar avatar-sm avatar-square" aria-hidden="true">{{ category.name|initials }}</span>
+                  <span class="cell-identity-text">
+                    <a class="cell-identity-name" href="{% url 'product_list' %}?category={{ category.pk }}">{{ category.name }}</a>
+                    <span class="cell-sub" title="{{ category.description }}">{{ category.description|default:"No description"|truncatechars:70 }}</span>
+                  </span>
+                </div>
+              </td>
+              <td class="numeric">{{ category.products_count }}</td>
+              <td class="numeric">{{ category.units }}</td>
+              <td class="col-load">
+                <div class="load-cell">
+                  <span class="load-count">{{ category.value|money }}</span>
+                  <span class="breakdown-track"><span class="breakdown-fill" style="width: {{ category.share }}%"></span></span>
+                </div>
+                <span class="cell-sub">{{ category.share }}% of the shelf</span>
+              </td>
+              <td>
+                {% if category.attention %}
+                  <a class="tag tag-danger text-decoration-none" href="{% url 'product_list' %}?category={{ category.pk }}&level=low">{{ category.attention }} to reorder</a>
+                {% elif category.products_count %}
+                  <span class="settled-mark">Stocked</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="col-actions">
+                <div class="row-actions">
+                  {% if perms.warehouse.add_product %}
+                    <a class="row-action row-action-primary" href="{% url 'product_add' %}?category={{ category.pk }}">Add item</a>
+                  {% endif %}
+                  {% if perms.warehouse.change_category %}
+                    <a class="row-action" href="{% url 'category_edit' category.pk %}">Edit</a>
+                  {% endif %}
+                  {% if perms.warehouse.delete_category and not category.products_count %}
+                    <a class="row-action row-action-danger" href="{% url 'category_delete' category.pk %}">Delete</a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6">
+              {% include "partials/empty.html" with title="No categories yet" hint="Group stock by what it is — networking, power, tools." %}
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
 </div>
 {% endblock %}

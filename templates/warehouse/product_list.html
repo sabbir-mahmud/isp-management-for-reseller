@@ -1,25 +1,77 @@
 {% extends "base.html" %}
-{% load ui %}
+{% load ui tables %}
+{% comment %}
+What needs ordering first, then what the shelf is worth, then every item.
+The alert and the summary are the whole shelf; the table follows the search.
+{% endcomment %}
+
 {% block page_actions %}
-  {% if perms.warehouse.add_stockmovement %}<a class="btn btn-outline-secondary" href="{% url 'movement_add' %}">Record movement</a>{% endif %}
-  {% if perms.warehouse.add_product %}<a class="btn btn-primary" href="{% url 'product_add' %}">Add item</a>{% endif %}
+  {% if perms.warehouse.add_stockmovement %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'movement_add' %}">Record movement</a>
+  {% endif %}
+  {% if perms.warehouse.add_product %}
+    <a class="btn btn-primary btn-sm" href="{% url 'product_add' %}">Add item</a>
+  {% endif %}
 {% endblock %}
+
 {% block content %}
-<div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Items" value=totals.skus icon="stock" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Units on hand" value=totals.units icon="stock" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Stock value" value=totals.value|money icon="stock" tone="accent" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Low stock" value=low_stock icon="expenses" meta="At or below reorder level" %}</div>
-</div>
-<div class="card">
-  {% include "partials/filters.html" %}
-  <div class="table-wrap">
-    <table class="table table-hover align-middle">
-      <thead><tr><th>Item</th><th>Category</th><th>SKU</th><th class="numeric">Qty</th>
-                 <th class="numeric">Unit price</th><th class="numeric">Value</th><th>Status</th><th></th></tr></thead>
-      <tbody>{% include "warehouse/partials/product_rows.html" %}</tbody>
-    </table>
+<div class="stack">
+  {% if reorder %}
+    <div class="stock-alert stock-alert-warning" role="status">
+      <div>
+        <strong>{{ totals.low|add:totals.out }} item{{ totals.low|add:totals.out|pluralize }} to reorder.</strong>
+        {% for item in reorder %}
+          <span class="reorder-item{% if item.quantity <= 0 %} is-out{% endif %}">{{ item.name }} <b>{{ item.quantity }}</b></span>
+        {% endfor %}
+      </div>
+      <a href="?level={% if totals.low %}low{% else %}out{% endif %}">Show them</a>
+    </div>
+  {% endif %}
+
+  <div class="summary-strip">
+    <div class="summary-item">
+      <span class="stat-label">Items</span>
+      <span class="summary-value">{{ totals.skus }}</span>
+      <span class="stat-note">In {{ totals.categories }} categor{{ totals.categories|pluralize:"y,ies" }}</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Units on hand</span>
+      <span class="summary-value">{{ totals.units }}</span>
+      <span class="stat-note">Across every item</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Stock value</span>
+      <span class="summary-value summary-accent">{{ totals.value|money }}</span>
+      <span class="stat-note">At unit price</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Needs reordering</span>
+      <span class="summary-value{% if totals.low or totals.out %} text-danger{% endif %}">{{ totals.low|add:totals.out }}</span>
+      <span class="stat-note">{{ totals.low }} running low, {{ totals.out }} out</span>
+    </div>
   </div>
-  {% include "partials/pagination.html" %}
+
+  {% include "partials/index_chips.html" %}
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "name" "Item" %}
+            {% sort_header "category" "Category" %}
+            {% sort_header "quantity" "On hand" %}
+            {% sort_header "price" "Unit price" numeric=True %}
+            {% sort_header "value" "Value" numeric=True %}
+            <th class="col-status">Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>{% include "warehouse/partials/product_rows.html" %}</tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
 </div>
 {% endblock %}

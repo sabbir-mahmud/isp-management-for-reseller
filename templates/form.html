@@ -113,6 +113,8 @@ that declares nothing gets the single untitled stack it always had.
         <span class="required-marker" aria-hidden="true">*</span> Required
       </span>
       <a class="btn btn-outline-secondary" href="{{ cancel_url|default:'/' }}">Cancel</a>
+      {# A secondary way to save, e.g. "Save and add another". #}
+      {% block form_actions_extra %}{% endblock %}
       <button class="btn btn-primary" type="submit">{{ submit_label|default:"Save" }}</button>
     </div>
   </form>

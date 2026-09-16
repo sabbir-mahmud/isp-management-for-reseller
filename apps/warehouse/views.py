@@ -1,9 +1,20 @@
 """Inventory screens: stock, serialised ONUs and the movement ledger."""
 
 from django.contrib import messages
-from django.db.models import Case, Count, DecimalField, F, Q, Sum, Value, When
+from django.db.models import (
+    Case,
+    Count,
+    DecimalField,
+    ExpressionWrapper,
+    F,
+    Q,
+    Sum,
+    Value,
+    When,
+)
 from django.shortcuts import redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from apps.accounts.views import FilteredListView
@@ -17,7 +28,7 @@ from .forms import CategoryForm, OnuForm, ProductForm, StockMovementForm
 from .models import Category, Onu, Product, StockMovement
 
 
-class ProductListView(FilteredListView):
+class ProductListView(SortableListMixin, FilteredListView):
     permission_required = "warehouse.view_product"
     model = Product
     filterset_class = ProductFilter
@@ -27,20 +38,67 @@ class ProductListView(FilteredListView):
     page_title = "Stock"
     page_subtitle = "Cables, routers, spares — what is on the shelf"
 
+    sort_fields = {
+        "name": "name",
+        "category": "category__name",
+        "quantity": "quantity",
+        "price": "unit_price",
+        "value": "value",
+    }
+
     def get_queryset(self):
-        queryset = Product.objects.select_related("category")
+        queryset = Product.objects.select_related("category").annotate(value=STOCK_VALUE)
         self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
-        return self.filterset.qs
+        return self.apply_sort(self.filterset.qs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["totals"] = Product.objects.aggregate(
+        levels = {key: ProductFilter.level_q(key) for key, _ in ProductFilter.LEVEL_CHOICES}
+        # The whole shelf, whatever the search: these answer "what needs
+        # ordering" and double as the stock-level chips.
+        totals = Product.objects.aggregate(
             skus=Count("pk"),
             units=Sum("quantity", default=Value(0)),
-            value=money_sum(F("quantity") * F("unit_price")),
+            value=money_sum(STOCK_VALUE),
+            categories=Count("category", distinct=True),
+            **{key: Count("pk", filter=match) for key, match in levels.items()},
         )
-        context["low_stock"] = Product.objects.low_stock().count()
+        context["totals"] = totals
+        context["reorder"] = list(
+            Product.objects.filter(levels["low"] | levels["out"])
+            .exclude(status=Product.Status.RETIRED)
+            .order_by("quantity", "name")
+            .values("name", "quantity")[:6]
+        )
+        context["chips"] = build_chips(
+            self.request,
+            "level",
+            [
+                {"label": "All items", "value": totals["skus"], "match": None},
+                {
+                    "label": "Healthy",
+                    "value": totals["healthy"],
+                    "match": "healthy",
+                    "tone": "success",
+                },
+                {
+                    "label": "Running low",
+                    "value": totals["low"],
+                    "match": "low",
+                    "tone": "warning",
+                },
+                {"label": "Out of stock", "value": totals["out"], "match": "out", "tone": "danger"},
+            ],
+        )
+        context["chip_group"] = "stock level"
+        context["row_noun"], context["row_noun_plural"] = "item", "items"
         return context
+
+
+#: What a product's stock is worth at its unit price.
+STOCK_VALUE = ExpressionWrapper(
+    F("quantity") * F("unit_price"), output_field=DecimalField(max_digits=14, decimal_places=2)
+)
 
 
 class ProductCreateView(CrudViewMixin, CreateView):
@@ -51,6 +109,11 @@ class ProductCreateView(CrudViewMixin, CreateView):
     success_url = reverse_lazy("product_list")
     success_message = "%(name)s was added to stock."
     page_title = "Add stock item"
+    page_subtitle = "Something you keep on the shelf and count by the unit"
+
+    def get_initial(self):
+        category = self.request.GET.get("category", "")
+        return {"category": category} if category.isdigit() else {}
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -75,6 +138,16 @@ class ProductUpdateView(CrudViewMixin, UpdateView):
     success_message = "%(name)s was updated."
     page_title = "Edit stock item"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        product = self.object
+        context["page_subtitle"] = f"{product.name} · {product.quantity} on hand"
+        context["notice"] = (
+            "The quantity is not edited here. Record a movement to receive, issue or "
+            "correct stock, so every change keeps its reason."
+        )
+        return context
+
 
 class ProductDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
     permission_required = "warehouse.delete_product"
@@ -89,36 +162,113 @@ class ProductDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
 # ---------------------------------------------------------------------------#
 
 
-class CategoryListView(StaffViewMixin, PageTitleMixin, ListView):
+class CategoryListView(StaffViewMixin, PageTitleMixin, SortableListMixin, ListView):
     permission_required = "warehouse.view_category"
     model = Category
     template_name = "warehouse/category_list.html"
     context_object_name = "categories"
     paginate_by = 50
     page_title = "Categories"
+    page_subtitle = "How the shelf is grouped, and what each group holds"
+
+    sort_fields = {
+        "name": "name",
+        "items": "products_count",
+        "units": "units",
+        "value": "value",
+    }
+    default_sort = "name"
 
     def get_queryset(self):
-        return Category.objects.annotate(products_count=Count("products")).order_by("name")
+        queryset = Category.objects.annotate(
+            products_count=Count("products"),
+            units=Sum("products__quantity", default=Value(0)),
+            value=money_sum(
+                ExpressionWrapper(
+                    F("products__quantity") * F("products__unit_price"),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            ),
+            attention=Count(
+                "products",
+                filter=Q(products__quantity__lte=F("products__reorder_level"))
+                & ~Q(products__status=Product.Status.RETIRED),
+            ),
+        )
+        return self.apply_sort(queryset)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Distinct: the filter joins products, one row per product.
+        totals = Category.objects.aggregate(
+            count=Count("pk", distinct=True),
+            empty=Count("pk", filter=Q(products__isnull=True), distinct=True),
+        )
+        totals["value"] = Product.objects.aggregate(value=money_sum(STOCK_VALUE))["value"]
+        totals["items"] = Product.objects.count()
+        context["totals"] = totals
+        grand = totals["value"] or 0
+        for category in context["categories"]:
+            category.share = round(category.value / grand * 100) if grand else 0
+        return context
 
 
 class CategoryCreateView(CrudViewMixin, CreateView):
     permission_required = "warehouse.add_category"
     model = Category
     form_class = CategoryForm
-    template_name = "form.html"
+    template_name = "warehouse/category_form.html"
     success_url = reverse_lazy("category_list")
     success_message = "Category %(name)s was created."
     page_title = "Add category"
+    page_subtitle = "A group for the stock page and its filters"
+
+    #: The value of the secondary submit button that goes on to add an item.
+    THEN_ADD_ITEM = "add_item"
+
+    def get_success_url(self):
+        if self.request.POST.get("then") == self.THEN_ADD_ITEM:
+            return f"{reverse('product_add')}?category={self.object.pk}"
+        return super().get_success_url()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["submit_label"] = "Create category"
+        context["then_add_item"] = (
+            self.THEN_ADD_ITEM if self.request.user.has_perm("warehouse.add_product") else ""
+        )
+        return context
 
 
 class CategoryUpdateView(CrudViewMixin, UpdateView):
     permission_required = "warehouse.change_category"
     model = Category
     form_class = CategoryForm
-    template_name = "form.html"
+    template_name = "warehouse/category_form.html"
     success_url = reverse_lazy("category_list")
     success_message = "Category %(name)s was updated."
     page_title = "Edit category"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        category = self.object
+        context["page_subtitle"] = category.name
+        context["submit_label"] = "Save changes"
+        # What the category holds, so a rename is made knowing what it moves.
+        products = category.products.all()
+        holdings = products.aggregate(
+            items=Count("pk"),
+            units=Sum("quantity", default=Value(0)),
+            value=money_sum(STOCK_VALUE),
+            to_reorder=Count(
+                "pk",
+                filter=Q(quantity__lte=F("reorder_level")) & ~Q(status=Product.Status.RETIRED),
+            ),
+        )
+        holdings["sample"] = list(products.order_by("name").values_list("name", flat=True)[:4])
+        holdings["more"] = holdings["items"] - len(holdings["sample"])
+        context["holdings"] = holdings
+        return context
 
 
 class CategoryDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
@@ -311,26 +461,105 @@ class OnuDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
 # ---------------------------------------------------------------------------#
 
 
-class StockMovementListView(FilteredListView):
+class StockMovementListView(SortableListMixin, FilteredListView):
     permission_required = "warehouse.view_stockmovement"
     model = StockMovement
     filterset_class = StockMovementFilter
     template_name = "warehouse/movement_list.html"
+    htmx_template_name = "warehouse/partials/movement_rows.html"
     context_object_name = "movements"
     page_title = "Stock movements"
     page_subtitle = "Every receipt, issue and correction"
 
+    sort_fields = {"date": "occurred_on", "item": "product__name", "quantity": "quantity"}
+
     def get_queryset(self):
         queryset = StockMovement.objects.select_related("product", "created_by")
         self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
-        return self.filterset.qs
+        return self.apply_sort(self.filterset.qs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        kind = StockMovement.Kind
+        totals = self.filterset.qs.aggregate(
+            count=Count("pk"),
+            received=Sum("quantity", filter=Q(kind=kind.IN), default=Value(0)),
+            issued=Sum("quantity", filter=Q(kind=kind.OUT), default=Value(0)),
+            adjusted=Sum("quantity", filter=Q(kind=kind.ADJUST), default=Value(0)),
+            items=Count("product", distinct=True),
+        )
+        totals["net"] = totals["received"] - totals["issued"] + totals["adjusted"]
+        context["totals"] = totals
+
+        counts = StockMovement.objects.aggregate(
+            all=Count("pk"),
+            **{value: Count("pk", filter=Q(kind=value)) for value in kind.values},
+        )
+        context["chips"] = build_chips(
+            self.request,
+            "kind",
+            [
+                {"label": "All movements", "value": counts["all"], "match": None},
+                {
+                    "label": "Received",
+                    "value": counts[kind.IN],
+                    "match": kind.IN,
+                    "tone": "success",
+                },
+                {
+                    "label": "Issued",
+                    "value": counts[kind.OUT],
+                    "match": kind.OUT,
+                    "tone": "warning",
+                },
+                {
+                    "label": "Adjustments",
+                    "value": counts[kind.ADJUST],
+                    "match": kind.ADJUST,
+                    "tone": "muted",
+                },
+            ],
+        )
+        context["chip_group"] = "movement type"
+        context["row_noun"], context["row_noun_plural"] = "movement", "movements"
+        return context
 
 
 class StockMovementCreateView(CrudViewMixin, CreateView):
     permission_required = "warehouse.add_stockmovement"
     model = StockMovement
     form_class = StockMovementForm
-    template_name = "form.html"
+    template_name = "warehouse/movement_form.html"
     success_url = reverse_lazy("movement_list")
     success_message = "Stock movement recorded."
     page_title = "Record stock movement"
+    page_subtitle = "Stock in, stock out, or a corrected count"
+    cancel_url = reverse_lazy("movement_list")
+
+    def get_initial(self):
+        """Pre-filled from the Receive / Issue links on the stock page."""
+        params = self.request.GET
+        initial = {"occurred_on": timezone.localdate()}
+        if params.get("kind") in StockMovement.Kind.values:
+            initial["kind"] = params["kind"]
+        if params.get("product", "").isdigit():
+            initial["product"] = int(params["product"])
+        return initial
+
+    def get_success_url(self):
+        # Opened from the stock page, go back there to see the new count.
+        if self.request.GET.get("next") == "stock":
+            return reverse("product_list")
+        return super().get_success_url()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["submit_label"] = "Record movement"
+        # On-hand counts for the live preview under the quantity.
+        context["stock_levels"] = {
+            str(pk): {"quantity": quantity, "reorder": reorder}
+            for pk, quantity, reorder in Product.objects.values_list(
+                "pk", "quantity", "reorder_level"
+            )
+        }
+        return context

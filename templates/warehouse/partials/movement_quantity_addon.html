@@ -1,0 +1,16 @@
+{% comment %}
+Under the quantity on the movement form: the count before and after.
+Filled in by the script in `movement_form.html`.
+{% endcomment %}
+<div class="stock-preview" data-stock-preview aria-live="polite" hidden>
+  <span class="stock-preview-step">
+    <span class="stock-preview-label">On hand</span>
+    <b data-before>—</b>
+  </span>
+  <span class="stock-preview-arrow" aria-hidden="true">→ <span data-change></span></span>
+  <span class="stock-preview-step">
+    <span class="stock-preview-label">After</span>
+    <b data-after>—</b>
+  </span>
+  <span class="stock-preview-note" data-note></span>
+</div>
