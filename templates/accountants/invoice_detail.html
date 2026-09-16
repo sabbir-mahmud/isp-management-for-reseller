@@ -1,115 +1,223 @@
 {% extends "base.html" %}
-{% load ui %}
+{% load ui icons %}
+
 {% block page_actions %}
-  {% if perms.accountants.add_payment and invoice.amount_due %}
-    <a class="btn btn-primary" href="{% url 'payment_add' invoice.pk %}">
-      {% if invoice.collected_by_reseller %}Take payment{% else %}Record upstream payment{% endif %}
-    </a>
-  {% endif %}
-  {% if perms.accountants.change_invoice %}
-    <a class="btn btn-outline-secondary" href="{% url 'invoice_edit' invoice.pk %}">Edit</a>
-    {% if invoice.status != 'cancelled' %}
-      <form method="post" action="{% url 'invoice_cancel' invoice.pk %}">
+  {% if invoice.status != 'cancelled' %}
+    {% if perms.accountants.change_invoice %}
+      <form method="post" action="{% url 'invoice_cancel' invoice.pk %}"
+            onsubmit="return confirm('Cancel {{ invoice.number }}? It stops counting as owed.');">
         {% csrf_token %}
-        <button class="btn btn-outline-danger" type="submit">Cancel invoice</button>
+        <button class="btn btn-outline-danger btn-sm" type="submit">Cancel invoice</button>
       </form>
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'invoice_edit' invoice.pk %}">Edit</a>
+    {% endif %}
+    {% if perms.accountants.add_payment and invoice.amount_due %}
+      <a class="btn btn-primary btn-sm" href="{% url 'payment_add' invoice.pk %}">
+        {% if invoice.collected_by_reseller %}Take payment{% else %}Record upstream payment{% endif %}
+      </a>
     {% endif %}
   {% endif %}
 {% endblock %}
-{% block content %}
-<div class="row g-3">
-  <div class="col-12 col-xl-8">
-    <div class="card mb-3">
-      <div class="card-header d-flex justify-content-between">
-        <span>{{ invoice.number }}</span>
-        <span>{{ invoice.status|status_badge }}</span>
-      </div>
-      <div class="card-body">
-        <div class="row small mb-3">
-          <div class="col-6 col-md-3"><div class="text-muted">Client</div>
-            <a class="text-decoration-none" href="{% url 'client_detail' invoice.client.pk %}">{{ invoice.client.name }}</a></div>
-          <div class="col-6 col-md-3"><div class="text-muted">Period</div>{{ invoice.period|date:"F Y" }}</div>
-          <div class="col-6 col-md-3"><div class="text-muted">Issued</div>{{ invoice.issue_date|date:"d M Y" }}</div>
-          <div class="col-6 col-md-3"><div class="text-muted">Due</div>
-            <span class="{% if invoice.is_overdue %}text-danger fw-semibold{% endif %}">{{ invoice.due_date|date:"d M Y" }}</span></div>
-        </div>
 
-        <div class="alert {% if invoice.collected_by_reseller %}alert-primary{% else %}alert-secondary{% endif %} py-2 small">
+{% block content %}
+<div class="stack">
+
+  {% comment %}
+  The same header as a client's profile: what this bill is, what is left on it,
+  and the handful of facts a call about it needs.
+  {% endcomment %}
+  <div class="profile">
+    <div class="profile-head">
+      <span class="avatar avatar-lg avatar-doc" aria-hidden="true">{% icon "invoices" 22 %}</span>
+      <div class="profile-identity">
+        <h2 class="profile-name">{{ invoice.number }}</h2>
+        <div class="profile-tags">
+          {{ invoice.status|status_badge }}
+          <span class="tag">{{ invoice.period|date:"F Y" }}</span>
           {% if invoice.collected_by_reseller %}
-            <strong>You collect this bill.</strong> You keep
-            {{ invoice.commission_amount|money }} ({{ invoice.commission_percent }}%) and owe
-            {{ invoice.upstream_amount|money }} upstream once it is paid.
+            <span class="tag tag-accent">You collect</span>
           {% else %}
-            <strong>The customer pays {{ invoice.payee }} directly.</strong> None of this money
-            reaches you; you earn {{ invoice.commission_amount|money }}
-            ({{ invoice.commission_percent }}%) once they pay.
+            <span class="tag">Paid to {{ invoice.payee }}</span>
+          {% endif %}
+          {% if invoice.is_overdue %}
+            <span class="tag tag-danger">{{ invoice.days_overdue }} day{{ invoice.days_overdue|pluralize }} overdue</span>
           {% endif %}
         </div>
+      </div>
+      <div class="profile-balance">
+        <span class="stat-label">{% if invoice.status == 'cancelled' %}Cancelled{% else %}Outstanding{% endif %}</span>
+        <p class="statement-figure {% if invoice.amount_due and invoice.status != 'cancelled' %}text-danger{% endif %}">
+          {% if invoice.status == 'cancelled' %}—{% else %}{{ invoice.amount_due|money }}{% endif %}
+        </p>
+        <div class="balance-meter" title="{{ paid_percent }}% paid">
+          <span class="breakdown-track"><span class="breakdown-fill" style="width: {{ paid_percent }}%"></span></span>
+          <span class="stat-note">{{ invoice.amount_paid|money }} of {{ invoice.total|money }} paid</span>
+        </div>
+      </div>
+    </div>
 
-        <table class="table table-sm">
-          <thead><tr><th>Description</th><th class="numeric">Qty</th><th class="numeric">Unit</th><th class="numeric">Amount</th></tr></thead>
-          <tbody>
-            {% for line in invoice.lines.all %}
-              <tr>
-                <td>{{ line.description }}</td>
-                <td class="numeric">{{ line.quantity }}</td>
-                <td class="numeric">{{ line.unit_price|money }}</td>
-                <td class="numeric">{{ line.line_total|money }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="4" class="text-muted small">No line items; the total below was entered directly.</td></tr>
-            {% endfor %}
-          </tbody>
-          <tfoot>
-            <tr><td colspan="3" class="numeric text-muted">Subtotal</td><td class="numeric">{{ invoice.subtotal|money }}</td></tr>
-            {% if invoice.discount %}
-              <tr><td colspan="3" class="numeric text-muted">Discount</td><td class="numeric">−{{ invoice.discount|money }}</td></tr>
-            {% endif %}
-            <tr><td colspan="3" class="numeric fw-semibold">Total</td><td class="numeric fw-semibold">{{ invoice.total|money }}</td></tr>
-            <tr><td colspan="3" class="numeric text-success">Paid</td><td class="numeric text-success">{{ invoice.amount_paid|money }}</td></tr>
-            <tr><td colspan="3" class="numeric fw-semibold">Outstanding</td>
-                <td class="numeric fw-semibold {% if invoice.amount_due %}text-danger{% endif %}">{{ invoice.amount_due|money }}</td></tr>
-            <tr><td colspan="3" class="numeric text-muted small">Your commission ({{ invoice.commission_percent }}%)</td>
-                <td class="numeric small text-success">{{ invoice.commission_amount|money }}</td></tr>
-            <tr><td colspan="3" class="numeric text-muted small">Upstream share</td>
-                <td class="numeric small text-muted">{{ invoice.upstream_amount|money }}</td></tr>
-          </tfoot>
-        </table>
-        {% if invoice.note %}<p class="small text-muted mb-0">{{ invoice.note }}</p>{% endif %}
+    <div class="profile-facts">
+      <div class="fact">
+        <span class="fact-label">{% icon "clients" 14 %} Client</span>
+        <a class="fact-value fact-link" href="{% url 'client_detail' invoice.client.pk %}">{{ invoice.client.name }}</a>
+      </div>
+      <div class="fact">
+        <span class="fact-label">{% icon "report" 14 %} Client code</span>
+        <span class="fact-value">{{ invoice.client.client_code }}</span>
+      </div>
+      <div class="fact">
+        <span class="fact-label">{% icon "invoices" 14 %} Issued</span>
+        <span class="fact-value">{{ invoice.issue_date|date:"d M Y" }}</span>
+      </div>
+      <div class="fact">
+        <span class="fact-label">{% icon "expenses" 14 %} Due</span>
+        <span class="fact-value{% if invoice.is_overdue %} text-danger{% endif %}">{{ invoice.due_date|date:"d M Y" }}</span>
+      </div>
+      <div class="fact">
+        <span class="fact-label">{% icon "upstream" 14 %} Collected by</span>
+        <span class="fact-value">{% if invoice.collected_by_reseller %}You{% else %}{{ invoice.payee|capfirst }}{% endif %}</span>
+      </div>
+      <div class="fact">
+        <span class="fact-label">{% icon "payments" 14 %} Commission</span>
+        <span class="fact-value">{{ invoice.commission_percent|floatformat:"-2" }}%</span>
       </div>
     </div>
   </div>
 
-  <div class="col-12 col-xl-4">
-    <div class="card">
-      <div class="card-header">Payments</div>
-      <div class="table-wrap">
-        <table class="table table-sm mb-0">
-          <thead><tr><th>Date</th><th>Method</th><th class="numeric">Amount</th><th></th></tr></thead>
-          <tbody>
-            {% for payment in invoice.payments.all %}
+  <div class="row g-3">
+    <div class="col-12 col-xl-8">
+      <div class="card">
+        <div class="card-header">
+          <span>Charges</span>
+          {% if invoice.subscription %}<span class="card-sub">{{ invoice.subscription.package.name }}</span>{% endif %}
+        </div>
+        <div class="table-wrap">
+          <table class="table mb-0 statement">
+            <thead>
               <tr>
-                <td class="small">{{ payment.received_on|date:"d M Y" }}</td>
-                <td class="small">{{ payment.get_method_display }}
-                  {% if payment.reference %}<div class="text-muted">{{ payment.reference }}</div>{% endif %}</td>
-                <td class="numeric text-success">{{ payment.amount|money }}</td>
-                <td class="text-end">
-                  {% if perms.accountants.delete_payment %}
-                    <a class="btn btn-sm btn-outline-danger" href="{% url 'payment_delete' payment.pk %}">Reverse</a>
-                  {% endif %}
-                </td>
+                <th>Description</th>
+                <th class="numeric">Qty</th>
+                <th class="numeric">Unit price</th>
+                <th class="numeric">Amount</th>
               </tr>
-            {% empty %}
-              <tr><td colspan="4" class="text-muted small p-3">
-              {% if invoice.collected_by_reseller %}
-                Nothing received against this invoice.
-              {% else %}
-                Not yet shown as paid on the upstream statement.
+            </thead>
+            <tbody>
+              {% for line in invoice.lines.all %}
+                <tr class="statement-line">
+                  <td>{{ line.description }}</td>
+                  <td class="numeric">{{ line.quantity|floatformat:"-2" }}</td>
+                  <td class="numeric">{{ line.unit_price|money }}</td>
+                  <td class="numeric">{{ line.line_total|money }}</td>
+                </tr>
+              {% empty %}
+                <tr class="statement-line">
+                  <td>
+                    {% if invoice.subscription %}{{ invoice.subscription.package.name }}{% else %}Monthly service{% endif %}
+                    <div class="statement-note">{{ invoice.period|date:"F Y" }} · entered as a single amount</div>
+                  </td>
+                  <td class="numeric">1</td>
+                  <td class="numeric">{{ invoice.subtotal|money }}</td>
+                  <td class="numeric">{{ invoice.subtotal|money }}</td>
+                </tr>
+              {% endfor %}
+
+              <tr class="statement-subtotal">
+                <td colspan="3" class="numeric">Subtotal</td>
+                <td class="numeric">{{ invoice.subtotal|money }}</td>
+              </tr>
+              {% if invoice.discount %}
+                <tr class="statement-meta">
+                  <td colspan="3" class="numeric">Discount</td>
+                  <td class="numeric">−{{ invoice.discount|money }}</td>
+                </tr>
               {% endif %}
-            </td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+              <tr class="statement-total">
+                <td colspan="3" class="numeric">Total</td>
+                <td class="numeric">{{ invoice.total|money }}</td>
+              </tr>
+              <tr class="statement-meta">
+                <td colspan="3" class="numeric">Paid</td>
+                <td class="numeric text-success">−{{ invoice.amount_paid|money }}</td>
+              </tr>
+              <tr class="statement-subtotal">
+                <td colspan="3" class="numeric">Balance due</td>
+                <td class="numeric{% if invoice.amount_due and invoice.status != 'cancelled' %} text-danger{% endif %}">{{ invoice.amount_due|money }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {% if invoice.note %}
+          <div class="card-body border-top">
+            <span class="fact-label">Note</span>
+            <p class="mb-0 mt-1 small">{{ invoice.note }}</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      {% comment %}
+      Where the money goes. The split is the same either way; what changes is
+      who holds it first, and so who owes whom once it is paid.
+      {% endcomment %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <span>Split</span>
+          <span class="card-sub">{{ invoice.commission_percent|floatformat:"-2" }}% to you</span>
+        </div>
+        <div class="card-body">
+          <div class="breakdown">
+            <div class="breakdown-row">
+              <span class="breakdown-label">Your commission</span>
+              <span class="breakdown-value text-success">{{ invoice.commission_amount|money }}</span>
+              <span class="breakdown-track"><span class="breakdown-fill" style="width: {{ commission_percent }}%"></span></span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Upstream share</span>
+              <span class="breakdown-value">{{ invoice.upstream_amount|money }}</span>
+              <span class="breakdown-track"><span class="breakdown-fill upstream" style="width: {{ upstream_percent }}%"></span></span>
+            </div>
+          </div>
+          <p class="split-note">
+            {% if invoice.collected_by_reseller %}
+              You take the payment, keep {{ invoice.commission_amount|money }} and pass
+              {{ invoice.upstream_amount|money }} on to {{ upstream_name }} once it is paid.
+            {% else %}
+              The customer pays {{ invoice.payee }} directly. None of this money reaches you;
+              you earn {{ invoice.commission_amount|money }} once they pay.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span>Payments</span>
+          <span class="card-sub">{{ invoice.payments.all|length }} received</span>
+        </div>
+        <ul class="activity">
+          {% for payment in invoice.payments.all %}
+            <li class="activity-item">
+              <div class="activity-main">
+                <span class="activity-title">{{ payment.amount|money }}</span>
+                <span class="cell-sub">
+                  {{ payment.received_on|date:"d M Y" }} · {{ payment.get_method_display }}{% if payment.reference %} · {{ payment.reference }}{% endif %}
+                </span>
+              </div>
+              {% if perms.accountants.delete_payment %}
+                <a class="row-action row-action-danger" href="{% url 'payment_delete' payment.pk %}">Reverse</a>
+              {% endif %}
+            </li>
+          {% empty %}
+            <li>
+              {% if invoice.collected_by_reseller %}
+                {% include "partials/empty.html" with title="Nothing received yet" hint="Payments taken against this invoice appear here." %}
+              {% else %}
+                {% include "partials/empty.html" with title="Not paid upstream yet" hint="Record it once it shows on the upstream statement." %}
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
       </div>
     </div>
   </div>

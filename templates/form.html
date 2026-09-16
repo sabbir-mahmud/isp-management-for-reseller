@@ -16,6 +16,9 @@ that declares nothing gets the single untitled stack it always had.
       <div class="form-notice">{{ notice }}</div>
     {% endif %}
 
+    {# What the form is about, for screens that act on an existing record. #}
+    {% block form_intro %}{% endblock %}
+
     {% comment %}
     On a sectioned form the field that failed can be a screen away, so the
     errors are also collected here, each one a link to the input it came from.
@@ -57,15 +60,40 @@ that declares nothing gets the single untitled stack it always had.
                     {% if item.field.help_text %}<span class="helptext">{{ item.field.help_text }}</span>{% endif %}
                   </label>
                 </div>
+              {% elif item.radio %}
+                {# A short list of choices reads faster as tiles than as a dropdown. #}
+                <fieldset>
+                  {% if item.field.label %}
+                    <legend class="form-label">
+                      {{ item.field.label }}{% if item.field.field.required %}<span class="required-marker" aria-hidden="true"> *</span>{% endif %}
+                    </legend>
+                  {% endif %}
+                  <div class="choice-tiles">
+                    {% for choice in item.field %}
+                      <label class="choice-tile" for="{{ choice.id_for_label }}">
+                        {{ choice.tag }}<span>{{ choice.choice_label }}</span>
+                      </label>
+                    {% endfor %}
+                  </div>
+                  {% if item.field.help_text %}<div class="helptext">{{ item.field.help_text }}</div>{% endif %}
+                </fieldset>
               {% else %}
                 {% if item.field.label %}
                   <label class="form-label" for="{{ item.field.id_for_label }}">
                     {{ item.field.label }}{% if item.field.field.required %}<span class="required-marker" aria-hidden="true"> *</span>{% endif %}
                   </label>
                 {% endif %}
-                {{ item.field }}
+                {% if item.prefix %}
+                  <div class="input-prefixed">
+                    <span class="input-prefix" aria-hidden="true">{{ item.prefix }}</span>
+                    {{ item.field }}
+                  </div>
+                {% else %}
+                  {{ item.field }}
+                {% endif %}
                 {% if item.field.help_text %}<div class="helptext">{{ item.field.help_text }}</div>{% endif %}
               {% endif %}
+              {% if item.addon %}{% include item.addon %}{% endif %}
 
               {% for error in item.field.errors %}
                 <div class="field-error">{{ error }}</div>
@@ -89,4 +117,5 @@ that declares nothing gets the single untitled stack it always had.
     </div>
   </form>
 </div>
+{% block form_scripts %}{% endblock %}
 {% endblock %}

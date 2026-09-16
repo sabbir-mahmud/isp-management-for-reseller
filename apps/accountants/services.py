@@ -165,6 +165,7 @@ def record_payment(
     method: str = Payment.Method.CASH,
     received_on: date | None = None,
     reference: str = "",
+    note: str = "",
     actor=None,
 ) -> Payment:
     """Take money against an invoice, refusing anything that makes no sense."""
@@ -186,6 +187,7 @@ def record_payment(
         method=method,
         received_on=received_on or invoice.issue_date,
         reference=reference,
+        note=note,
         created_by=actor,
     )
 

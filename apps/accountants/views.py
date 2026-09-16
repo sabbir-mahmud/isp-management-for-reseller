@@ -1,17 +1,21 @@
 """Billing screens: invoices, payments and the two manual ledgers."""
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Case, Count, DecimalField, F, Value, When
+from django.db.models import Case, Count, DecimalField, F, Q, Value, When
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, FormView, UpdateView
 
+from apps.accounts.models import Client
 from apps.accounts.views import FilteredListView
 from apps.core.aggregates import money_sum
+from apps.core.chips import build_chips
 from apps.core.choices import CollectionMode
-from apps.core.mixins import CrudViewMixin, PageTitleMixin, StaffViewMixin
+from apps.core.mixins import CrudViewMixin, PageTitleMixin, SortableListMixin, StaffViewMixin
 from apps.core.utils import month_start
 
 from .filters import ExpenseFilter, IncomeFilter, InvoiceFilter, PaymentFilter, SettlementFilter
@@ -34,7 +38,7 @@ from .services import (
 )
 
 
-class InvoiceListView(FilteredListView):
+class InvoiceListView(SortableListMixin, FilteredListView):
     permission_required = "accountants.view_invoice"
     model = Invoice
     filterset_class = InvoiceFilter
@@ -44,11 +48,20 @@ class InvoiceListView(FilteredListView):
     page_title = "Invoices"
     page_subtitle = "What was billed, and what is still owed"
 
+    sort_fields = {
+        "number": "number",
+        "client": "client__name",
+        "period": "period",
+        "due": "due_date",
+        "total": "total",
+        "owing": "owing",
+    }
+
     def get_queryset(self):
-        self.filterset = self.filterset_class(
-            self.request.GET, queryset=Invoice.objects.with_related()
-        )
-        return self.filterset.qs
+        queryset = Invoice.objects.with_related().annotate(owing=F("total") - F("amount_paid"))
+        self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
+        # With no `?sort=` the model's newest-month-first ordering stands.
+        return self.apply_sort(self.filterset.qs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -59,7 +72,59 @@ class InvoiceListView(FilteredListView):
             commission=money_sum("commission_amount"),
         )
         rows["due"] = rows["billed"] - rows["paid"]
+        rows["paid_percent"] = round(rows["paid"] / rows["billed"] * 100) if rows["billed"] else 0
         context["totals"] = rows
+
+        # The chips count every invoice, not the filtered set: they are the
+        # status filter, and a count that shrinks to zero once another chip
+        # is picked cannot be used to choose between them.
+        status = Invoice.Status
+        counts = Invoice.objects.aggregate(
+            total=Count("pk"),
+            **{
+                value: Count("pk", filter=Q(status=value))
+                for value in (
+                    status.UNPAID,
+                    status.PARTIAL,
+                    status.OVERDUE,
+                    status.PAID,
+                    status.CANCELLED,
+                )
+            },
+        )
+        context["chips"] = build_chips(
+            self.request,
+            "status",
+            [
+                {"label": "All invoices", "value": counts["total"], "match": None},
+                {"label": "Unpaid", "value": counts[status.UNPAID], "match": status.UNPAID},
+                {
+                    "label": "Overdue",
+                    "value": counts[status.OVERDUE],
+                    "match": status.OVERDUE,
+                    "tone": "danger",
+                },
+                {
+                    "label": "Partially paid",
+                    "value": counts[status.PARTIAL],
+                    "match": status.PARTIAL,
+                    "tone": "warning",
+                },
+                {
+                    "label": "Paid",
+                    "value": counts[status.PAID],
+                    "match": status.PAID,
+                    "tone": "success",
+                },
+                {
+                    "label": "Cancelled",
+                    "value": counts[status.CANCELLED],
+                    "match": status.CANCELLED,
+                    "tone": "muted",
+                },
+            ],
+        )
+        context["row_noun"], context["row_noun_plural"] = "invoice", "invoices"
         return context
 
 
@@ -74,9 +139,17 @@ class InvoiceDetailView(StaffViewMixin, PageTitleMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["page_title"] = self.object.number
-        context["page_subtitle"] = f"{self.object.client.name} · {self.object.period:%B %Y}"
-        context["payment_form"] = PaymentForm(invoice=self.object)
+        invoice = self.object
+        context["page_title"] = invoice.number
+        context["page_subtitle"] = f"{invoice.client.name} · {invoice.period:%B %Y}"
+        context["payment_form"] = PaymentForm(invoice=invoice)
+        context["paid_percent"] = (
+            min(round(invoice.amount_paid / invoice.total * 100), 100) if invoice.total else 0
+        )
+        # Bar widths for the split card, as whole numbers a style attribute takes.
+        context["commission_percent"] = round(invoice.commission_percent)
+        context["upstream_percent"] = 100 - context["commission_percent"]
+        context["upstream_name"] = BillingSettings.load().upstream_name or "the upstream operator"
         return context
 
 
@@ -87,6 +160,41 @@ class InvoiceCreateView(CrudViewMixin, CreateView):
     template_name = "form.html"
     success_message = "Invoice created."
     page_title = "New invoice"
+    page_subtitle = "A one-off bill, outside the monthly run"
+    cancel_url = reverse_lazy("invoice_list")
+
+    def get_initial(self):
+        """Start from what the monthly run would have raised.
+
+        Opened from a client (`?client=<pk>`), the price, discount, rate and
+        collection arrangement are that client's; otherwise the business
+        defaults. Every value can still be changed before saving.
+        """
+        settings_row = BillingSettings.load()
+        today = timezone.localdate()
+        initial = {
+            "period": month_start(today),
+            "issue_date": today,
+            "due_date": today + timedelta(days=settings_row.due_days),
+            "collection_mode": settings_row.collection_mode,
+            "commission_percent": settings_row.commission_percent,
+        }
+
+        client_pk = self.request.GET.get("client", "")
+        client = (
+            Client.objects.with_related().filter(pk=client_pk).first()
+            if client_pk.isdigit()
+            else None
+        )
+        if client is not None:
+            initial["client"] = client.pk
+            initial["collection_mode"] = client.effective_collection_mode
+            subscription = client.subscription
+            if subscription is not None:
+                initial["subtotal"] = subscription.monthly_price
+                initial["discount"] = subscription.discount
+                initial["commission_percent"] = subscription.effective_commission_percent
+        return initial
 
 
 class InvoiceUpdateView(CrudViewMixin, UpdateView):
@@ -96,6 +204,17 @@ class InvoiceUpdateView(CrudViewMixin, UpdateView):
     template_name = "form.html"
     success_message = "Invoice updated."
     page_title = "Edit invoice"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        invoice = self.object
+        context["page_subtitle"] = f"{invoice.number} · {invoice.client.name}"
+        if invoice.amount_paid:
+            context["notice"] = (
+                f"{invoice.amount_paid} has already been received against this invoice. "
+                "Lowering the amount below that marks it paid in full."
+            )
+        return context
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -203,19 +322,59 @@ class PaymentListView(FilteredListView):
         return context
 
 
+def amount_shortcuts(invoice) -> list[dict]:
+    """One-click amounts for the payment form, largest first.
+
+    The whole balance always leads. After it, the figures people actually
+    hand over: the client's monthly fee (someone clearing one month of
+    several), half, and round notes below the balance. Anything not under
+    the balance, or already offered, is left out.
+    """
+    due = invoice.amount_due
+    if due <= 0:
+        return []
+
+    shortcuts = [{"label": "Full balance", "value": due, "primary": True}]
+    subscription = invoice.subscription or invoice.client.subscription
+    candidates = []
+    if subscription is not None:
+        candidates.append(("Monthly fee", Decimal(subscription.net_monthly)))
+    candidates.append(("Half", (due / 2).quantize(Decimal("0.01"))))
+    candidates += [("", Decimal(note)) for note in (2000, 1000, 500)]
+
+    seen, rest = {due}, []
+    for label, value in candidates:
+        if 0 < value < due and value not in seen:
+            seen.add(value)
+            rest.append({"label": label, "value": value, "primary": False})
+    rest.sort(key=lambda shortcut: shortcut["value"], reverse=True)
+    return (shortcuts + rest)[:5]
+
+
 class PaymentCreateView(StaffViewMixin, PageTitleMixin, FormView):
     """Record a payment against the invoice named in the URL."""
 
     permission_required = "accountants.add_payment"
     form_class = PaymentForm
-    template_name = "form.html"
-    page_title = "Record payment"
+    template_name = "accountants/payment_form.html"
 
     @property
     def invoice(self):
         if not hasattr(self, "_invoice"):
-            self._invoice = get_object_or_404(Invoice, pk=self.kwargs["pk"])
+            self._invoice = get_object_or_404(Invoice.objects.with_related(), pk=self.kwargs["pk"])
         return self._invoice
+
+    def get(self, request, *args, **kwargs):
+        # A bookmarked or back-buttoned link to a bill that can no longer take
+        # money should say so, not show a form that can only fail on submit.
+        invoice = self.invoice
+        if invoice.status == Invoice.Status.CANCELLED:
+            messages.info(request, f"{invoice.number} was cancelled; it cannot take a payment.")
+            return redirect(invoice)
+        if not invoice.amount_due:
+            messages.info(request, f"{invoice.number} is already paid in full.")
+            return redirect(invoice)
+        return super().get(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -224,12 +383,30 @@ class PaymentCreateView(StaffViewMixin, PageTitleMixin, FormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["page_subtitle"] = (
-            f"{self.invoice.number} · {self.invoice.client.name} · "
-            f"{self.invoice.amount_due} outstanding"
+        invoice = self.invoice
+        context["invoice"] = invoice
+        context["page_title"] = (
+            "Take payment" if invoice.collected_by_reseller else "Record upstream payment"
+        )
+        context["page_subtitle"] = f"{invoice.number} · {invoice.client.name}"
+        context["submit_label"] = (
+            "Record payment" if invoice.collected_by_reseller else "Mark as paid"
         )
         # Not a `CrudViewMixin` view, so it names its own way back.
-        context["cancel_url"] = self.invoice.get_absolute_url()
+        context["cancel_url"] = invoice.get_absolute_url()
+        context["paid_percent"] = (
+            min(round(invoice.amount_paid / invoice.total * 100), 100) if invoice.total else 0
+        )
+        context["shortcuts"] = amount_shortcuts(invoice)
+        # Starting widths for the progress bar; the page moves them as you type.
+        context["paid_before_percent"] = (
+            float(invoice.amount_paid / invoice.total * 100) if invoice.total else 0
+        )
+        if not invoice.collected_by_reseller:
+            context["notice"] = (
+                f"The customer paid {invoice.payee} directly. This records that payment "
+                "from the upstream statement; no cash changes hands here."
+            )
         return context
 
     def form_valid(self, form):
@@ -240,12 +417,16 @@ class PaymentCreateView(StaffViewMixin, PageTitleMixin, FormView):
                 method=form.cleaned_data["method"],
                 received_on=form.cleaned_data["received_on"],
                 reference=form.cleaned_data.get("reference", ""),
+                note=form.cleaned_data.get("note", ""),
                 actor=self.request.user,
             )
         except BillingError as exc:
             form.add_error(None, str(exc))
             return self.form_invalid(form)
-        messages.success(self.request, "Payment recorded.")
+        messages.success(
+            self.request,
+            f"{form.cleaned_data['amount']} recorded against {self.invoice.number}.",
+        )
         return redirect("invoice_detail", pk=self.invoice.pk)
 
 

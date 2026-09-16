@@ -1,37 +1,59 @@
 {% load ui %}
 {% for invoice in invoices %}
-  <tr>
-    <td><a class="fw-semibold text-decoration-none" href="{% url 'invoice_detail' invoice.pk %}">{{ invoice.number }}</a></td>
+  <tr{% if invoice.status == 'cancelled' %} class="row-muted"{% endif %}>
     <td>
-      {{ invoice.client.name }}
-      <div class="small text-muted">
-        {{ invoice.client.client_code }} ·
-        {% if invoice.collected_by_reseller %}
-          <span class="text-body-secondary">you collect</span>
-        {% else %}
-          <span class="text-body-secondary">pays upstream</span>
+      <a class="cell-identity-name" href="{% url 'invoice_detail' invoice.pk %}">{{ invoice.number }}</a>
+      <span class="cell-sub">{{ invoice.period|date:"F Y" }}</span>
+    </td>
+    <td class="col-id">
+      <div class="cell-identity">
+        <span class="avatar avatar-sm" aria-hidden="true">{{ invoice.client.name|initials }}</span>
+        <span class="cell-identity-text">
+          <a class="cell-link" href="{% url 'client_detail' invoice.client.pk %}">{{ invoice.client.name }}</a>
+          <span class="cell-sub">
+            {{ invoice.client.client_code }} ·
+            {% if invoice.collected_by_reseller %}You collect{% else %}Pays upstream{% endif %}
+          </span>
+        </span>
+      </div>
+    </td>
+    <td>
+      {% if invoice.is_overdue %}
+        <span class="text-danger fw-semibold">{{ invoice.due_date|date:"d M Y" }}</span>
+        <span class="cell-sub text-danger">{{ invoice.days_overdue }} day{{ invoice.days_overdue|pluralize }} late</span>
+      {% else %}
+        {{ invoice.due_date|date:"d M Y" }}
+        <span class="cell-sub">Issued {{ invoice.issue_date|date:"d M" }}</span>
+      {% endif %}
+    </td>
+    <td class="numeric col-money">
+      {{ invoice.total|money }}
+      <span class="cell-sub text-success">+{{ invoice.commission_amount|money }}</span>
+    </td>
+    <td class="numeric col-money">
+      {% if invoice.amount_paid %}<span class="text-success">{{ invoice.amount_paid|money }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+    </td>
+    <td class="numeric col-money">
+      {% if invoice.amount_due and invoice.status != 'cancelled' %}
+        <span class="text-danger fw-semibold">{{ invoice.amount_due|money }}</span>
+      {% else %}<span class="text-muted">—</span>{% endif %}
+    </td>
+    <td class="col-status">{{ invoice.status|status_badge }}</td>
+    <td class="col-actions">
+      <div class="row-actions">
+        {% if perms.accountants.add_payment and invoice.amount_due and invoice.status != 'cancelled' %}
+          <a class="row-action row-action-primary" href="{% url 'payment_add' invoice.pk %}">
+            {% if invoice.collected_by_reseller %}Take payment{% else %}Mark paid{% endif %}
+          </a>
+        {% endif %}
+        {% if perms.accountants.change_invoice and invoice.status != 'cancelled' %}
+          <a class="row-action" href="{% url 'invoice_edit' invoice.pk %}">Edit</a>
         {% endif %}
       </div>
     </td>
-    <td>{{ invoice.period|date:"M Y" }}</td>
-    <td class="small {% if invoice.is_overdue %}text-danger fw-semibold{% endif %}">
-      {{ invoice.due_date|date:"d M Y" }}
-      {% if invoice.is_overdue %}<div class="small">{{ invoice.days_overdue }} days late</div>{% endif %}
-    </td>
-    <td class="numeric">{{ invoice.total|money }}
-      <div class="small text-success">+{{ invoice.commission_amount|money }}</div>
-    </td>
-    <td class="numeric text-success">{{ invoice.amount_paid|money }}</td>
-    <td class="numeric {% if invoice.amount_due %}text-danger fw-semibold{% endif %}">{{ invoice.amount_due|money }}</td>
-    <td>{{ invoice.status|status_badge }}</td>
-    <td class="text-end">
-      {% if perms.accountants.add_payment and invoice.amount_due %}
-        <a class="btn btn-sm btn-primary" href="{% url 'payment_add' invoice.pk %}">
-          {% if invoice.collected_by_reseller %}Take payment{% else %}Mark paid{% endif %}
-        </a>
-      {% endif %}
-    </td>
   </tr>
 {% empty %}
-  <tr><td colspan="9">{% include "partials/empty.html" with title="No invoices match" hint="Generate the month's invoices to get started." %}</td></tr>
+  <tr><td colspan="8">
+    {% include "partials/empty.html" with title="No invoices match" hint="Adjust the search, or generate this month's invoices." %}
+  </td></tr>
 {% endfor %}

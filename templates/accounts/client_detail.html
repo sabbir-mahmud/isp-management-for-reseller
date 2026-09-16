@@ -118,7 +118,12 @@
       <div class="card mb-3">
         <div class="card-header">
           <span>Invoices</span>
-          <a class="card-sub text-decoration-none" href="{% url 'invoice_list' %}?q={{ client.client_code }}">All invoices</a>
+          <span class="d-flex gap-3">
+            {% if perms.accountants.add_invoice %}
+              <a class="card-sub text-decoration-none" href="{% url 'invoice_add' %}?client={{ client.pk }}">New invoice</a>
+            {% endif %}
+            <a class="card-sub text-decoration-none" href="{% url 'invoice_list' %}?q={{ client.client_code }}">All invoices</a>
+          </span>
         </div>
         <div class="table-wrap">
           <table class="table table-hover table-sm mb-0">

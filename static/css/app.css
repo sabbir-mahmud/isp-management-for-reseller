@@ -844,6 +844,7 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
 .chip-success .chip-value { color: #047857; }
 .chip-warning .chip-value { color: #b45309; }
 .chip-muted .chip-value { color: var(--muted); }
+.chip-danger .chip-value { color: #b91c1c; }
 
 /* ---- Index toolbar ----------------------------------------------------- */
 
@@ -882,7 +883,8 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
   font-weight: 600;
   color: var(--muted);
 }
-.toolbar-field .form-select { height: 38px; }
+.toolbar-field .form-select,
+.toolbar-field .form-control { height: 38px; }
 
 /* Apply and Reset are a pair and sit at the input height, so the row of
    controls has one baseline instead of a button floating in it. */
@@ -1044,6 +1046,9 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
 .cell-identity-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .cell-identity-name { font-weight: 600; color: var(--ink); text-decoration: none; }
 a.cell-identity-name:hover { color: var(--brand-dark); text-decoration: underline; }
+/* A link that is not the row's own record: readable as text, a link on hover. */
+.cell-link { color: var(--ink); text-decoration: none; }
+.cell-link:hover { color: var(--brand-dark); text-decoration: underline; }
 
 /* Only the inline form needs promoting to a block. Setting `display: block`
    unconditionally also hit `<td class="cell-sub">`, which drops the cell out
@@ -1079,6 +1084,10 @@ span.cell-sub { display: block; }
 }
 tr:hover .row-action { color: #334155; border-color: var(--line); background: var(--surface); }
 .row-action:hover { color: var(--brand-dark); border-color: #99f6e4; background: #f0fdfa; }
+/* The one action a row exists for (taking a payment) stays legible at rest;
+   the rest wait for the cursor. */
+.row-action-primary { color: var(--brand-dark); }
+tr:hover .row-action-primary { color: var(--brand-dark); border-color: #99f6e4; background: #f0fdfa; }
 .row-action-danger:hover { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
 .row-action:focus-visible {
   outline: 2px solid var(--brand);
@@ -1138,6 +1147,7 @@ tr:hover .row-action { color: #334155; border-color: var(--line); background: va
   font-variant-numeric: tabular-nums;
 }
 .tag-accent { background: #ccfbf1; color: #0f766e; }
+.tag-danger { background: #fee2e2; color: #b91c1c; }
 
 .profile-balance { text-align: right; margin-left: auto; }
 .profile-balance .statement-figure { margin: 0.2rem 0 0; }
@@ -1170,6 +1180,79 @@ tr:hover .row-action { color: #334155; border-color: var(--line); background: va
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---- Invoices ---------------------------------------------------------- */
+
+/* A document rather than a person, so the profile mark is a square with the
+   invoice glyph instead of a round set of initials. */
+.avatar-doc { border-radius: 0.75rem; }
+
+a.fact-link { color: var(--ink); text-decoration: none; }
+a.fact-link:hover { color: var(--brand-dark); text-decoration: underline; }
+
+.balance-meter { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; width: 220px; margin-left: auto; }
+.balance-meter .breakdown-track { width: 100%; }
+
+.breakdown-fill.upstream { background: #94a3b8; }
+.split-note {
+  margin: 1rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* What the rows below add up to: one bordered strip, not four tiles, so it
+   reads as a summary of the table rather than as a dashboard. */
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1.1rem;
+  border-right: 1px solid var(--line);
+  min-width: 0;
+}
+.summary-item:last-child { border-right: 0; }
+.summary-value {
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.summary-accent { color: var(--brand-dark); }
+.summary-meter { display: flex; align-items: center; gap: 0.5rem; }
+.summary-meter .breakdown-track { flex: 1 1 auto; }
+
+/* A short timeline in place of a four-column table squeezed into a sidebar. */
+.activity { list-style: none; margin: 0; padding: 0; }
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--line);
+}
+.activity-item:first-child { border-top: 0; }
+.activity-main { flex: 1 1 auto; min-width: 0; }
+.activity-title { font-weight: 650; color: #047857; font-variant-numeric: tabular-nums; }
+.activity-item .row-action { color: #334155; border-color: var(--line); }
+
+@media (max-width: 992px) {
+  .summary-item { border-bottom: 1px solid var(--line); }
+  .profile-balance { text-align: left; margin-left: 0; flex-basis: 100%; }
+  .balance-meter { align-items: flex-start; margin-left: 0; }
 }
 
 /* ---- Period stepper ---------------------------------------------------- */
@@ -1375,6 +1458,200 @@ tr:hover .row-action { color: #334155; border-color: var(--line); background: va
 .form-check-row label { margin: 0; cursor: pointer; }
 .form-check-label-text { display: block; font-weight: 550; font-size: 0.8125rem; }
 .form-check-row .helptext { margin-top: 0.1rem; }
+
+/* ---- Choice tiles ---- */
+
+/* A radio group short enough to see at a glance: every option visible, one
+   click to pick, instead of a dropdown hiding six of seven. */
+.choice-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+}
+.choice-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+.choice-tile:hover { border-color: #cbd5e1; background: #fbfcfd; }
+.choice-tile-input { accent-color: var(--brand); margin: 0; flex: 0 0 auto; }
+.choice-tile:has(.choice-tile-input:checked) {
+  border-color: var(--brand);
+  background: #f0fdfa;
+  box-shadow: inset 0 0 0 1px var(--brand);
+  color: var(--brand-dark);
+}
+.choice-tile:has(.choice-tile-input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 1px; }
+fieldset > legend.form-label { float: none; width: auto; padding: 0; font-size: 0.8125rem; }
+
+/* ---- Payment ---- */
+
+.payment-bill { margin-bottom: 1.5rem; }
+
+/* A currency sign set inside the input, for money fields that declare one. */
+.input-prefixed { position: relative; }
+.input-prefix {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+.input-prefixed .form-control { padding-left: 2rem; }
+
+/* The one figure on the page that matters, so it is set like one. */
+.input-prefixed:has(#id_amount) { max-width: 18rem; }
+.input-prefixed:has(#id_amount) .input-prefix { font-size: 1.25rem; left: 0.95rem; }
+#id_amount {
+  height: 52px;
+  padding-left: 2.3rem;
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.payment-addon { margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.9rem; }
+
+.amount-shortcuts { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+.amount-shortcut {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* Round-note buttons carry no label; bottom-aligned, every value still
+     sits on one line across the row. */
+  justify-content: flex-end;
+  gap: 0.05rem;
+  min-width: 96px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  color: #334155;
+  text-align: left;
+  line-height: 1.25;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.amount-shortcut-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.amount-shortcut-value { font-size: 0.8125rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.amount-shortcut.is-primary .amount-shortcut-label { color: var(--brand-dark); }
+.amount-shortcut:hover { border-color: #99f6e4; background: #f0fdfa; }
+.amount-shortcut.is-on {
+  border-color: var(--brand);
+  background: #f0fdfa;
+  box-shadow: inset 0 0 0 1px var(--brand);
+  color: var(--brand-dark);
+}
+.amount-shortcut:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+/* What the typed amount does to the bill, before it is saved. */
+.payment-outcome {
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: #fbfcfd;
+  padding: 0.9rem 1rem 0.2rem;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.is-invalid .payment-outcome { border-color: #fecaca; background: #fffafa; }
+
+.outcome-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  background: #e8edf3;
+  overflow: hidden;
+}
+.outcome-seg { display: block; height: 100%; transition: width 0.2s ease; }
+.seg-before { background: #0f766e; }
+.seg-now {
+  background: repeating-linear-gradient(-45deg, #2dd4bf 0 6px, #5eead4 6px 12px);
+}
+
+.outcome-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.outcome-legend b { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.35rem; }
+.dot-before { background: #0f766e; }
+.dot-now { background: #2dd4bf; }
+.dot-left { background: #d5dde6; }
+
+.outcome-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0.85rem -1rem 0;
+  border-top: 1px solid var(--line);
+}
+.outcome-cell { padding: 0.65rem 1rem 0.75rem; border-right: 1px solid var(--line); min-width: 0; }
+.outcome-cell:last-child { border-right: 0; }
+.outcome-cell dt {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.outcome-cell dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.outcome-status {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: #f1f5f9;
+  color: #475569;
+}
+.outcome-status.is-paid { background: #dcfce7; color: #047857; }
+.outcome-status.is-partial { background: #fef3c7; color: #b45309; }
+
+.outcome-warning {
+  margin: 0 -1rem;
+  padding: 0.55rem 1rem;
+  border-top: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 0 0 0.65rem 0.65rem;
+}
+
+@media (prefers-reduced-motion: reduce) { .outcome-seg { transition: none; } }
+
+@media (max-width: 992px) {
+  .input-prefixed:has(#id_amount) { max-width: none; }
+  .outcome-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .outcome-cell:nth-child(2n) { border-right: 0; }
+  .outcome-cell:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+}
 
 /* ---- Form actions ---- */
 

@@ -21,6 +21,8 @@ def form_sections(form):
     fieldsets = getattr(form, "fieldsets", ()) or ({"fields": tuple(form.fields)},)
     wide = set(getattr(form, "wide_fields", ()) or ())
     compact = set(getattr(form, "compact_fields", ()) or ())
+    addons = getattr(form, "field_addons", None) or {}
+    prefixes = getattr(form, "field_prefixes", None) or {}
 
     def layout(name):
         """One bound field, plus how the template should size it."""
@@ -31,6 +33,9 @@ def form_sections(form):
             "wide": name in wide or isinstance(widget, forms.Textarea),
             "compact": name in compact,
             "checkbox": isinstance(widget, forms.CheckboxInput),
+            "radio": isinstance(widget, forms.RadioSelect),
+            "addon": addons.get(name, ""),
+            "prefix": prefixes.get(name, ""),
         }
 
     placed, sections = set(), []

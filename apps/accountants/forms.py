@@ -26,6 +26,43 @@ class BillingSettingsForm(BootstrapFormMixin, forms.ModelForm):
 
 
 class InvoiceForm(BootstrapFormMixin, forms.ModelForm):
+    # The same four questions the monthly run answers on its own: whose bill,
+    # which month and when it falls due, how much, and who takes the money.
+    fieldsets = (
+        {
+            "title": "Bill to",
+            "caption": "The client, and the month this bill covers. A client "
+            "gets one invoice per month.",
+            "fields": ["client", "period"],
+        },
+        {
+            "title": "Dates",
+            "caption": "When the bill goes out, and when it turns overdue.",
+            "fields": ["issue_date", "due_date"],
+        },
+        {
+            "title": "Amount",
+            "caption": "What is charged, less any discount agreed for this month. "
+            "The total and the commission are worked out on save.",
+            "fields": ["subtotal", "discount"],
+        },
+        {
+            "title": "Collection",
+            "caption": "Who takes the payment, and the share of it you keep. "
+            "Fixed on this invoice, whatever the settings say later.",
+            "fields": ["collection_mode", "commission_percent"],
+        },
+        {
+            "title": "Note",
+            "caption": "Shown on the invoice under the charges.",
+            "fields": ["note"],
+        },
+    )
+    wide_fields = frozenset({"client", "note"})
+    compact_fields = frozenset(
+        {"period", "issue_date", "due_date", "subtotal", "discount", "commission_percent"}
+    )
+
     class Meta:
         model = Invoice
         fields = [
@@ -44,6 +81,25 @@ class InvoiceForm(BootstrapFormMixin, forms.ModelForm):
             "issue_date": forms.DateInput(attrs={"type": "date"}),
             "due_date": forms.DateInput(attrs={"type": "date"}),
         }
+        labels = {
+            "period": "Billing month",
+            "issue_date": "Issued on",
+            "due_date": "Due on",
+            "subtotal": "Amount billed",
+            "collection_mode": "Collected by",
+            "commission_percent": "Commission %",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["client"].queryset = self.fields["client"].queryset.order_by("name")
+        self.fields["period"].help_text = "Any day in the month; it is stored as the 1st."
+        self.fields["discount"].help_text = "Leave at 0 for none."
+        # The section heading names it already.
+        self.fields["note"].label = ""
+        self.fields["note"].widget.attrs.setdefault(
+            "placeholder", "e.g. Installation charged with the first month"
+        )
 
     def clean(self):
         cleaned = super().clean()
@@ -62,19 +118,51 @@ class PaymentForm(BootstrapFormMixin, forms.ModelForm):
     also stops a stale form posting money onto the wrong bill.
     """
 
+    fieldsets = (
+        {
+            "title": "Amount",
+            "caption": "What was handed over. Anything less than the balance "
+            "leaves the invoice partly paid.",
+            "fields": ["amount"],
+        },
+        {
+            "title": "How it was paid",
+            "caption": "The channel and its transaction ID, so the money can be "
+            "matched to a statement later.",
+            "fields": ["method", "reference", "received_on"],
+        },
+        {
+            "title": "Note",
+            "caption": "Anything worth knowing when this payment is looked at again.",
+            "fields": ["note"],
+        },
+    )
+    wide_fields = frozenset({"amount", "method"})
+    compact_fields = frozenset({"received_on"})
+    field_addons = {"amount": "accountants/partials/payment_amount_addon.html"}
+    field_prefixes = {"amount": "৳"}
+
     class Meta:
         model = Payment
         fields = ["amount", "method", "received_on", "reference", "note"]
-        widgets = {"received_on": forms.DateInput(attrs={"type": "date"})}
+        widgets = {
+            "method": forms.RadioSelect,
+            "received_on": forms.DateInput(attrs={"type": "date"}),
+        }
+        labels = {"received_on": "Received on", "reference": "Transaction ID / receipt no."}
 
     def __init__(self, *args, invoice=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.invoice = invoice
+        self.fields["note"].label = ""
+        self.fields["amount"].widget.attrs.update(
+            {"inputmode": "decimal", "min": "0.01", "step": "0.01", "autofocus": True}
+        )
         if invoice is None:
             return
 
         self.fields["amount"].initial = invoice.amount_due
-        self.fields["amount"].help_text = f"Outstanding on this invoice: {invoice.amount_due}"
+        self.fields["amount"].widget.attrs["max"] = str(invoice.amount_due)
 
         if not invoice.collected_by_reseller:
             # The customer paid the upstream operator; this form is recording

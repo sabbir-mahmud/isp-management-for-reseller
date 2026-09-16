@@ -11,7 +11,10 @@ class InvoiceFilter(django_filters.FilterSet):
         method="search",
         label="Search",
         widget=forms.TextInput(
-            attrs={"placeholder": "Invoice no. or client", "class": "form-control"}
+            attrs={
+                "placeholder": "Search invoices by number, client name, code or phone",
+                "class": "form-control",
+            }
         ),
     )
     status = django_filters.ChoiceFilter(
@@ -40,10 +43,14 @@ class InvoiceFilter(django_filters.FilterSet):
     def search(self, queryset, name, value):
         from django.db.models import Q
 
+        value = value.strip()
+        if not value:
+            return queryset
         return queryset.filter(
             Q(number__icontains=value)
             | Q(client__name__icontains=value)
             | Q(client__client_code__icontains=value)
+            | Q(client__phone__icontains=value)
         )
 
     def by_month(self, queryset, name, value):

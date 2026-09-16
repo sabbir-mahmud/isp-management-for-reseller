@@ -23,6 +23,10 @@ class BootstrapFormMixin:
     wide_fields: frozenset[str] = frozenset()
     #: Fields holding a handful of characters, given an input to match.
     compact_fields: frozenset[str] = frozenset()
+    #: Field name → template included under that field's input (shortcuts, a preview).
+    field_addons: dict[str, str] = {}
+    #: Field name → short text set inside the start of the input (a currency sign).
+    field_prefixes: dict[str, str] = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -30,6 +34,9 @@ class BootstrapFormMixin:
             widget = field.widget
             if isinstance(widget, forms.CheckboxInput):
                 widget.attrs.setdefault("class", "form-check-input")
+            elif isinstance(widget, forms.RadioSelect):
+                # Rendered as tiles by `form.html`; the input itself stays bare.
+                widget.attrs.setdefault("class", "choice-tile-input")
             elif isinstance(widget, forms.Select):
                 widget.attrs.setdefault("class", "form-select")
             else:

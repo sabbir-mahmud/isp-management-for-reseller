@@ -1,0 +1,144 @@
+{% extends "form.html" %}
+{% load ui icons %}
+{% comment %}
+The shared sectioned form, headed by the bill it pays: who, which month, and
+how much is left, so nobody takes money against the wrong invoice.
+{% endcomment %}
+
+{% block form_intro %}
+<div class="profile payment-bill">
+  <div class="profile-head">
+    <span class="avatar avatar-lg" aria-hidden="true">{{ invoice.client.name|initials }}</span>
+    <div class="profile-identity">
+      <h2 class="profile-name">{{ invoice.client.name }}</h2>
+      <div class="profile-tags">
+        {{ invoice.status|status_badge }}
+        <span class="tag">{{ invoice.client.client_code }}</span>
+        <span class="tag">{{ invoice.client.phone }}</span>
+        {% if invoice.collected_by_reseller %}
+          <span class="tag tag-accent">You collect</span>
+        {% else %}
+          <span class="tag">Paid to {{ invoice.payee }}</span>
+        {% endif %}
+        {% if invoice.is_overdue %}
+          <span class="tag tag-danger">{{ invoice.days_overdue }} day{{ invoice.days_overdue|pluralize }} overdue</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="profile-balance">
+      <span class="stat-label">Balance due</span>
+      <p class="statement-figure text-danger">{{ invoice.amount_due|money }}</p>
+      <div class="balance-meter" title="{{ paid_percent }}% paid">
+        <span class="breakdown-track"><span class="breakdown-fill" style="width: {{ paid_percent }}%"></span></span>
+        <span class="stat-note">{{ invoice.amount_paid|money }} of {{ invoice.total|money }} paid</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="profile-facts">
+    <div class="fact">
+      <span class="fact-label">{% icon "invoices" 14 %} Invoice</span>
+      <a class="fact-value fact-link" href="{{ invoice.get_absolute_url }}">{{ invoice.number }}</a>
+    </div>
+    <div class="fact">
+      <span class="fact-label">{% icon "report" 14 %} Month</span>
+      <span class="fact-value">{{ invoice.period|date:"F Y" }}</span>
+    </div>
+    <div class="fact">
+      <span class="fact-label">{% icon "expenses" 14 %} Due</span>
+      <span class="fact-value{% if invoice.is_overdue %} text-danger{% endif %}">{{ invoice.due_date|date:"d M Y" }}</span>
+    </div>
+    <div class="fact">
+      <span class="fact-label">{% icon "payments" 14 %} Commission</span>
+      <span class="fact-value">{{ invoice.commission_percent|floatformat:"-2" }}%</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block form_scripts %}
+<script>
+  // Shortcuts fill the amount; the outcome panel shows what that amount does
+  // to the bill. A preview only — the server checks the figure on submit.
+  // Money is handled in whole paisa, so 0.1 + 0.2 never shows up on screen,
+  // and the commission rounds half-up per payment exactly as the server does.
+  (function () {
+    const addon = document.querySelector('[data-payment-addon]');
+    const input = document.getElementById('id_amount');
+    if (!addon || !input) { return; }
+
+    const toPaisa = (value) => Math.round(parseFloat(value) * 100);
+    const due = toPaisa(addon.dataset.due);
+    const total = toPaisa(addon.dataset.total);
+    const rate = parseFloat(addon.dataset.rate);
+
+    const $ = (name) => addon.querySelector('[data-' + name + ']');
+    const segNow = $('seg-now');
+    const status = $('status');
+    const warning = $('warning');
+    const fmt = (paisa) => '৳ ' + (paisa / 100).toLocaleString('en-US', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    });
+
+    function show(values) {
+      $('now').textContent = values.now;
+      $('left').textContent = values.left;
+      $('earned').textContent = values.earned;
+      $('upstream').textContent = values.upstream;
+      status.textContent = values.status;
+      status.className = 'outcome-status' + (values.tone ? ' is-' + values.tone : '');
+    }
+
+    function update() {
+      const raw = input.value.trim();
+      const amount = raw === '' ? NaN : toPaisa(raw);
+      const over = amount > due;
+      const valid = amount > 0 && !over;
+
+      addon.classList.toggle('is-invalid', raw !== '' && !valid);
+      warning.hidden = valid || raw === '';
+      if (over) {
+        warning.textContent = fmt(amount - due) + ' more than the balance due. Take at most ' + fmt(due) + '.';
+      } else if (raw !== '' && !valid) {
+        warning.textContent = 'Enter an amount greater than zero.';
+      }
+
+      if (!valid) {
+        segNow.style.width = '0%';
+        show({ now: '—', left: fmt(due), earned: '—', upstream: '—', status: 'Unchanged', tone: '' });
+      } else {
+        const commission = Math.round(amount * rate / 100);
+        const left = due - amount;
+        segNow.style.width = (total ? amount / total * 100 : 0) + '%';
+        show({
+          now: fmt(amount),
+          left: left === 0 ? 'Nothing' : fmt(left),
+          earned: fmt(commission),
+          upstream: fmt(amount - commission),
+          status: left === 0 ? 'Paid' : 'Partially paid',
+          tone: left === 0 ? 'paid' : 'partial',
+        });
+      }
+
+      addon.querySelectorAll('[data-fill]').forEach((button) => {
+        const on = toPaisa(button.dataset.fill) === amount;
+        button.classList.toggle('is-on', on);
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+
+    addon.querySelectorAll('[data-fill]').forEach((button) => {
+      button.addEventListener('click', () => {
+        input.value = button.dataset.fill;
+        update();
+        input.focus();
+      });
+    });
+    // The field opens holding the full balance; a click selects it, so typing
+    // a different figure replaces it rather than appending to it.
+    input.addEventListener('focus', () => input.select());
+    input.addEventListener('input', update);
+    update();
+  })();
+</script>
+{% endblock %}
