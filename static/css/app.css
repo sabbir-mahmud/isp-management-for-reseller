@@ -475,6 +475,7 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
   margin: 1.75rem 0 0.25rem;
 }
 .section-title:first-child { margin-top: 0; }
+.section-title + .filter-chips { margin-top: 0.6rem; }
 
 /* ---- Cards & tables ---------------------------------------------------- */
 
@@ -885,6 +886,14 @@ body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
 }
 .toolbar-field .form-select,
 .toolbar-field .form-control { height: 38px; }
+/* A range filter posts two inputs under one label; they sit side by side. */
+.toolbar-field:has(> input + input) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 0.35rem;
+  min-width: 290px;
+}
+.toolbar-field:has(> input + input) > .toolbar-label { grid-column: 1 / -1; }
 
 /* Apply and Reset are a pair and sit at the input height, so the row of
    controls has one baseline instead of a button floating in it. */
@@ -1253,6 +1262,132 @@ a.fact-link:hover { color: var(--brand-dark); text-decoration: underline; }
   .summary-item { border-bottom: 1px solid var(--line); }
   .profile-balance { text-align: left; margin-left: 0; flex-basis: 100%; }
   .balance-meter { align-items: flex-start; margin-left: 0; }
+}
+
+/* ---- Payments ---------------------------------------------------------- */
+
+/* A day's header in the payments table: the date, and the total the cash
+   drawer is counted against. Quieter than a row, louder than a divider. */
+.table > tbody > tr.day-row > td {
+  background: #f6f8fa;
+  border-top: 1px solid var(--line);
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: #334155;
+}
+.table-hover > tbody > tr.day-row:hover > * { --bs-table-bg-state: transparent; }
+.day-name { margin-right: 0.6rem; }
+.day-count { color: var(--muted); font-weight: 500; }
+
+/* Each channel keeps one colour everywhere it appears, close to the brand a
+   cashier already knows it by, so a column of them can be scanned by hue. */
+.method-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  padding: 0.18rem 0.5rem;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #475569;
+  white-space: nowrap;
+}
+.method-cash { background: #dcfce7; color: #166534; }
+.method-bkash { background: #fce7f3; color: #be185d; }
+.method-nagad { background: #ffedd5; color: #c2410c; }
+.method-rocket { background: #f3e8ff; color: #7e22ce; }
+.method-bank { background: #dbeafe; color: #1d4ed8; }
+.method-online { background: #e0f2fe; color: #0369a1; }
+
+.cell-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Upstream ---------------------------------------------------------- */
+
+/* The one answer the page is opened for, with the arrangement behind it on
+   the right. The left edge takes the colour of the answer. */
+.net-banner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid #cbd5e1;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+.net-banner.is-owing { border-left-color: #dc2626; }
+.net-banner.is-owed { border-left-color: #059669; }
+.net-main, .net-arrangement { display: flex; flex-direction: column; gap: 0.3rem; padding: 1.1rem 1.25rem; }
+.net-arrangement { border-left: 1px solid var(--line); background: #fbfcfd; }
+.net-value {
+  margin: 0.1rem 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.is-owing .net-value { color: #b91c1c; }
+.is-owed .net-value { color: #047857; }
+
+.split-bar { display: flex; height: 10px; border-radius: 999px; background: #94a3b8; overflow: hidden; margin: 0.35rem 0 0.1rem; }
+.split-seg { display: block; height: 100%; }
+.seg-you { background: #0f766e; }
+.dot-you { background: #0f766e; }
+.dot-up { background: #94a3b8; }
+
+.balance-card .statement-figure { margin-bottom: 0.75rem; }
+.balance-progress { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.balance-progress .breakdown-track { flex: 1 1 auto; }
+.balance-progress .stat-note { white-space: nowrap; }
+.balance-footer {
+  background: #fbfcfd;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 0.75rem 0.75rem;
+  padding: 0.65rem 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Two groups of three columns under one header row each. */
+.months-table > thead th.group-head {
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.3rem;
+}
+.months-table .group-start { border-left: 1px solid var(--line); }
+.settled-mark {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  color: #047857;
+  background: #dcfce7;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+}
+
+.direction-mark {
+  flex: 0 0 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  font-weight: 700;
+}
+.direction-mark.is-out { background: #fee2e2; color: #b91c1c; }
+.direction-mark.is-in { background: #dcfce7; color: #047857; }
+
+@media (max-width: 992px) {
+  .net-banner { grid-template-columns: minmax(0, 1fr); }
+  .net-arrangement { border-left: 0; border-top: 1px solid var(--line); }
+  .net-value { font-size: 1.6rem; }
 }
 
 /* ---- Period stepper ---------------------------------------------------- */

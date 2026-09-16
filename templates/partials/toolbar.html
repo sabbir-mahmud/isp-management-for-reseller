@@ -38,7 +38,8 @@ wide treatment and the rest sit beside it.
   <div class="toolbar-status">
     {% active_filters filter %}
     <span class="toolbar-count">
-      {% if page_obj %}
+      {# An empty page is falsy, and "0 clients" is exactly when the count matters. #}
+      {% if page_obj is not None %}
         {{ page_obj.paginator.count }} {% if page_obj.paginator.count == 1 %}{{ row_noun|default:"record" }}{% else %}{{ row_noun_plural|default:"records" }}{% endif %}
       {% endif %}
     </span>

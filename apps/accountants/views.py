@@ -16,6 +16,7 @@ from apps.core.aggregates import money_sum
 from apps.core.chips import build_chips
 from apps.core.choices import CollectionMode
 from apps.core.mixins import CrudViewMixin, PageTitleMixin, SortableListMixin, StaffViewMixin
+from apps.core.templatetags.ui import money
 from apps.core.utils import month_start
 
 from .filters import ExpenseFilter, IncomeFilter, InvoiceFilter, PaymentFilter, SettlementFilter
@@ -34,6 +35,7 @@ from .services import (
     cancel_invoice,
     generate_invoices,
     record_payment,
+    upstream_months,
     upstream_position,
 )
 
@@ -288,38 +290,112 @@ def _parse_date(value):
 # ---------------------------------------------------------------------------#
 
 
-class PaymentListView(FilteredListView):
+class PaymentListView(SortableListMixin, FilteredListView):
     permission_required = "accountants.view_payment"
     model = Payment
     filterset_class = PaymentFilter
     template_name = "accountants/payment_list.html"
+    htmx_template_name = "accountants/partials/payment_rows.html"
     context_object_name = "payments"
     page_title = "Payments"
-    page_subtitle = "Cash actually received"
+    page_subtitle = "Money received, and who is holding it"
+
+    sort_fields = {
+        "date": "received_on",
+        "client": "client__name",
+        "amount": "amount",
+        "commission": "commission_amount",
+    }
 
     def get_queryset(self):
         queryset = Payment.objects.select_related("client", "invoice", "created_by")
         self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
-        return self.filterset.qs
+        # With no `?sort=` the model's newest-first ordering stands.
+        return self.apply_sort(self.filterset.qs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        reseller = Q(collection_mode=CollectionMode.RESELLER)
         # The keys deliberately avoid the column names they sum: an alias that
         # shadows a field makes the `F("amount")` below resolve to the other
         # aggregate, and Django refuses with "'amount' is an aggregate".
-        context["totals"] = self.filterset.qs.aggregate(
+        totals = self.filterset.qs.aggregate(
             count=Count("pk"),
             gross=money_sum("amount"),
             commission=money_sum("commission_amount"),
-            reseller_cash=money_sum(
-                Case(
-                    When(collection_mode=CollectionMode.RESELLER, then=F("amount")),
-                    default=Value(Decimal("0.00")),
-                    output_field=DecimalField(max_digits=14, decimal_places=2),
-                )
-            ),
+            reseller_count=Count("pk", filter=reseller),
+            reseller_cash=money_sum(_when(reseller, F("amount"))),
+            upstream_owed=money_sum(_when(reseller, F("upstream_amount"))),
         )
+        totals["upstream_direct"] = totals["gross"] - totals["reseller_cash"]
+        totals["upstream_count"] = totals["count"] - totals["reseller_count"]
+        context["totals"] = totals
+
+        context["chips"] = self.window_chips()
+        context["chip_group"] = "time"
+        context["row_noun"], context["row_noun_plural"] = "payment", "payments"
+        context["group_by_day"] = self.attach_day_totals(context["payments"])
         return context
+
+    def window_chips(self):
+        """Money received in each window, across every payment.
+
+        Like the invoice chips they ignore the rest of the search, so they
+        stay usable for choosing between windows.
+        """
+        windows = {
+            key: Q(received_on__range=PaymentFilter.window(key))
+            for key, _ in PaymentFilter.WHEN_CHOICES
+        }
+        sums = Payment.objects.aggregate(
+            all=money_sum("amount"),
+            **{key: money_sum(_when(match, F("amount"))) for key, match in windows.items()},
+        )
+        rows = [{"label": "All time", "value": money(sums["all"]), "match": None}]
+        rows += [
+            {"label": label, "value": money(sums[key]), "match": key}
+            for key, label in PaymentFilter.WHEN_CHOICES
+        ]
+        return build_chips(self.request, "when", rows)
+
+    def attach_day_totals(self, payments):
+        """Give each row its day's total, for the date headers in the table.
+
+        Returns whether the table should show those headers at all.
+
+        Only in date order: sorted by amount, one day's rows are scattered
+        down the page and a header above each of them would be noise. The
+        total covers the whole day under the current search, not just the
+        part of it that landed on this page.
+        """
+        if self.get_sort_key() not in ("", "-date"):
+            return False
+        # Evaluating the page here caches its rows, so the attributes set
+        # below are on the same objects the template iterates.
+        rows = list(payments)
+        if not rows:
+            return False
+        days = (
+            self.filterset.qs.filter(received_on__in={row.received_on for row in rows})
+            .order_by()
+            .values("received_on")
+            .annotate(day_total=money_sum("amount"), day_count=Count("pk"))
+        )
+        by_day = {day["received_on"]: day for day in days}
+        for row in rows:
+            day = by_day.get(row.received_on, {})
+            row.day_total = day.get("day_total")
+            row.day_count = day.get("day_count")
+        return True
+
+
+def _when(condition, then):
+    """A money-typed `CASE WHEN condition THEN then ELSE 0`."""
+    return Case(
+        When(condition, then=then),
+        default=Value(Decimal("0.00")),
+        output_field=DecimalField(max_digits=14, decimal_places=2),
+    )
 
 
 def amount_shortcuts(invoice) -> list[dict]:
@@ -450,33 +526,108 @@ class PaymentDeleteView(StaffViewMixin, PageTitleMixin, DeleteView):
 # ---------------------------------------------------------------------------#
 
 
-class SettlementListView(FilteredListView):
+class SettlementListView(SortableListMixin, FilteredListView):
     """The running position with the upstream operator, and how it got there."""
 
     permission_required = "accountants.view_upstreamsettlement"
     model = UpstreamSettlement
     filterset_class = SettlementFilter
     template_name = "accountants/settlement_list.html"
+    htmx_template_name = "accountants/partials/settlement_rows.html"
     context_object_name = "settlements"
     page_title = "Upstream"
     page_subtitle = "What you owe them, and what they owe you"
 
+    sort_fields = {
+        "settled": "settled_on",
+        "month": "period",
+        "amount": "amount",
+    }
+
     def get_queryset(self):
         queryset = UpstreamSettlement.objects.select_related("created_by")
         self.filterset = self.filterset_class(self.request.GET, queryset=queryset)
-        return self.filterset.qs
+        return self.apply_sort(self.filterset.qs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         settings_row = BillingSettings.load()
         context["settings_row"] = settings_row
         context["upstream_name"] = settings_row.upstream_name or "Upstream operator"
-        # All-time is the number that answers "are we square"; the month view
-        # is for reconciling a single statement.
-        context["position"] = upstream_position()
-        context["month_position"] = upstream_position(month_start())
-        context["this_month"] = month_start()
+
+        # All-time is the number that answers "are we square"; the months
+        # below are for reconciling one statement at a time.
+        position = upstream_position()
+        position["remitted_percent"] = _share(position["remitted"], position["owed_upstream"])
+        position["received_percent"] = _share(
+            position["commission_received"], position["commission_earned_upstream"]
+        )
+        # Positive: you owe them on balance. Negative: they owe you.
+        position["net"] = position["payable"] - position["receivable"]
+        position["net_abs"] = abs(position["net"])
+        context["position"] = position
+        context["months"] = upstream_months(6)
+        context["arrangement"] = self.arrangement(settings_row)
+
+        kind = UpstreamSettlement.Kind
+        sums = UpstreamSettlement.objects.aggregate(
+            count=Count("pk"),
+            remitted=money_sum(_when(Q(kind=kind.REMITTANCE), F("amount"))),
+            received=money_sum(_when(Q(kind=kind.COMMISSION_PAYOUT), F("amount"))),
+        )
+        context["chips"] = build_chips(
+            self.request,
+            "kind",
+            [
+                {"label": "All settlements", "value": sums["count"], "match": None},
+                {
+                    "label": "Paid to upstream",
+                    "value": money(sums["remitted"]),
+                    "match": kind.REMITTANCE,
+                    "tone": "warning",
+                },
+                {
+                    "label": "Commission received",
+                    "value": money(sums["received"]),
+                    "match": kind.COMMISSION_PAYOUT,
+                    "tone": "success",
+                },
+            ],
+        )
+        context["chip_group"] = "direction"
+        context["row_noun"], context["row_noun_plural"] = "settlement", "settlements"
         return context
+
+    @staticmethod
+    def arrangement(settings_row):
+        """How many live clients pay you, and how many pay upstream.
+
+        A blank arrangement on a client means "follow the settings", so those
+        clients count towards whichever side the default is.
+        """
+        follows_default = Q(collection_mode="")
+        counts = Client.objects.billable().aggregate(
+            reseller=Count("pk", filter=Q(collection_mode=CollectionMode.RESELLER)),
+            upstream=Count("pk", filter=Q(collection_mode=CollectionMode.UPSTREAM)),
+            default=Count("pk", filter=follows_default),
+        )
+        default_is_reseller = settings_row.collection_mode == CollectionMode.RESELLER
+        reseller = counts["reseller"] + (counts["default"] if default_is_reseller else 0)
+        upstream = counts["upstream"] + (0 if default_is_reseller else counts["default"])
+        total = reseller + upstream
+        return {
+            "reseller": reseller,
+            "upstream": upstream,
+            "overridden": counts["reseller"] + counts["upstream"],
+            "reseller_percent": _share(reseller, total),
+        }
+
+
+def _share(part, whole) -> int:
+    """`part` as a whole percentage of `whole`, clamped to 0–100."""
+    if not whole or whole <= 0:
+        return 0
+    return max(0, min(round(part / whole * 100), 100))
 
 
 class SettlementCreateView(CrudViewMixin, CreateView):
@@ -487,9 +638,29 @@ class SettlementCreateView(CrudViewMixin, CreateView):
     success_url = reverse_lazy("settlement_list")
     success_message = "Settlement recorded."
     page_title = "Record settlement"
+    page_subtitle = "Money moving between you and the upstream operator"
 
     def get_initial(self):
-        return {"period": month_start(), "kind": self.request.GET.get("kind") or None}
+        """Pre-filled from the upstream page's Settle links.
+
+        `?kind=`, `?period=YYYY-MM-DD` and `?amount=` all come from a link
+        that already knows the open balance; anything malformed is dropped
+        rather than shown as a form error the reader never caused.
+        """
+        params = self.request.GET
+        initial = {"period": month_start(), "settled_on": timezone.localdate()}
+        if params.get("kind") in UpstreamSettlement.Kind.values:
+            initial["kind"] = params["kind"]
+        period = _parse_date(params.get("period", ""))
+        if period:
+            initial["period"] = month_start(period)
+        try:
+            amount = Decimal(params.get("amount", ""))
+        except ArithmeticError:
+            amount = None
+        if amount is not None and amount.is_finite() and amount > 0:
+            initial["amount"] = amount.quantize(Decimal("0.01"))
+        return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -497,6 +668,7 @@ class SettlementCreateView(CrudViewMixin, CreateView):
             "A remittance to the upstream operator is not an expense — that share was "
             "never your revenue, so recording it in both places would deduct it twice."
         )
+        context["submit_label"] = "Record settlement"
         return context
 
 

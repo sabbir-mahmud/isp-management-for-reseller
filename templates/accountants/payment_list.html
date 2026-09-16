@@ -1,48 +1,71 @@
 {% extends "base.html" %}
-{% load ui %}
+{% load ui tables %}
+{% comment %}
+Same skeleton as clients and invoices: summary → chips → toolbar → table.
+The chips here are time windows, because "what came in today" is the
+question this page is opened for.
+{% endcomment %}
+
 {% block page_actions %}
-  {% if perms.accountants.export_data %}<a class="btn btn-outline-secondary btn-sm" href="{% url 'export' 'payments' %}">Export CSV</a>{% endif %}
+  {% if perms.accountants.export_data %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'export' 'payments' %}">Export CSV</a>
+  {% endif %}
+  {% if perms.accountants.view_invoice %}
+    <a class="btn btn-primary btn-sm" href="{% url 'invoice_list' %}?status=overdue">Collect overdue</a>
+  {% endif %}
 {% endblock %}
+
 {% block content %}
-<div class="row g-3 mb-3">
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Payments" value=totals.count icon="payments" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Customers paid" value=totals.gross|money icon="payments" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Cash you took" value=totals.reseller_cash|money icon="stock" meta="Includes the upstream share" %}</div>
-  <div class="col-6 col-xl-3">{% include "partials/kpi.html" with label="Your commission" value=totals.commission|money icon="report" tone="accent" %}</div>
-</div>
-<div class="card">
-  {% include "partials/filters.html" %}
-  <div class="table-wrap">
-    <table class="table table-hover align-middle">
-      <thead><tr><th>Date</th><th>Client</th><th>Invoice</th><th>Collected by</th><th>Method</th>
-                 <th>Reference</th><th class="numeric">Amount</th><th class="numeric">Commission</th></tr></thead>
-      <tbody>
-        {% for payment in payments %}
-          <tr>
-            <td class="small">{{ payment.received_on|date:"d M Y" }}</td>
-            <td><a class="text-decoration-none" href="{% url 'client_detail' payment.client.pk %}">{{ payment.client.name }}</a></td>
-            <td><a class="text-decoration-none small" href="{% url 'invoice_detail' payment.invoice.pk %}">{{ payment.invoice.number }}</a></td>
-            <td>
-              {% if payment.is_reseller_cash %}
-                <span class="badge text-bg-primary">You</span>
-              {% else %}
-                <span class="badge text-bg-secondary">Upstream</span>
-              {% endif %}
-            </td>
-            <td>{{ payment.get_method_display }}</td>
-            <td class="small text-muted">
-              {{ payment.reference|default:"—" }}
-              <div>{{ payment.created_by.username|default:"" }}</div>
-            </td>
-            <td class="numeric fw-semibold">{{ payment.amount|money }}</td>
-            <td class="numeric text-success">{{ payment.commission_amount|money }}</td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="7">{% include "partials/empty.html" with title="No payments match" %}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="stack">
+  {% comment %}
+  Follows the search, like the invoice summary. Cash is split by who holds
+  it: money you took is partly owed on, money paid upstream never reached you.
+  {% endcomment %}
+  <div class="summary-strip">
+    <div class="summary-item">
+      <span class="stat-label">Received</span>
+      <span class="summary-value">{{ totals.gross|money }}</span>
+      <span class="stat-note">{{ totals.count }} payment{{ totals.count|pluralize }}</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Cash you took</span>
+      <span class="summary-value">{{ totals.reseller_cash|money }}</span>
+      <span class="stat-note">{{ totals.reseller_count }} payment{{ totals.reseller_count|pluralize }}, {{ totals.upstream_owed|money }} of it owed upstream</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Paid upstream directly</span>
+      <span class="summary-value">{{ totals.upstream_direct|money }}</span>
+      <span class="stat-note">{{ totals.upstream_count }} payment{{ totals.upstream_count|pluralize }}, never in your hands</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Your commission</span>
+      <span class="summary-value summary-accent">{{ totals.commission|money }}</span>
+      <span class="stat-note">Earned on these payments</span>
+    </div>
   </div>
-  {% include "partials/pagination.html" %}
+
+  {% include "partials/index_chips.html" %}
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table payments-table">
+        <thead>
+          <tr>
+            {% sort_header "date" "Received" %}
+            {% sort_header "client" "Client" %}
+            <th>Invoice</th>
+            <th>Method</th>
+            <th>Collected by</th>
+            {% sort_header "amount" "Amount" numeric=True %}
+            {% sort_header "commission" "Commission" numeric=True %}
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>{% include "accountants/partials/payment_rows.html" %}</tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
 </div>
 {% endblock %}

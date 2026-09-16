@@ -34,6 +34,22 @@ def sort_header(context, key, label, numeric=False):
     }
 
 
+def _query_keys(name, field):
+    """The query-string keys one filter field reads.
+
+    Usually just its name; a two-part widget such as a date range posts one
+    key per part (`received_on_after`, `received_on_before`) and none under
+    the name itself, so looking only at the name missed it entirely.
+    """
+    widget = field.widget
+    suffixes = getattr(widget, "suffixes", None)
+    if suffixes and hasattr(widget, "suffixed"):
+        # django-filter's range widgets: `_min`/`_max`, `_after`/`_before`.
+        return [widget.suffixed(name, suffix) for suffix in suffixes]
+    names = getattr(widget, "widgets_names", None)
+    return [f"{name}{suffix}" for suffix in names] if names else [name]
+
+
 @register.simple_tag(takes_context=True)
 def has_active_filters(context, filterset):
     """Whether any of the filterset's own fields is currently applied.
@@ -42,7 +58,11 @@ def has_active_filters(context, filterset):
     search — not about sending the reader back to page 1 of an unsorted list.
     """
     request = context["request"]
-    return any(request.GET.get(name) for name in filterset.form.fields)
+    return any(
+        request.GET.get(key)
+        for name, field in filterset.form.fields.items()
+        for key in _query_keys(name, field)
+    )
 
 
 @register.inclusion_tag("partials/active_filters.html", takes_context=True)
@@ -56,6 +76,21 @@ def active_filters(context, filterset):
     pills = []
 
     for name, field in filterset.form.fields.items():
+        keys = _query_keys(name, field)
+        if len(keys) > 1:
+            # A range reads as one pill, "from – to", and clears as one.
+            parts = [request.GET.get(key, "") for key in keys]
+            if not any(parts):
+                continue
+            pills.append(
+                {
+                    "label": field.label or name.replace("_", " ").title(),
+                    "value": " – ".join(part or "…" for part in parts),
+                    "remove_url": filtered_url(request, **dict.fromkeys(keys)),
+                }
+            )
+            continue
+
         raw = request.GET.get(name)
         if not raw:
             continue

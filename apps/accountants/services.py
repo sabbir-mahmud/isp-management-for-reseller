@@ -11,12 +11,14 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Case, F, Q, Sum, When
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from apps.accounts.models import Client, Subscription
+from apps.core.aggregates import money_sum
 from apps.core.choices import CollectionMode
-from apps.core.utils import month_end, month_start, split_commission
+from apps.core.utils import month_end, month_range, month_start, split_commission
 
 from .models import BillingSettings, Invoice, InvoiceLine, Payment, UpstreamSettlement
 
@@ -266,6 +268,70 @@ def upstream_position(period: date | None = None) -> dict:
         "commission_received": commission_received,
         "receivable": commission_earned_upstream - commission_received,
     }
+
+
+def upstream_months(months: int = 6, end: date | None = None) -> list[dict]:
+    """`upstream_position` for each of the last `months` months, newest first.
+
+    Two grouped queries rather than four per month. The rules are the same
+    as the single-month call: payments count in the month they were
+    received, settlements in the month they were recorded against.
+    """
+    periods = month_range(end, months)
+    first, last = periods[0], month_end(periods[-1])
+
+    reseller = Q(collection_mode=CollectionMode.RESELLER)
+    upstream = Q(collection_mode=CollectionMode.UPSTREAM)
+    payment_rows = (
+        Payment.objects.filter(received_on__range=(first, last))
+        .annotate(month=TruncMonth("received_on"))
+        .order_by()
+        .values("month")
+        .annotate(
+            owed=Sum("upstream_amount", filter=reseller),
+            earned=Sum("commission_amount", filter=upstream),
+        )
+    )
+    remittance = Q(kind=UpstreamSettlement.Kind.REMITTANCE)
+    payout = Q(kind=UpstreamSettlement.Kind.COMMISSION_PAYOUT)
+    settlement_rows = (
+        UpstreamSettlement.objects.filter(period__range=(first, last))
+        .order_by()
+        .values("period")
+        .annotate(
+            remitted=money_sum(Case(When(remittance, then=F("amount")))),
+            received=money_sum(Case(When(payout, then=F("amount")))),
+        )
+    )
+
+    def paisa(value) -> Decimal:
+        return Decimal(value or 0).quantize(Decimal("0.01"))
+
+    def month_key(value):
+        # TruncMonth yields a datetime on some backends and a date on others.
+        return value.date() if hasattr(value, "date") else value
+
+    paid = {month_key(row["month"]): row for row in payment_rows}
+    settled = {row["period"]: row for row in settlement_rows}
+
+    result = []
+    for period in reversed(periods):
+        owed = paisa(paid.get(period, {}).get("owed"))
+        earned = paisa(paid.get(period, {}).get("earned"))
+        remitted = paisa(settled.get(period, {}).get("remitted"))
+        received = paisa(settled.get(period, {}).get("received"))
+        result.append(
+            {
+                "period": period,
+                "owed_upstream": owed,
+                "remitted": remitted,
+                "payable": owed - remitted,
+                "commission_earned_upstream": earned,
+                "commission_received": received,
+                "receivable": earned - received,
+            }
+        )
+    return result
 
 
 def _total(queryset, field) -> Decimal:

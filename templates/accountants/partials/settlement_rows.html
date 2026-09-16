@@ -1,0 +1,40 @@
+{% load ui %}
+{% for settlement in settlements %}
+  <tr>
+    <td>
+      <span class="fw-semibold">{{ settlement.settled_on|date:"d M Y" }}</span>
+      <span class="cell-sub">
+        {% if settlement.created_by %}by {{ settlement.created_by.get_full_name|default:settlement.created_by.username }}{% else %}—{% endif %}
+      </span>
+    </td>
+    <td>
+      <div class="cell-identity">
+        <span class="direction-mark {% if settlement.is_outgoing %}is-out{% else %}is-in{% endif %}" aria-hidden="true">
+          {% if settlement.is_outgoing %}↑{% else %}↓{% endif %}
+        </span>
+        <span class="cell-identity-text">
+          <span class="fw-semibold">{% if settlement.is_outgoing %}Paid to upstream{% else %}Commission received{% endif %}</span>
+          {% if settlement.note %}<span class="cell-sub">{{ settlement.note }}</span>{% endif %}
+        </span>
+      </div>
+    </td>
+    <td>{{ settlement.period|date:"F Y" }}</td>
+    <td>
+      {% if settlement.reference %}<span class="cell-mono">{{ settlement.reference }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+    </td>
+    <td class="numeric col-money fw-semibold {% if settlement.is_outgoing %}text-danger{% else %}text-success{% endif %}">
+      {% if settlement.is_outgoing %}−{% else %}+{% endif %}{{ settlement.amount|money }}
+    </td>
+    <td class="col-actions">
+      <div class="row-actions">
+        {% if perms.accountants.delete_upstreamsettlement %}
+          <a class="row-action row-action-danger" href="{% url 'settlement_delete' settlement.pk %}">Delete</a>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr><td colspan="6">
+    {% include "partials/empty.html" with title="No settlements match" hint="Record what you remit upstream, and the commission they pay you." %}
+  </td></tr>
+{% endfor %}

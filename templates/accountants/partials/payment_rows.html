@@ -1,0 +1,70 @@
+{% load ui %}
+{% for payment in payments %}
+  {% comment %}
+  In date order the rows fall under a header per day carrying that day's
+  total, which is the figure the cash drawer is counted against.
+  {% endcomment %}
+  {% if group_by_day %}
+    {% ifchanged payment.received_on %}
+      <tr class="day-row">
+        <td colspan="5">
+          <span class="day-name">{{ payment.received_on|date:"l, d F Y" }}</span>
+          <span class="day-count">{{ payment.day_count }} payment{{ payment.day_count|pluralize }}</span>
+        </td>
+        <td class="numeric">{{ payment.day_total|money }}</td>
+        <td colspan="2"></td>
+      </tr>
+    {% endifchanged %}
+  {% endif %}
+  <tr>
+    <td>
+      <span class="fw-semibold">{{ payment.received_on|date:"d M Y" }}</span>
+      <span class="cell-sub">
+        {% if payment.created_by %}by {{ payment.created_by.get_full_name|default:payment.created_by.username }}{% else %}Recorded automatically{% endif %}
+      </span>
+    </td>
+    <td class="col-id">
+      <div class="cell-identity">
+        <span class="avatar avatar-sm" aria-hidden="true">{{ payment.client.name|initials }}</span>
+        <span class="cell-identity-text">
+          <a class="cell-identity-name" href="{% url 'client_detail' payment.client.pk %}">{{ payment.client.name }}</a>
+          <span class="cell-sub">{{ payment.client.client_code }}</span>
+        </span>
+      </div>
+    </td>
+    <td>
+      <a class="cell-link" href="{% url 'invoice_detail' payment.invoice.pk %}">{{ payment.invoice.number }}</a>
+      <span class="cell-sub">{{ payment.invoice.period|date:"F Y" }}</span>
+    </td>
+    <td>
+      <span class="method-tag method-{{ payment.method }}">{{ payment.get_method_display }}</span>
+      {% if payment.reference %}<span class="cell-sub cell-mono" title="Transaction ID">{{ payment.reference }}</span>{% endif %}
+    </td>
+    <td>
+      {% if payment.is_reseller_cash %}
+        <span class="tag tag-accent">You</span>
+      {% else %}
+        <span class="tag">Upstream</span>
+      {% endif %}
+    </td>
+    <td class="numeric col-money">
+      <span class="fw-semibold">{{ payment.amount|money }}</span>
+      {% if payment.is_reseller_cash %}
+        <span class="cell-sub" title="The upstream share of this cash">{{ payment.upstream_amount|money }} to pass on</span>
+      {% endif %}
+    </td>
+    <td class="numeric col-money text-success">{{ payment.commission_amount|money }}</td>
+    <td class="col-actions">
+      <div class="row-actions">
+        <a class="row-action" href="{% url 'invoice_detail' payment.invoice.pk %}">Invoice</a>
+        {% if perms.accountants.delete_payment %}
+          <a class="row-action row-action-danger" href="{% url 'payment_delete' payment.pk %}">Reverse</a>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr><td colspan="8">
+    {% include "partials/empty.html" with title="No payments match" hint="Try a different time window, or clear the search." %}
+  </td></tr>
+{% endfor %}

@@ -201,17 +201,52 @@ class IncomeForm(BootstrapFormMixin, forms.ModelForm):
 class SettlementForm(BootstrapFormMixin, forms.ModelForm):
     """Record money moving to or from the upstream operator."""
 
+    fieldsets = (
+        {
+            "title": "Direction",
+            "caption": "Paying upstream their share of what you collected, or "
+            "receiving the commission on bills paid to them directly.",
+            "fields": ["kind"],
+        },
+        {
+            "title": "Amount",
+            "caption": "What moved, and the month of payments it settles. "
+            "A month can be settled in several parts.",
+            "fields": ["amount", "period"],
+        },
+        {
+            "title": "Record",
+            "caption": "When it happened, and the reference that ties it to a "
+            "bank or upstream statement.",
+            "fields": ["settled_on", "reference", "note"],
+        },
+    )
+    wide_fields = frozenset({"kind", "note"})
+    compact_fields = frozenset({"period", "settled_on"})
+    field_prefixes = {"amount": "৳"}
+
     class Meta:
         model = UpstreamSettlement
         fields = ["kind", "amount", "period", "settled_on", "reference", "note"]
         widgets = {
+            "kind": forms.RadioSelect,
             "period": forms.DateInput(attrs={"type": "date"}),
             "settled_on": forms.DateInput(attrs={"type": "date"}),
+        }
+        labels = {
+            "period": "For the month of",
+            "settled_on": "Settled on",
+            "reference": "Bank / statement reference",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # A radio group of two with no blank: a model field without a default
+        # would otherwise offer a "---------" tile.
+        self.fields["kind"].choices = UpstreamSettlement.Kind.choices
         self.fields["period"].help_text = "Any date inside the month being settled."
+        self.fields["amount"].widget.attrs.update({"inputmode": "decimal", "step": "0.01"})
+        self.fields["note"].widget.attrs.setdefault("placeholder", "Optional")
 
     def clean_amount(self):
         amount = self.cleaned_data["amount"]
