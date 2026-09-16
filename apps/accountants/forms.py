@@ -1,11 +1,54 @@
 from django import forms
 
 from apps.accounts.forms import BootstrapFormMixin
+from apps.core.choices import CollectionMode
 
 from .models import BillingSettings, Expense, Income, Invoice, Payment, UpstreamSettlement
 
 
 class BillingSettingsForm(BootstrapFormMixin, forms.ModelForm):
+    #: What each arrangement means, for the guide under the choice.
+    COLLECTION_GUIDE = {
+        CollectionMode.RESELLER: "Customers pay you. You keep the commission and "
+        "remit the rest upstream — the Upstream page tracks what you owe.",
+        CollectionMode.UPSTREAM: "Customers pay the upstream operator online. They "
+        "pay you the commission afterwards — the Upstream page tracks what they owe.",
+    }
+    #: The longest a bill can run before it is due. Beyond this it is a typo.
+    MAX_DUE_DAYS = 90
+
+    fieldsets = (
+        {
+            "title": "Collection",
+            "caption": "Who takes the customer's money by default. A client can be "
+            "set differently on their own record.",
+            "fields": ["collection_mode", "upstream_name"],
+        },
+        {
+            "title": "Commission",
+            "caption": "Your share of every bill, unless a package or a client has its own rate.",
+            "fields": ["commission_percent"],
+        },
+        {
+            "title": "Invoices",
+            "caption": "How new invoices are numbered, and how long a customer has to pay.",
+            "fields": ["invoice_prefix", "due_days"],
+        },
+        {
+            "title": "Automation",
+            "caption": "Whether the scheduled job on the 1st raises the month's "
+            "invoices on its own.",
+            "fields": ["auto_generate"],
+        },
+    )
+    wide_fields = frozenset({"collection_mode", "upstream_name"})
+    compact_fields = frozenset({"commission_percent", "invoice_prefix", "due_days"})
+    field_addons = {
+        "collection_mode": "accountants/partials/settings_collection_guide.html",
+        "commission_percent": "accountants/partials/settings_split_preview.html",
+        "due_days": "accountants/partials/settings_invoice_preview.html",
+    }
+
     class Meta:
         model = BillingSettings
         fields = [
@@ -16,13 +59,73 @@ class BillingSettingsForm(BootstrapFormMixin, forms.ModelForm):
             "due_days",
             "auto_generate",
         ]
+        widgets = {"collection_mode": forms.RadioSelect}
+        labels = {
+            "collection_mode": "Default arrangement",
+            "upstream_name": "Upstream operator",
+            "commission_percent": "Commission %",
+            "invoice_prefix": "Number prefix",
+            "due_days": "Days to pay",
+            "auto_generate": "Raise invoices automatically each month",
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["collection_mode"].help_text = (
-            "How customers normally pay. Existing invoices keep the arrangement "
-            "they were raised under; this applies to new ones."
+        self.collection_guide = self.COLLECTION_GUIDE
+        self.fields[
+            "collection_mode"
+        ].help_text = "Existing invoices keep the arrangement they were raised under."
+        self.fields["upstream_name"].widget.attrs.setdefault(
+            "placeholder", "e.g. Link3 Technologies"
         )
+        self.fields[
+            "upstream_name"
+        ].help_text = "Shown wherever the app says who a customer pays, and on the Upstream page."
+        self.fields["commission_percent"].widget.attrs.update(
+            {"min": 0, "max": 100, "step": "0.01", "inputmode": "decimal"}
+        )
+        self.fields["commission_percent"].help_text = "Between 0 and 100."
+        self.fields["invoice_prefix"].widget.attrs.update(
+            {"autocomplete": "off", "spellcheck": "false", "style": "text-transform: uppercase"}
+        )
+        self.fields[
+            "invoice_prefix"
+        ].help_text = "Letters and digits. Numbers already issued keep theirs."
+        self.fields["due_days"].widget.attrs.update({"min": 0, "max": self.MAX_DUE_DAYS})
+        self.fields["due_days"].help_text = "After the issue date. 0 means due the same day."
+        self.fields[
+            "auto_generate"
+        ].help_text = (
+            "Off: nothing is billed until someone uses Generate month on the Invoices page."
+        )
+
+    def clean_invoice_prefix(self):
+        prefix = self.cleaned_data["invoice_prefix"].strip().upper()
+        # ASCII only: the number goes on paper, in URLs and into other systems.
+        if not (prefix.isascii() and prefix.isalnum()):
+            raise forms.ValidationError(
+                "Use the letters A–Z and digits only; the number adds its own dashes."
+            )
+        return prefix
+
+    def clean_due_days(self):
+        days = self.cleaned_data["due_days"]
+        if days > self.MAX_DUE_DAYS:
+            raise forms.ValidationError(f"Keep it to {self.MAX_DUE_DAYS} days or fewer.")
+        return days
+
+    def clean(self):
+        cleaned = super().clean()
+        # Every "pays upstream" sentence in the app needs a name to say.
+        if (
+            cleaned.get("collection_mode") == CollectionMode.UPSTREAM
+            and not (cleaned.get("upstream_name") or "").strip()
+        ):
+            self.add_error(
+                "upstream_name",
+                "Name the operator customers pay, so screens can tell them who it is.",
+            )
+        return cleaned
 
 
 class InvoiceForm(BootstrapFormMixin, forms.ModelForm):

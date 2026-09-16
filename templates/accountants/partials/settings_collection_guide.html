@@ -1,0 +1,12 @@
+{% comment %}
+Under the arrangement choice: what each one means. The script in
+`billing_settings.html` lights the chosen one.
+{% endcomment %}
+<dl class="role-guide collection-guide">
+  {% for value, text in form.collection_guide.items %}
+    <div class="role-guide-row" data-collection-guide="{{ value }}">
+      <dt><span class="method-tag {% if value == 'reseller' %}method-cash{% else %}method-online{% endif %}">{% if value == 'reseller' %}You collect{% else %}They collect{% endif %}</span></dt>
+      <dd>{{ text }}</dd>
+    </div>
+  {% endfor %}
+</dl>

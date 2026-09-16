@@ -1,0 +1,18 @@
+{% load l10n %}
+{% comment %}
+Under the invoice fields: the next number under the typed prefix, and when
+a bill issued today would fall due.
+{% endcomment %}
+<div class="settings-preview settings-preview-grid" data-invoice-preview
+     data-stamp="{{ numbering.stamp }}" data-saved-prefix="{{ numbering.saved_prefix }}"
+     data-next-sequence="{{ numbering.next_sequence|unlocalize }}" data-today="{{ today|date:'Y-m-d' }}"
+     aria-live="polite">
+  <div>
+    <span class="settings-preview-label">Next invoice number</span>
+    <b class="cell-mono-strong" data-next-number>—</b>
+  </div>
+  <div>
+    <span class="settings-preview-label">Issued today, due</span>
+    <b data-due-example>—</b>
+  </div>
+</div>

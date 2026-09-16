@@ -11,7 +11,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, FormView, UpdateView
 
-from apps.accounts.models import Client
+from apps.accounts.models import Client, Package, Subscription
 from apps.accounts.views import FilteredListView
 from apps.core.aggregates import money_sum
 from apps.core.chips import build_chips
@@ -1031,11 +1031,51 @@ class BillingSettingsView(CrudViewMixin, UpdateView):
     permission_required = "accountants.change_billingsettings"
     model = BillingSettings
     form_class = BillingSettingsForm
-    template_name = "form.html"
-    success_url = reverse_lazy("dashboard")
-    success_message = "Billing settings saved."
+    template_name = "accountants/billing_settings.html"
+    # Back to the settings, not the dashboard: the reader wants to see what
+    # they just saved, and the confirmation belongs beside it.
+    success_url = reverse_lazy("billing_settings")
+    cancel_url = reverse_lazy("dashboard")
+    success_message = "Billing settings saved. New invoices use them from now on."
     page_title = "Billing settings"
     page_subtitle = "Commission split, invoice numbering and due dates"
 
     def get_object(self, queryset=None):
         return BillingSettings.load()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["submit_label"] = "Save settings"
+
+        # How far a change here reaches: who follows these defaults, and who
+        # has been set apart from them.
+        clients = Client.objects.billable().aggregate(
+            total=Count("pk"),
+            following=Count("pk", filter=Q(collection_mode="")),
+        )
+        clients["overridden"] = clients["total"] - clients["following"]
+        context["reach"] = {
+            "clients": clients,
+            "packages_with_rate": Package.objects.filter(commission_percent__isnull=False).count(),
+            "clients_with_rate": Subscription.objects.filter(
+                status=Subscription.Status.ACTIVE, commission_percent__isnull=False
+            ).count(),
+            "invoices": Invoice.objects.count(),
+        }
+
+        # What the numbering preview continues from. The saved prefix, not a
+        # half-typed one: the preview script swaps in whatever is typed.
+        prefix = f"{self.object.invoice_prefix}-{month_start():%Y%m}-"
+        last = (
+            Invoice.objects.filter(number__startswith=prefix)
+            .order_by("-number")
+            .values_list("number", flat=True)
+            .first()
+        )
+        context["numbering"] = {
+            "stamp": f"{month_start():%Y%m}",
+            "saved_prefix": self.object.invoice_prefix,
+            "next_sequence": int(last.rsplit("-", 1)[1]) + 1 if last else 1,
+        }
+        context["today"] = timezone.localdate()
+        return context
