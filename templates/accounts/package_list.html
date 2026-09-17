@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load ui tables icons %}
+{% comment %} Same skeleton as clients and POPs. {% endcomment %}
+
+{% block page_actions %}
+  {% if perms.accounts.add_package %}
+    <a class="btn btn-primary btn-sm" href="{% url 'package_add' %}">Add package</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  {% include "partials/index_chips.html" %}
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "name" "Package" %}
+            {% sort_header "speed" "Speed" numeric=True %}
+            <th class="numeric">GGC / FNA</th>
+            {% sort_header "price" "Monthly price" numeric=True %}
+            <th class="numeric">Commission</th>
+            {% sort_header "subscribers" "Subscribers" %}
+            {% sort_header "revenue" "Monthly revenue" numeric=True %}
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for package in packages %}
+            <tr{% if not package.is_active %} class="row-muted"{% endif %}>
+              <td class="col-id">
+                <div class="cell-identity">
+                  <span class="cell-mark" aria-hidden="true">{% icon "packages" 15 %}</span>
+                  <span class="cell-identity-text">
+                    <span class="cell-identity-name">{{ package.name }}</span>
+                    <span class="cell-sub">
+                      {% if package.description %}{{ package.description }}{% elif package.is_active %}On sale{% else %}Retired{% endif %}
+                    </span>
+                  </span>
+                </div>
+              </td>
+              <td class="numeric fw-semibold">{{ package.bandwidth_mbps }}<span class="unit"> Mbps</span></td>
+              <td class="numeric cell-sub">{{ package.ggc_mbps }} / {{ package.fna_mbps }}</td>
+              <td class="numeric col-money fw-semibold">{{ package.monthly_price|money }}</td>
+              <td class="numeric">
+                {% if package.commission_percent is not None %}
+                  {{ package.commission_percent }}%
+                {% else %}
+                  <span class="text-muted" title="Uses the rate in billing settings">Default</span>
+                {% endif %}
+              </td>
+              {% comment %} Scaled to the busiest plan, so the mix reads at a
+              glance rather than as a column of numbers. {% endcomment %}
+              <td class="col-load">
+                <div class="load-cell">
+                  <span class="load-count">{{ package.subscribers }}</span>
+                  <span class="breakdown-track">
+                    <span class="breakdown-fill" style="width:{% widthratio package.subscribers busiest 100 %}%"></span>
+                  </span>
+                </div>
+              </td>
+              <td class="numeric col-money">{{ package.monthly_revenue|money }}</td>
+              <td class="col-actions">
+                <div class="row-actions">
+                  {% if perms.accounts.change_package %}
+                    <a class="row-action" href="{% url 'package_edit' package.pk %}">Edit</a>
+                  {% endif %}
+                  {% if perms.accounts.delete_package %}
+                    <a class="row-action row-action-danger" href="{% url 'package_delete' package.pk %}">Delete</a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8">
+              {% include "partials/empty.html" with title="No packages match" hint="Adjust the search, or add the plans you sell." %}
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
+</div>
+{% endblock %}

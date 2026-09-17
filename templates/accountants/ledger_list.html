@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load ui tables charts %}
+{% comment %}
+Both manual ledgers — expenses and other income — on one layout:
+summary → breakdown and trend → chips → toolbar → table.
+
+The summary and the breakdown follow the search; the month comparison and
+the trend are always the whole ledger. `ledger` (from the view) supplies the
+words, the routes and which direction of change is good news.
+{% endcomment %}
+
+{% block page_actions %}
+  {% if ledger.export and perms.accountants.export_data %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'export' ledger.export %}">Export CSV</a>
+  {% endif %}
+  {% if ledger.add_perm in perms %}
+    <a class="btn btn-primary btn-sm" href="{% url ledger.add_url %}">{{ ledger.add_label }}</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack ledger-{{ ledger.tone }}">
+  {% if ledger.notice %}<div class="form-notice mb-0">{{ ledger.notice }}</div>{% endif %}
+
+  <div class="summary-strip">
+    <div class="summary-item">
+      <span class="stat-label">{{ ledger.total_label }}</span>
+      <span class="summary-value summary-total">{{ totals.sum_total|money }}</span>
+      <span class="stat-note">
+        {{ totals.count }} {% if totals.count == 1 %}{{ ledger.noun }}{% else %}{{ ledger.noun_plural }}{% endif %}{% if totals.largest %}, largest {{ totals.largest|money }}{% endif %}
+      </span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">This month</span>
+      <span class="summary-value">{{ this_month|money }}</span>
+      <span class="stat-note">
+        {% if month_delta_percent is None %}
+          Nothing last month to compare with
+        {% elif month_delta %}
+          {# The arrow follows the number; the colour follows what it means. #}
+          <span class="delta {% if month_delta > 0 %}{{ ledger.up_is_good|yesno:'delta-good,delta-bad' }}{% else %}{{ ledger.up_is_good|yesno:'delta-bad,delta-good' }}{% endif %}">
+            {% if month_delta > 0 %}↑{% else %}↓{% endif %} {{ month_delta_percent }}%
+          </span>
+          vs {{ last_month|money }} last month
+        {% else %}
+          <span class="delta delta-flat">No change</span> vs last month
+        {% endif %}
+      </span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Monthly average</span>
+      <span class="summary-value">{{ monthly_average|money }}</span>
+      <span class="stat-note">Over the last {{ average_months }} full month{{ average_months|pluralize }}</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">{{ ledger.biggest_label }}</span>
+      {% with top=breakdown.0 %}
+        <span class="summary-value">{% if top %}{{ top.label }}{% else %}—{% endif %}</span>
+        <span class="stat-note">{% if top %}{{ top.share }}% {{ ledger.share_note }}{% else %}Nothing recorded{% endif %}</span>
+      {% endwith %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-5">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>{{ ledger.breakdown_title }}</span>
+          <span class="card-sub">Click a {{ ledger.kind_label|lower }} to filter</span>
+        </div>
+        <div class="card-body">
+          {% if breakdown %}
+            <div class="category-list">
+              {% for row in breakdown %}
+                <a class="category-row{% if row.is_active %} is-on{% endif %}" href="{{ row.url }}"
+                   {% if row.is_active %}aria-current="true" title="Show every {{ ledger.kind_label|lower }}"{% endif %}>
+                  <span class="category-name"><i class="dot cat-{{ row.key }}"></i>{{ row.label }}</span>
+                  <span class="category-figure">
+                    {{ row.total|money }}<span class="category-share">{{ row.share }}%</span>
+                  </span>
+                  <span class="breakdown-track"><span class="breakdown-fill cat-{{ row.key }}" style="width: {{ row.share }}%"></span></span>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            {% include "partials/empty.html" with title="Nothing to break down" hint="Entries matching the search appear here." %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-7">
+      <div class="card h-100">
+        <div class="card-header">
+          <span>Last six months</span>
+          <span class="card-sub">Every {{ ledger.noun }}, whatever the search</span>
+        </div>
+        <div class="card-body">
+          {% column_chart trend series=trend_series chart_id="ledger-trend" height=170 %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include "partials/index_chips.html" %}
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "date" "Date" %}
+            <th class="col-text col-text-wide">Description</th>
+            {% sort_header "kind" ledger.kind_label %}
+            {% sort_header "amount" "Amount" numeric=True %}
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>{% include "accountants/partials/ledger_rows.html" %}</tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
+</div>
+{% endblock %}

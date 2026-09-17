@@ -1,0 +1,17 @@
+{% load icons %}
+{% comment %}
+A collapsible group of links. The header is a button, not a link: it owns no
+page of its own, it only opens the section beneath it.
+{% endcomment %}
+<div class="nav-group{% if is_open %} open{% endif %}" data-nav-group="{{ slug }}">
+  <button type="button" class="nav-link nav-parent"
+          aria-expanded="{{ is_open|yesno:'true,false' }}" aria-controls="nav-group-{{ slug }}">
+    <span class="nav-icon">{% icon icon_name %}</span>
+    <span class="nav-text">{{ label }}</span>
+    {% if badge %}<span class="nav-badge nav-badge-{{ badge_tone }} group-badge">{{ badge }}</span>{% endif %}
+    <span class="nav-caret" aria-hidden="true">{% icon "chevron" 14 %}</span>
+  </button>
+  <div class="nav-children" id="nav-group-{{ slug }}" role="group" aria-label="{{ label }}">
+    <div class="nav-children-inner">{{ children }}</div>
+  </div>
+</div>

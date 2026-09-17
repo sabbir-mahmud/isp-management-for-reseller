@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% load ui tables l10n %}
+{% comment %}
+Where you stand with the upstream operator, top to bottom: the net answer,
+the two balances it is made of, the months they built up in, and the
+settlements that have paid them down.
+{% endcomment %}
+
+{% block page_actions %}
+  {% if perms.accountants.add_upstreamsettlement %}
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'settlement_add' %}?kind=commission_payout">Record commission received</a>
+    <a class="btn btn-primary btn-sm" href="{% url 'settlement_add' %}?kind=remittance">Record remittance</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+
+  {# ---- The net answer, and the arrangement that produces it ---- #}
+  <div class="net-banner{% if position.net > 0 %} is-owing{% elif position.net < 0 %} is-owed{% endif %}">
+    <div class="net-main">
+      <span class="stat-label">
+        {% if position.net > 0 %}On balance, you owe {{ upstream_name }}
+        {% elif position.net < 0 %}On balance, {{ upstream_name }} owes you
+        {% else %}You and {{ upstream_name }} are square{% endif %}
+      </span>
+      <p class="net-value">{{ position.net_abs|money }}</p>
+      <span class="stat-note">
+        {{ position.payable|money }} to remit, less {{ position.receivable|money }} commission still to come.
+        Each side is settled on its own.
+      </span>
+    </div>
+
+    <div class="net-arrangement">
+      <span class="stat-label">How your clients pay</span>
+      <div class="split-bar" role="img"
+           aria-label="{{ arrangement.reseller }} clients pay you, {{ arrangement.upstream }} pay upstream">
+        <span class="split-seg seg-you" style="width: {{ arrangement.reseller_percent }}%"></span>
+      </div>
+      <div class="outcome-legend">
+        <span><i class="dot dot-you"></i>You collect <b>{{ arrangement.reseller }}</b></span>
+        <span><i class="dot dot-up"></i>Pay upstream <b>{{ arrangement.upstream }}</b></span>
+      </div>
+      <span class="stat-note">
+        Default: {{ settings_row.get_collection_mode_display|lower }} at {{ settings_row.commission_percent|floatformat:"-2" }}%.
+        {% if arrangement.overridden %}{{ arrangement.overridden }} client{{ arrangement.overridden|pluralize }} set their own.{% endif %}
+        {% if perms.accountants.change_billingsettings %}<a href="{% url 'billing_settings' %}">Change</a>{% endif %}
+      </span>
+    </div>
+  </div>
+
+  {# ---- The two balances ---- #}
+  <div class="row g-3">
+    <div class="col-12 col-xl-6">
+      <div class="card h-100 balance-card">
+        <div class="card-header">
+          <span>You owe {{ upstream_name }}</span>
+          <span class="card-sub">Their share of what you collected</span>
+        </div>
+        <div class="card-body">
+          <span class="stat-label">Still to remit</span>
+          <p class="statement-figure{% if position.payable > 0 %} text-danger{% endif %}">{{ position.payable|money }}</p>
+
+          <div class="balance-progress">
+            <span class="breakdown-track"><span class="breakdown-fill" style="width: {{ position.remitted_percent }}%"></span></span>
+            <span class="stat-note">{{ position.remitted_percent }}% remitted</span>
+          </div>
+
+          <div class="breakdown">
+            <div class="breakdown-row">
+              <span class="breakdown-label">Upstream share of payments you took</span>
+              <span class="breakdown-value">{{ position.owed_upstream|money }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Already remitted</span>
+              <span class="breakdown-value text-success">−{{ position.remitted|money }}</span>
+            </div>
+          </div>
+        </div>
+        {% if perms.accountants.add_upstreamsettlement and position.payable > 0 %}
+          <div class="card-footer balance-footer">
+            <a class="btn btn-primary btn-sm"
+               href="{% url 'settlement_add' %}?kind=remittance&amount={{ position.payable|unlocalize }}">
+              Remit {{ position.payable|money }}
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card h-100 balance-card">
+        <div class="card-header">
+          <span>{{ upstream_name }} owes you</span>
+          <span class="card-sub">Commission on bills paid to them</span>
+        </div>
+        <div class="card-body">
+          <span class="stat-label">Still to collect</span>
+          <p class="statement-figure{% if position.receivable > 0 %} text-success{% endif %}">{{ position.receivable|money }}</p>
+
+          <div class="balance-progress">
+            <span class="breakdown-track"><span class="breakdown-fill" style="width: {{ position.received_percent }}%"></span></span>
+            <span class="stat-note">{{ position.received_percent }}% received</span>
+          </div>
+
+          <div class="breakdown">
+            <div class="breakdown-row">
+              <span class="breakdown-label">Commission earned on upstream payments</span>
+              <span class="breakdown-value">{{ position.commission_earned_upstream|money }}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">Already received</span>
+              <span class="breakdown-value text-success">−{{ position.commission_received|money }}</span>
+            </div>
+          </div>
+        </div>
+        {% if perms.accountants.add_upstreamsettlement and position.receivable > 0 %}
+          <div class="card-footer balance-footer">
+            <a class="btn btn-outline-primary btn-sm"
+               href="{% url 'settlement_add' %}?kind=commission_payout&amount={{ position.receivable|unlocalize }}">
+              Record {{ position.receivable|money }} received
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ---- Month by month ---- #}
+  <div class="card index-card">
+    <div class="card-header">
+      <span>Month by month</span>
+      <span class="card-sub">Payments count in the month received; settlements in the month they cover</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table align-middle mb-0 months-table">
+        <thead>
+          <tr>
+            <th rowspan="2">Month</th>
+            <th colspan="3" class="group-head">You owe them</th>
+            <th colspan="3" class="group-head">They owe you</th>
+            <th rowspan="2" class="col-actions"></th>
+          </tr>
+          <tr>
+            <th class="numeric">Owed</th>
+            <th class="numeric">Remitted</th>
+            <th class="numeric">Open</th>
+            <th class="numeric group-start">Earned</th>
+            <th class="numeric">Received</th>
+            <th class="numeric">Open</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for month in months %}
+            <tr{% if not month.owed_upstream and not month.remitted and not month.commission_earned_upstream and not month.commission_received %} class="row-muted"{% endif %}>
+              <td>
+                <a class="cell-link fw-semibold" href="?period={{ month.period|date:'Y-m' }}">{{ month.period|date:"F Y" }}</a>
+              </td>
+              <td class="numeric">{{ month.owed_upstream|money }}</td>
+              <td class="numeric text-muted">{{ month.remitted|money }}</td>
+              <td class="numeric">
+                {% if month.payable > 0 %}<span class="text-danger fw-semibold">{{ month.payable|money }}</span>
+                {% elif month.owed_upstream %}<span class="settled-mark">Settled</span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="numeric group-start">{{ month.commission_earned_upstream|money }}</td>
+              <td class="numeric text-muted">{{ month.commission_received|money }}</td>
+              <td class="numeric">
+                {% if month.receivable > 0 %}<span class="text-success fw-semibold">{{ month.receivable|money }}</span>
+                {% elif month.commission_earned_upstream %}<span class="settled-mark">Settled</span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="col-actions">
+                {% if perms.accountants.add_upstreamsettlement %}
+                  <div class="row-actions">
+                    {% if month.payable > 0 %}
+                      <a class="row-action row-action-primary"
+                         href="{% url 'settlement_add' %}?kind=remittance&period={{ month.period|date:'Y-m-d' }}&amount={{ month.payable|unlocalize }}">Remit</a>
+                    {% endif %}
+                    {% if month.receivable > 0 %}
+                      <a class="row-action"
+                         href="{% url 'settlement_add' %}?kind=commission_payout&period={{ month.period|date:'Y-m-d' }}&amount={{ month.receivable|unlocalize }}">Received</a>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ---- The ledger ---- #}
+  <div>
+    <h2 class="section-title">Settlements</h2>
+    {% include "partials/index_chips.html" %}
+  </div>
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "settled" "Settled" %}
+            <th>Direction</th>
+            {% sort_header "month" "For month" %}
+            <th>Reference</th>
+            {% sort_header "amount" "Amount" numeric=True %}
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>{% include "accountants/partials/settlement_rows.html" %}</tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
+</div>
+{% endblock %}

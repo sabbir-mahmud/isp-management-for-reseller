@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load forms %}
+{% comment %}
+The shared create/update screen. `form_sections` decides the shape: a form
+that declares `fieldsets` gets titled sections in a two-column grid, and one
+that declares nothing gets the single untitled stack it always had.
+{% endcomment %}
+
+{% block content %}
+{% form_sections form as sections %}
+<div class="form-page{% if form.fieldsets %} is-sectioned{% endif %}">
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if notice %}
+      <div class="form-notice">{{ notice }}</div>
+    {% endif %}
+
+    {# What the form is about, for screens that act on an existing record. #}
+    {% block form_intro %}{% endblock %}
+
+    {% comment %}
+    On a sectioned form the field that failed can be a screen away, so the
+    errors are also collected here, each one a link to the input it came from.
+    {% endcomment %}
+    {% if form.errors %}
+      <div class="form-error-summary" role="alert">
+        <p class="form-error-summary-title">
+          {% if form.errors|length == 1 %}One field needs attention{% else %}{{ form.errors|length }} fields need attention{% endif %}
+        </p>
+        <ul>
+          {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+          {% for field in form %}
+            {% for error in field.errors %}
+              <li><a href="#{{ field.id_for_label }}">{{ field.label|default:field.name }}</a> — {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% for section in sections %}
+      <section class="form-section">
+        {% if section.title %}
+          <div class="form-section-head">
+            <h2 class="form-section-title">{{ section.title }}</h2>
+            {% if section.caption %}<p class="form-section-caption">{{ section.caption }}</p>{% endif %}
+          </div>
+        {% endif %}
+
+        <div class="form-grid">
+          {% for item in section.fields %}
+            <div class="form-field{% if item.wide %} is-wide{% endif %}{% if item.compact %} is-compact{% endif %}{% if item.field.errors %} has-error{% endif %}">
+              {% if item.checkbox %}
+                {# A checkbox reads as one line, not as a label sitting above a box. #}
+                <div class="form-check-row">
+                  {{ item.field }}
+                  <label for="{{ item.field.id_for_label }}">
+                    <span class="form-check-label-text">{{ item.field.label }}</span>
+                    {% if item.field.help_text %}<span class="helptext">{{ item.field.help_text }}</span>{% endif %}
+                  </label>
+                </div>
+              {% elif item.radio %}
+                {# A short list of choices reads faster as tiles than as a dropdown. #}
+                <fieldset>
+                  {% if item.field.label %}
+                    <legend class="form-label">
+                      {{ item.field.label }}{% if item.field.field.required %}<span class="required-marker" aria-hidden="true"> *</span>{% endif %}
+                    </legend>
+                  {% endif %}
+                  <div class="choice-tiles">
+                    {% for choice in item.field %}
+                      <label class="choice-tile" for="{{ choice.id_for_label }}">
+                        {{ choice.tag }}<span>{{ choice.choice_label }}</span>
+                      </label>
+                    {% endfor %}
+                  </div>
+                  {% if item.field.help_text %}<div class="helptext">{{ item.field.help_text }}</div>{% endif %}
+                </fieldset>
+              {% else %}
+                {% if item.field.label %}
+                  <label class="form-label" for="{{ item.field.id_for_label }}">
+                    {{ item.field.label }}{% if item.field.field.required %}<span class="required-marker" aria-hidden="true"> *</span>{% endif %}
+                  </label>
+                {% endif %}
+                {% if item.prefix %}
+                  <div class="input-prefixed">
+                    <span class="input-prefix" aria-hidden="true">{{ item.prefix }}</span>
+                    {{ item.field }}
+                  </div>
+                {% else %}
+                  {{ item.field }}
+                {% endif %}
+                {% if item.field.help_text %}<div class="helptext">{{ item.field.help_text }}</div>{% endif %}
+              {% endif %}
+              {% if item.addon %}{% include item.addon %}{% endif %}
+
+              {% for error in item.field.errors %}
+                <div class="field-error">{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+
+    {% comment %}
+    The bar follows the reader down a long form, so Save is reachable without
+    scrolling back to the bottom of it.
+    {% endcomment %}
+    <div class="form-actions">
+      <span class="form-actions-note">
+        <span class="required-marker" aria-hidden="true">*</span> Required
+      </span>
+      <a class="btn btn-outline-secondary" href="{{ cancel_url|default:'/' }}">Cancel</a>
+      {# A secondary way to save, e.g. "Save and add another". #}
+      {% block form_actions_extra %}{% endblock %}
+      <button class="btn btn-primary" type="submit">{{ submit_label|default:"Save" }}</button>
+    </div>
+  </form>
+</div>
+{% block form_scripts %}{% endblock %}
+{% endblock %}

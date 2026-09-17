@@ -1,0 +1,57 @@
+{% load ui icons %}
+{% for onu in onus %}
+  <tr{% if onu.status == 'retired' %} class="row-muted"{% endif %}>
+    <td class="col-id">
+      <div class="cell-identity">
+        <span class="device-mark status-{{ onu.status }}" aria-hidden="true">{% icon "onu" 16 %}</span>
+        <span class="cell-identity-text">
+          <span class="cell-identity-name cell-mono-strong">{{ onu.serial }}</span>
+          <span class="cell-sub">
+            {% if onu.name %}{{ onu.name }} · {% endif %}{{ onu.port }} LAN port{{ onu.port|pluralize }}
+          </span>
+        </span>
+      </div>
+    </td>
+    <td>{{ onu.model|default:"—" }}</td>
+    <td>
+      {{ onu.purchased_on|date:"d M Y" }}
+      {% with bought=onu.purchased_on|age %}
+        <span class="cell-sub">{% if bought == "today" %}Bought today{% else %}{{ bought }} old{% endif %}</span>
+      {% endwith %}
+    </td>
+    <td class="numeric col-money">{{ onu.purchase_price|money }}</td>
+    <td class="col-status">
+      {{ onu.status|status_badge }}
+      {% if onu.note and onu.status == 'faulty' %}<span class="cell-sub" title="{{ onu.note }}">{{ onu.note|truncatechars:28 }}</span>{% endif %}
+    </td>
+    <td>
+      {% if onu.assigned_client %}
+        <div class="cell-identity">
+          <span class="avatar avatar-sm" aria-hidden="true">{{ onu.assigned_client.name|initials }}</span>
+          <span class="cell-identity-text">
+            <a class="cell-link" href="{% url 'client_detail' onu.assigned_client.pk %}">{{ onu.assigned_client.name }}</a>
+            <span class="cell-sub">{{ onu.assigned_client.client_code }}</span>
+          </span>
+        </div>
+      {% elif onu.status == 'in_stock' %}
+        <span class="text-success small fw-semibold">On the shelf</span>
+      {% else %}
+        <span class="text-muted">—</span>
+      {% endif %}
+    </td>
+    <td class="col-actions">
+      <div class="row-actions">
+        {% if perms.warehouse.change_onu %}
+          <a class="row-action" href="{% url 'onu_edit' onu.pk %}">Edit</a>
+        {% endif %}
+        {% if perms.warehouse.delete_onu and not onu.assigned_client %}
+          <a class="row-action row-action-danger" href="{% url 'onu_delete' onu.pk %}">Delete</a>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr><td colspan="7">
+    {% include "partials/empty.html" with title="No ONUs match" hint="Adjust the search, or add devices as you buy them." %}
+  </td></tr>
+{% endfor %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load ui tables %}
+{% comment %}
+The fleet first — can the next install go ahead, and what is it worth — then
+the models it is made of, then every unit. The summary and the model bars
+are the whole fleet; the table follows the search.
+{% endcomment %}
+
+{% block page_actions %}
+  {% if perms.warehouse.add_onu %}
+    <a class="btn btn-primary btn-sm" href="{% url 'onu_add' %}">Add ONU</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  {% if fleet.total and not fleet.in_stock_count %}
+    <div class="stock-alert" role="status">
+      <strong>No spare ONUs.</strong>
+      Every working unit is installed, so the next connection has nothing to fit.
+      {% if perms.warehouse.add_onu %}<a href="{% url 'onu_add' %}">Add stock</a>{% endif %}
+    </div>
+  {% endif %}
+
+  <div class="summary-strip">
+    <div class="summary-item">
+      <span class="stat-label">Fleet</span>
+      <span class="summary-value">{{ fleet.total }} unit{{ fleet.total|pluralize }}</span>
+      <span class="stat-note">{{ fleet.value|money }} at cost</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Ready to install</span>
+      <span class="summary-value{% if fleet.total and not fleet.in_stock_count %} text-danger{% else %} text-success{% endif %}">{{ fleet.in_stock_count }}</span>
+      <span class="stat-note">{{ fleet.in_stock_value|money }} on the shelf</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Installed</span>
+      <span class="summary-value">{{ fleet.assigned_count }}</span>
+      <div class="summary-meter" title="{{ fleet.deployed_percent }}% of the fleet">
+        <span class="breakdown-track"><span class="breakdown-fill" style="width: {{ fleet.deployed_percent }}%"></span></span>
+        <span class="stat-note">{{ fleet.deployed_percent }}%</span>
+      </div>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Out of service</span>
+      <span class="summary-value{% if fleet.out_of_service %} text-danger{% endif %}">{{ fleet.out_of_service }}</span>
+      <span class="stat-note">
+        {{ fleet.faulty_count }} faulty, {{ fleet.retired_count }} retired{% if fleet.out_of_service_value %} · {{ fleet.out_of_service_value|money }}{% endif %}
+      </span>
+    </div>
+  </div>
+
+  {% if models %}
+    <div class="card">
+      <div class="card-header">
+        <span>By model</span>
+        <span class="outcome-legend m-0">
+          <span><i class="dot dot-installed"></i>Installed</span>
+          <span><i class="dot dot-stock"></i>In stock</span>
+          <span><i class="dot dot-out"></i>Faulty or retired</span>
+        </span>
+      </div>
+      <div class="card-body model-list">
+        {% for row in models %}
+          {% if row.url %}<a class="model-row{% if row.is_active %} is-on{% endif %}" href="{{ row.url }}"
+             {% if row.is_active %}aria-current="true" title="Show every model"{% endif %}>
+          {% else %}<div class="model-row">{% endif %}
+            <span class="model-name">{{ row.label }}</span>
+            <span class="model-counts">
+              <b>{{ row.total }}</b> units ·
+              <span class="{% if not row.in_stock %}text-danger fw-semibold{% else %}text-success{% endif %}">{{ row.in_stock }} spare</span>
+              {% if row.out %}· <span class="text-danger">{{ row.out }} out</span>{% endif %}
+            </span>
+            <span class="fleet-bar" role="img"
+                  aria-label="{{ row.assigned }} installed, {{ row.in_stock }} in stock, {{ row.out }} out of service">
+              <span class="fleet-seg seg-installed" style="width: {{ row.assigned_percent|floatformat:2 }}%"></span>
+              <span class="fleet-seg seg-stock" style="width: {{ row.in_stock_percent|floatformat:2 }}%"></span>
+              <span class="fleet-seg seg-out" style="width: {{ row.out_percent|floatformat:2 }}%"></span>
+            </span>
+          {% if row.url %}</a>{% else %}</div>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% include "partials/index_chips.html" %}
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "serial" "Device" %}
+            {% sort_header "model" "Model" %}
+            {% sort_header "bought" "Bought" %}
+            {% sort_header "cost" "Cost" numeric=True %}
+            {% sort_header "status" "Status" %}
+            {% sort_header "client" "Installed at" %}
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>{% include "warehouse/partials/onu_rows.html" %}</tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
+</div>
+{% endblock %}

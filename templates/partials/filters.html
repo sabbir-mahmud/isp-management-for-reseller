@@ -1,0 +1,13 @@
+{% comment %} Every list page's search bar, driven by its django-filter form. {% endcomment %}
+<form method="get" class="row g-2 align-items-end px-3 py-3 border-bottom bg-white">
+  {% for field in filter.form %}
+    <div class="col-12 col-md-auto flex-grow-1">
+      <label class="form-label mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+    </div>
+  {% endfor %}
+  <div class="col-12 col-md-auto">
+    <button class="btn btn-primary" type="submit">Search</button>
+    <a class="btn btn-link text-decoration-none" href="{{ request.path }}">Clear</a>
+  </div>
+</form>

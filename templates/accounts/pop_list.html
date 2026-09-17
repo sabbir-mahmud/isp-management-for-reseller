@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% load ui icons %}
+{% comment %} Same skeleton as clients and packages. {% endcomment %}
+
+{% block page_actions %}
+  {% if perms.warehouse.add_pop %}
+    <a class="btn btn-primary btn-sm" href="{% url 'pop_add' %}">Add POP</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  {% include "partials/index_chips.html" %}
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        {% comment %}
+        No sortable headings here, unlike the other two indexes: the rows are
+        ordered as a tree, and re-sorting them would flatten the hierarchy this
+        table exists to show.
+        {% endcomment %}
+        <thead>
+          <tr>
+            <th class="col-id">POP</th>
+            <th class="col-text col-text-wide">Address</th>
+            <th class="col-load">Clients</th>
+            <th class="col-status">Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pop in pops %}
+            <tr{% if not pop.is_active %} class="row-muted"{% endif %}>
+              {% comment %}
+              Children sit under their upstream and are indented: the hierarchy
+              is the shape of the network, and an alphabetical list throws that
+              away.
+              {% endcomment %}
+              <td class="col-id">
+                <div class="cell-identity is-tree" style="--depth:{{ pop.depth }}">
+                  {% if pop.depth %}<span class="tree-branch" aria-hidden="true"></span>{% endif %}
+                  <span class="cell-mark" aria-hidden="true">{% icon "pops" 15 %}</span>
+                  <span class="cell-identity-text">
+                    <span class="cell-identity-name">{{ pop.name }}</span>
+                    <span class="cell-sub">
+                      {{ pop.code|default:"No code" }}{% if pop.parent %} · via {{ pop.parent.name }}{% endif %}
+                    </span>
+                  </span>
+                </div>
+              </td>
+              <td class="col-text col-text-wide"><span class="cell-sub">{{ pop.address|default:"—" }}</span></td>
+              {% comment %}
+              Total and active share one cell. As two columns the count sat
+              next to a Status badge and read as a second status.
+              {% endcomment %}
+              <td class="col-load">
+                <div class="load-cell">
+                  <span class="load-count">{{ pop.clients_total }}</span>
+                  <span class="breakdown-track">
+                    <span class="breakdown-fill" style="width:{% widthratio pop.clients_total busiest 100 %}%"></span>
+                  </span>
+                </div>
+                <span class="load-sub">{{ pop.clients_active }} active</span>
+              </td>
+              <td class="col-status">
+                {% if pop.is_active %}<span class="badge text-bg-success">Active</span>
+                {% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}
+              </td>
+              <td class="col-actions">
+                <div class="row-actions">
+                  {% if perms.warehouse.change_pop %}
+                    <a class="row-action" href="{% url 'pop_edit' pop.pk %}">Edit</a>
+                  {% endif %}
+                  {% if perms.warehouse.delete_pop %}
+                    <a class="row-action row-action-danger" href="{% url 'pop_delete' pop.pk %}">Delete</a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">
+              {% include "partials/empty.html" with title="No POPs match" hint="Adjust the search, or add a point of presence." %}
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
+</div>
+{% endblock %}

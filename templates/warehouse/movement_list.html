@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load tables ui %}
+{% comment %}
+Summary of the movements shown → type chips → toolbar → the ledger.
+{% endcomment %}
+
+{% block page_actions %}
+  {% if perms.warehouse.add_stockmovement %}
+    <a class="btn btn-primary btn-sm" href="{% url 'movement_add' %}">Record movement</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <div class="summary-strip">
+    <div class="summary-item">
+      <span class="stat-label">Received</span>
+      <span class="summary-value text-success">+{{ totals.received }}</span>
+      <span class="stat-note">Units in</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Issued</span>
+      <span class="summary-value">−{{ totals.issued }}</span>
+      <span class="stat-note">Units out</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Adjusted</span>
+      <span class="summary-value">{% if totals.adjusted > 0 %}+{% elif totals.adjusted < 0 %}−{% endif %}{{ totals.adjusted|absolute }}</span>
+      <span class="stat-note">Stock-take corrections</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Net change</span>
+      <span class="summary-value{% if totals.net > 0 %} text-success{% elif totals.net < 0 %} text-danger{% endif %}">{% if totals.net > 0 %}+{% elif totals.net < 0 %}−{% endif %}{{ totals.net|absolute }}</span>
+      <span class="stat-note">{{ totals.count }} movement{{ totals.count|pluralize }} across {{ totals.items }} item{{ totals.items|pluralize }}</span>
+    </div>
+  </div>
+
+  {% include "partials/index_chips.html" %}
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "date" "Date" %}
+            {% sort_header "item" "Item" %}
+            <th>Type</th>
+            {% sort_header "quantity" "Quantity" numeric=True %}
+            <th class="col-text col-text-wide">Reason</th>
+          </tr>
+        </thead>
+        <tbody>{% include "warehouse/partials/movement_rows.html" %}</tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "form.html" %}
+{% comment %}
+The shared form, plus the fleet's existing model names as suggestions for
+the Model input (`list="onu-models"` is set on it by `OnuForm`).
+{% endcomment %}
+{% block form_scripts %}
+<datalist id="onu-models">
+  {% for model in form.model_suggestions %}<option value="{{ model }}">{% endfor %}
+</datalist>
+{% endblock %}

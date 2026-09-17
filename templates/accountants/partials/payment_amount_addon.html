@@ -1,0 +1,63 @@
+{% load ui l10n %}
+{% comment %}
+Under the amount input on the payment form: one-click amounts, then what the
+typed amount does to the bill — before anything is saved. `invoice`,
+`shortcuts` and `paid_before_percent` come from the view; the script in
+`payment_form.html` keeps the figures in step with the input.
+{% endcomment %}
+<div class="payment-addon" data-payment-addon
+     data-due="{{ invoice.amount_due|unlocalize }}"
+     data-total="{{ invoice.total|unlocalize }}"
+     data-rate="{{ invoice.commission_percent|unlocalize }}">
+
+  {% if shortcuts %}
+    <div class="amount-shortcuts" role="group" aria-label="Fill in an amount">
+      {% for shortcut in shortcuts %}
+        <button type="button" class="amount-shortcut{% if shortcut.primary %} is-primary{% endif %}"
+                data-fill="{{ shortcut.value|unlocalize }}">
+          {% if shortcut.label %}<span class="amount-shortcut-label">{{ shortcut.label }}</span>{% endif %}
+          <span class="amount-shortcut-value">{{ shortcut.value|money }}</span>
+        </button>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="payment-outcome" aria-live="polite">
+    {% comment %}
+    The bill as one bar: what was paid before, what this payment adds, and the
+    gap left. Reading the bar answers "does this clear it?" at a glance.
+    {% endcomment %}
+    <div class="outcome-bar" role="img" aria-label="Share of the invoice paid">
+      <span class="outcome-seg seg-before" style="width: {{ paid_before_percent|unlocalize }}%"></span>
+      <span class="outcome-seg seg-now" data-seg-now style="width: 0%"></span>
+    </div>
+    <div class="outcome-legend">
+      {% if invoice.amount_paid %}
+        <span><i class="dot dot-before"></i>Paid before {{ invoice.amount_paid|money }}</span>
+      {% endif %}
+      <span><i class="dot dot-now"></i>This payment <b data-now>—</b></span>
+      <span><i class="dot dot-left"></i>Invoice total {{ invoice.total|money }}</span>
+    </div>
+
+    <dl class="outcome-grid">
+      <div class="outcome-cell">
+        <dt>Invoice becomes</dt>
+        <dd><span class="outcome-status" data-status>—</span></dd>
+      </div>
+      <div class="outcome-cell">
+        <dt>Still owed</dt>
+        <dd data-left>—</dd>
+      </div>
+      <div class="outcome-cell">
+        <dt>You earn</dt>
+        <dd class="text-success" data-earned>—</dd>
+      </div>
+      <div class="outcome-cell">
+        <dt>{% if invoice.collected_by_reseller %}You pass upstream{% else %}Upstream keeps{% endif %}</dt>
+        <dd data-upstream>—</dd>
+      </div>
+    </dl>
+
+    <p class="outcome-warning" data-warning hidden></p>
+  </div>
+</div>

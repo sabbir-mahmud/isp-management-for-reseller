@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-xl-5">
+    <div class="card">
+      <div class="card-body">
+        <p class="small text-muted">
+          Raises one invoice per billable client for the month you choose. Clients
+          who already have an invoice for that month are skipped, so running this
+          twice is safe.
+        </p>
+        <p class="small text-muted">
+          Each invoice records who collects it and at what commission, taken from
+          the client's own setting where they have one and the billing-settings
+          default otherwise.
+        </p>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% for field in form %}
+            <div class="mb-3">
+              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<div class="helptext mt-1">{{ field.help_text }}</div>{% endif %}
+              {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+          <button class="btn btn-primary" type="submit">Generate invoices</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-7">
+    <div class="card">
+      <div class="card-header">
+        Preview — {{ preview_period|date:"F Y" }}
+        <span class="badge text-bg-primary ms-2">{{ preview.created_count }} to raise</span>
+        <span class="badge text-bg-secondary ms-1">{{ preview.skipped|length }} skipped</span>
+        <div class="small text-muted mt-1 fw-normal">
+          {{ preview.reseller_collected|length }} for you to collect
+          ({{ preview.to_collect_total|money }}) ·
+          {{ preview.upstream_collected|length }} paid upstream directly ·
+          your commission {{ preview.commission_total|money }}
+        </div>
+      </div>
+      <div class="table-wrap" style="max-height:420px; overflow-y:auto">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Client</th><th>Collected by</th><th class="numeric">Amount</th>
+                     <th class="numeric">Commission</th></tr></thead>
+          <tbody>
+            {% for invoice in preview.created %}
+              <tr>
+                <td>{{ invoice.client.name }}<div class="small text-muted">{{ invoice.client.client_code }}</div></td>
+                <td>
+                  {% if invoice.collected_by_reseller %}
+                    <span class="badge text-bg-primary">You</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">Upstream</span>
+                  {% endif %}
+                </td>
+                <td class="numeric">{{ invoice.total|money }}</td>
+                <td class="numeric text-success">{{ invoice.commission_amount|money }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted small p-3">Nothing to bill for this month.</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if preview.created %}
+            <tfoot><tr>
+              <td colspan="2" class="fw-semibold">Total</td>
+              <td class="numeric fw-semibold">{{ preview.billed_total|money }}</td>
+              <td class="numeric fw-semibold text-success">{{ preview.commission_total|money }}</td>
+            </tr></tfoot>
+          {% endif %}
+        </table>
+      </div>
+      {% if preview.skipped %}
+        <div class="card-body border-top">
+          <div class="small text-muted mb-1">Skipped</div>
+          <ul class="small text-muted mb-0">
+            {% for code, reason in preview.skipped %}<li>{{ code }} — {{ reason }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

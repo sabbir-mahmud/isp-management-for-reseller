@@ -1,26 +1,20 @@
-# -----------------------------------#
-# warehouse urls
-# -----------------------------------#
-
 from django.urls import path
 
 from . import views
 
 urlpatterns = [
-    path('', views.warehouse_view, name='warehouse'),
-    path('add', views.WarehouseProductAddView.as_view(), name='warehouse_add'),
-    path('update/<str:pk>', views.WarehouseProductUpdateView.as_view(),
-         name='warehouse_update'),
-    path('delete/<str:pk>', views.WarehouseProductDeleteView.as_view(),
-         name='warehouse_delete'),
-    path('category', views.category_list, name="category"),
-    path('category/create', views.CategoryCreateView.as_view(), name="category-add"),
-    path('category/update/<str:pk>',
-         views.CategoryUpdateView.as_view(), name="category-update"),
-    path('category/delete/<str:pk>',
-         views.CategoryDeleteView.as_view(), name="category-delete"),
-    path('onus', views.onu_view, name='onu'),
-    path('onus_add', views.WarehouseOnuAddView.as_view(), name='onu_add'),
-    path('onus_edit/<str:pk>', views.WarehouseOnuUpdateView.as_view(), name='onu_edit'),
-    path('onus_del/<str:pk>', views.WarehouseOnuDeleteView.as_view(), name='onu_del'),
+    path("stock/", views.ProductListView.as_view(), name="product_list"),
+    path("stock/add/", views.ProductCreateView.as_view(), name="product_add"),
+    path("stock/<int:pk>/edit/", views.ProductUpdateView.as_view(), name="product_edit"),
+    path("stock/<int:pk>/delete/", views.ProductDeleteView.as_view(), name="product_delete"),
+    path("categories/", views.CategoryListView.as_view(), name="category_list"),
+    path("categories/add/", views.CategoryCreateView.as_view(), name="category_add"),
+    path("categories/<int:pk>/edit/", views.CategoryUpdateView.as_view(), name="category_edit"),
+    path("categories/<int:pk>/delete/", views.CategoryDeleteView.as_view(), name="category_delete"),
+    path("onus/", views.OnuListView.as_view(), name="onu_list"),
+    path("onus/add/", views.OnuCreateView.as_view(), name="onu_add"),
+    path("onus/<int:pk>/edit/", views.OnuUpdateView.as_view(), name="onu_edit"),
+    path("onus/<int:pk>/delete/", views.OnuDeleteView.as_view(), name="onu_delete"),
+    path("movements/", views.StockMovementListView.as_view(), name="movement_list"),
+    path("movements/add/", views.StockMovementCreateView.as_view(), name="movement_add"),
 ]

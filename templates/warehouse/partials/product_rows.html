@@ -1,0 +1,63 @@
+{% load ui %}
+{% for product in products %}
+  <tr{% if product.status == 'retired' %} class="row-muted"{% endif %}>
+    <td class="col-id">
+      <div class="cell-identity">
+        <span class="avatar avatar-sm avatar-square" aria-hidden="true">{{ product.name|initials }}</span>
+        <span class="cell-identity-text">
+          <span class="cell-identity-name">{{ product.name }}</span>
+          <span class="cell-sub">
+            {{ product.model|default:"" }}{% if product.model and product.sku %} · {% endif %}{% if product.sku %}<span class="cell-mono-inline">{{ product.sku }}</span>{% endif %}
+            {% if not product.model and not product.sku %}No model or SKU{% endif %}
+          </span>
+        </span>
+      </div>
+    </td>
+    <td>
+      <a class="cell-link" href="?category={{ product.category_id }}">{{ product.category.name }}</a>
+    </td>
+    <td class="col-load">
+      {% comment %}
+      The bar is scaled to twice the reorder level, so the reorder point sits
+      at its middle: a bar under half full is a bar that needs attention.
+      {% endcomment %}
+      <div class="stock-cell {% if product.quantity <= 0 %}is-out{% elif product.is_low %}is-low{% endif %}">
+        <span class="stock-count">{{ product.quantity }}</span>
+        <span class="stock-meter" title="Reorder at {{ product.reorder_level }}">
+          {% if product.reorder_level %}
+            <span class="stock-meter-fill" style="width: {% widthratio product.quantity product.reorder_level|add:product.reorder_level 100 %}%"></span>
+            <span class="stock-meter-mark"></span>
+          {% else %}
+            <span class="stock-meter-fill" style="width: {% if product.quantity > 0 %}100{% else %}0{% endif %}%"></span>
+          {% endif %}
+        </span>
+      </div>
+      <span class="cell-sub">
+        {% if product.quantity <= 0 %}Out of stock{% elif product.is_low %}Reorder — at {{ product.reorder_level }}{% elif product.reorder_level %}Reorder at {{ product.reorder_level }}{% else %}No reorder level{% endif %}
+      </span>
+    </td>
+    <td class="numeric col-money">{{ product.unit_price|money }}</td>
+    <td class="numeric col-money fw-semibold">{{ product.value|money }}</td>
+    <td class="col-status">{{ product.status|status_badge }}</td>
+    <td class="col-actions">
+      <div class="row-actions">
+        {% if perms.warehouse.add_stockmovement and product.status != 'retired' %}
+          <a class="row-action row-action-primary" href="{% url 'movement_add' %}?product={{ product.pk }}&kind=in&next=stock">Receive</a>
+          {% if product.quantity > 0 %}
+            <a class="row-action" href="{% url 'movement_add' %}?product={{ product.pk }}&kind=out&next=stock">Issue</a>
+          {% endif %}
+        {% endif %}
+        {% if perms.warehouse.change_product %}
+          <a class="row-action" href="{% url 'product_edit' product.pk %}">Edit</a>
+        {% endif %}
+        {% if perms.warehouse.delete_product %}
+          <a class="row-action row-action-danger" href="{% url 'product_delete' product.pk %}">Delete</a>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr><td colspan="7">
+    {% include "partials/empty.html" with title="No stock matches" hint="Adjust the search, or add the items you keep on the shelf." %}
+  </td></tr>
+{% endfor %}

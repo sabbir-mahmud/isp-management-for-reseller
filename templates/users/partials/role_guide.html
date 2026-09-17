@@ -1,0 +1,12 @@
+{% comment %}
+Under the role tiles: what each role can do, the picked one highlighted by
+the script in `staff_form.html`.
+{% endcomment %}
+<dl class="role-guide">
+  {% for value, text in form.role_descriptions.items %}
+    <div class="role-guide-row role-{{ value }}" data-role-guide="{{ value }}">
+      <dt><span class="role-tag role-{{ value }}">{{ value|capfirst }}</span></dt>
+      <dd>{{ text }}</dd>
+    </div>
+  {% endfor %}
+</dl>

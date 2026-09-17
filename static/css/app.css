@@ -1,0 +1,2489 @@
+/* Application shell. Bootstrap does the components; this file does the layout,
+   the palette and the few places the defaults are wrong for a dense admin. */
+
+/* ---- Typography -------------------------------------------------------- */
+
+/* Nunito Sans, self-hosted next to the other vendored assets so the app does
+   not depend on a font CDN. Variable files: one axis, every weight we use. */
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('../fonts/nunito-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('../fonts/nunito-sans-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: italic;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('../fonts/nunito-sans-latin-italic.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: italic;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('../fonts/nunito-sans-latin-ext-italic.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  /* Overrides Bootstrap's own stack, so every component it styles picks
+     Nunito Sans up without a per-component rule. */
+  --bs-font-sans-serif: 'Nunito Sans', system-ui, -apple-system, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --sidebar-width: 248px;
+  --content-max: 1560px;
+  --brand: #0f766e;
+  --brand-dark: #115e59;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --surface: #ffffff;
+  --canvas: #f6f8fa;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--bs-font-sans-serif);
+  font-size: 0.9375rem;
+}
+
+/* ---- Shell ------------------------------------------------------------- */
+
+.app-shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar-width);
+  flex: 0 0 var(--sidebar-width);
+  background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  transition: width 0.18s ease, transform 0.22s ease;
+  z-index: 1040;
+}
+
+/* A thin, dark scrollbar: the default light one cuts a bright stripe down
+   the side of the panel on Windows. */
+.sidebar-nav { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+/* ---- Brand ---- */
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.9rem 0.85rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  min-height: 62px;
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-decoration: none;
+  color: #fff;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.brand-mark {
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--brand) 0%, #0ea5a4 100%);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+}
+
+.brand-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.brand-name {
+  font-weight: 650;
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brand-tag { font-size: 0.6875rem; color: #64748b; white-space: nowrap; }
+
+.sidebar-close,
+.sidebar-toggle {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  border-radius: 8px;
+  padding: 0.3rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.sidebar-close:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.sidebar-close { display: none; }
+
+/* ---- Nav ---- */
+
+.sidebar-nav { flex: 1 1 auto; overflow-y: auto; padding: 0.5rem 0.6rem 1rem; }
+
+.sidebar .nav-link {
+  position: relative;
+  color: #b8c4d4;
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 1px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.sidebar .nav-icon {
+  flex: 0 0 18px;
+  display: grid;
+  place-items: center;
+  color: #7c8ba1;
+  transition: color 0.12s ease;
+}
+
+.sidebar .nav-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar .nav-link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.sidebar .nav-link:hover .nav-icon { color: #cbd5e1; }
+
+.sidebar .nav-link.active {
+  background: rgba(13, 148, 136, 0.16);
+  color: #fff;
+  font-weight: 550;
+}
+.sidebar .nav-link.active .nav-icon { color: #2dd4bf; }
+
+/* The active marker is a rail on the panel edge rather than a border on the
+   link, so the rounded pill keeps its shape. */
+.sidebar .nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: -0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand);
+}
+
+.sidebar .nav-link:focus-visible,
+.footer-btn:focus-visible,
+.sidebar-toggle:focus-visible {
+  outline: 2px solid #2dd4bf;
+  outline-offset: 2px;
+}
+
+.nav-badge {
+  flex: 0 0 auto;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  line-height: 1;
+  padding: 0.22rem 0.4rem;
+  border-radius: 999px;
+  min-width: 19px;
+  text-align: center;
+}
+.nav-badge-danger { background: #b91c1c; color: #fff; }
+.nav-badge-warning { background: #b45309; color: #fff; }
+
+/* ---- Nested groups ---- */
+
+.nav-group { margin-bottom: 1px; }
+
+.nav-parent {
+  width: 100%;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  color: #b8c4d4;
+}
+
+.nav-caret {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #5b6b82;
+  transition: transform 0.18s ease, color 0.12s ease;
+}
+.nav-group.open > .nav-parent .nav-caret { transform: rotate(90deg); color: #94a3b8; }
+.nav-parent:hover .nav-caret { color: #cbd5e1; }
+
+/* A group holding the open page stays legible while collapsed. */
+.nav-group.open > .nav-parent { color: #fff; }
+.nav-group.open > .nav-parent .nav-icon { color: #cbd5e1; }
+
+/* The count moves to the parent when the group is shut, so a closed section
+   never hides the fact that something needs attention. */
+.nav-group.open > .nav-parent .group-badge { display: none; }
+
+/* 0fr -> 1fr animates to the children's real height without hardcoding one. */
+.nav-children {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.18s ease;
+}
+.nav-group.open > .nav-children { grid-template-rows: 1fr; }
+.nav-children-inner { overflow: hidden; }
+
+/* The tree rail: one vertical line down the group, aligned under the parent
+   icon so the indent reads as containment rather than as padding. */
+.nav-children-inner {
+  position: relative;
+  padding: 1px 0 2px 1.55rem;
+}
+.nav-children-inner::before {
+  content: "";
+  position: absolute;
+  left: 1.05rem;
+  top: 0.1rem;
+  bottom: 0.35rem;
+  width: 1px;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.nav-children .nav-link {
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.6rem;
+  gap: 0.55rem;
+}
+.nav-children .nav-icon { flex-basis: 16px; }
+.nav-children .nav-icon svg { width: 16px; height: 16px; }
+
+/* Children sit inside a clipped container, so the panel-edge rail the
+   top-level items use would be cut off. They get a tick on the tree instead. */
+.nav-children .nav-link.active::before {
+  left: -0.5rem;
+  top: 50%;
+  height: 14px;
+  width: 2px;
+  border-radius: 2px;
+}
+
+/* ---- Footer ---- */
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 0.75rem 0.6rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.65rem 0.6rem;
+  min-width: 0;
+}
+
+.avatar {
+  flex: 0 0 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.18);
+  color: #e2e8f0;
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.user-meta { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.user-name {
+  color: #f1f5f9;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-role { color: #64748b; font-size: 0.6875rem; }
+
+.footer-actions { display: flex; gap: 0.35rem; }
+.footer-actions form { flex: 1 1 0; display: flex; }
+
+.footer-btn {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: transparent;
+  color: #b8c4d4;
+  font-size: 0.75rem;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.footer-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+
+/* ---- Collapsed (desktop icon rail) ---- */
+
+body.sidebar-collapsed { --sidebar-width: 68px; }
+body.sidebar-collapsed .brand-text,
+body.sidebar-collapsed .nav-text,
+body.sidebar-collapsed .nav-caret,
+body.sidebar-collapsed .user-meta { display: none; }
+body.sidebar-collapsed .sidebar-brand,
+body.sidebar-collapsed .user-card { justify-content: center; padding-inline: 0.5rem; }
+body.sidebar-collapsed .brand-link { justify-content: center; }
+body.sidebar-collapsed .sidebar .nav-link { justify-content: center; padding-inline: 0.5rem; }
+body.sidebar-collapsed .footer-actions { flex-direction: column; }
+/* Keep the count visible on the rail, as a dot on the icon. */
+body.sidebar-collapsed .nav-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
+  overflow: hidden;
+}
+/* On the icon rail there is no room for a tree, so every child is shown as a
+   flat icon and the group headers step out of the way. Nothing becomes
+   unreachable just because the panel is narrow. */
+body.sidebar-collapsed .nav-parent { display: none; }
+body.sidebar-collapsed .nav-children { grid-template-rows: 1fr; }
+body.sidebar-collapsed .nav-children-inner { padding: 0; }
+body.sidebar-collapsed .nav-children-inner::before { display: none; }
+body.sidebar-collapsed .nav-children .nav-link { padding: 0.5rem; }
+body.sidebar-collapsed .nav-children .nav-icon svg { width: 18px; height: 18px; }
+body.sidebar-collapsed .nav-group {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+}
+body.sidebar-collapsed .nav-group:first-of-type { border-top: 0; }
+
+/* ---- Backdrop (mobile only) ---- */
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.55);
+  z-index: 1035;
+}
+
+/* ---- Main column ---- */
+
+.app-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+
+.app-header {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 1px solid var(--line);
+  padding: 0.9rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.app-header-inner {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.app-header .sidebar-toggle {
+  color: var(--muted);
+  border-color: var(--line);
+  padding: 0.4rem;
+}
+.app-header .sidebar-toggle:hover { color: var(--ink); background: #f1f5f9; }
+
+.app-header h1 { font-size: 1.25rem; font-weight: 650; margin: 0; letter-spacing: -0.015em; }
+.app-header .subtitle { color: var(--muted); font-size: 0.8125rem; margin: 0.1rem 0 0; }
+
+.page-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+/* A dense admin is unreadable at 2560px if the tables stretch the full width;
+   the column caps out and centres instead. */
+.app-body { padding: 1.5rem; flex: 1 1 auto; }
+.app-body-inner { max-width: var(--content-max); margin: 0 auto; }
+
+/* Vertical rhythm between the blocks on a page, so each screen does not set
+   its own spacing. */
+.stack > * + * { margin-top: 1rem; }
+.section-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 650;
+  color: var(--muted);
+  margin: 1.75rem 0 0.25rem;
+}
+.section-title:first-child { margin-top: 0; }
+.section-title + .filter-chips { margin-top: 0.6rem; }
+
+/* ---- Cards & tables ---------------------------------------------------- */
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: var(--surface);
+}
+
+.card-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0.75rem 0.75rem 0 0;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.8rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.card-header .card-sub { font-weight: 400; color: var(--muted); font-size: 0.8125rem; }
+
+/* ---- Stat tiles ---- */
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem 1rem;
+  height: 100%;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+
+.stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.stat-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+/* Proportional figures, not tabular: at display sizes `tabular-nums` gives
+   every digit the width of a zero and a number like 121 reads loose. */
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  margin: 0.35rem 0 0;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.stat-meta {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.stat-note { font-size: 0.75rem; color: var(--muted); }
+
+.delta {
+  font-size: 0.75rem;
+  font-weight: 650;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.delta-good { background: #ecfdf5; color: #047857; }
+.delta-bad { background: #fef2f2; color: #b91c1c; }
+.delta-flat { background: #f1f5f9; color: var(--muted); }
+
+.stat-accent { border-color: rgba(13, 148, 136, 0.35); }
+.stat-accent .stat-icon { background: #ccfbf1; color: #0f766e; }
+
+/* ---- Hero figure ---- */
+
+.hero {
+  background: linear-gradient(135deg, #0f172a 0%, #134e4a 100%);
+  color: #fff;
+  border-radius: 0.75rem;
+  padding: 1.35rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  height: 100%;
+}
+.hero .stat-label { color: #8fb8b4; }
+.hero-value {
+  font-size: 3rem;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  margin: 0.35rem 0 0;
+}
+.hero .stat-note { color: #94a3b8; }
+.hero .delta-good { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+.hero .delta-bad { background: rgba(248, 113, 113, 0.16); color: #fca5a5; }
+.hero .delta-flat { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
+
+.hero-breakdown { display: flex; gap: 1.25rem; margin-top: 1rem; flex-wrap: wrap; }
+.hero-part { display: flex; flex-direction: column; font-size: 0.9375rem; font-weight: 600; }
+.hero-part-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8fb8b4;
+  font-weight: 600;
+}
+.hero-trend { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+.sparkline { display: block; }
+
+/* ---- Tables ---- */
+
+.table {
+  --bs-table-bg: var(--surface);
+  --bs-table-hover-bg: #f8fafc;
+  --cell-gutter: 1rem;
+  margin-bottom: 0;
+}
+.table > thead th {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 650;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  background: #fbfcfd;
+  padding: 0.55rem 0.75rem;
+}
+.table > tbody td { vertical-align: middle; padding: 0.65rem 0.75rem; }
+.table > tbody tr:last-child td { border-bottom: 0; }
+
+/* The outer columns line up with the toolbar and pagination above and below,
+   so the card reads as one panel instead of a table dropped inside a box. */
+.table > :is(thead, tbody) > tr > :first-child { padding-left: var(--cell-gutter); }
+.table > :is(thead, tbody) > tr > :last-child { padding-right: var(--cell-gutter); }
+.table > thead th.sortable:first-child > a { padding-left: var(--cell-gutter); }
+.table > thead th.sortable:last-child > a { padding-right: var(--cell-gutter); }
+
+.table-wrap { overflow-x: auto; }
+/* `overflow: hidden` here was rounding the card's bottom corners at the cost
+   of the table's horizontal scroll, so on a narrow screen the last columns —
+   status and the row actions — were unreachable. `overflow-x: auto` rounds
+   the corners just as well, because any non-visible overflow clips to the
+   radius, and it gives the scroll back. */
+.card > .table-wrap:last-child { border-radius: 0 0 0.75rem 0.75rem; overflow-x: auto; }
+
+.numeric { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Status pills sit in every row, so in a table they are tinted rather than
+   filled — a column of solid colour reads as a column of warnings. */
+.table .badge {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  padding: 0.3em 0.55em;
+  border-radius: 0.4rem;
+}
+.table .badge.text-bg-success { color: #047857 !important; background: #ecfdf5 !important; box-shadow: inset 0 0 0 1px #a7f3d0; }
+.table .badge.text-bg-warning { color: #b45309 !important; background: #fffbeb !important; box-shadow: inset 0 0 0 1px #fde68a; }
+.table .badge.text-bg-danger { color: #b91c1c !important; background: #fef2f2 !important; box-shadow: inset 0 0 0 1px #fecaca; }
+.table .badge.text-bg-info { color: #1d4ed8 !important; background: #eff6ff !important; box-shadow: inset 0 0 0 1px #bfdbfe; }
+.table .badge.text-bg-secondary { color: #475569 !important; background: #f1f5f9 !important; box-shadow: inset 0 0 0 1px #e2e8f0; }
+.table .badge.text-bg-dark { color: #334155 !important; background: #f8fafc !important; box-shadow: inset 0 0 0 1px #cbd5e1; }
+
+.empty-state { padding: 2.5rem 1rem; text-align: center; color: var(--muted); }
+.empty-state .empty-title { font-weight: 600; color: var(--ink); margin-bottom: 0.15rem; }
+
+/* ---- Meter ------------------------------------------------------------- */
+
+/* The track is a lighter step of the fill's own hue, so the state reads across
+   the whole bar rather than only where the fill stops. */
+.meter { background: #ccfbf1; border-radius: 999px; height: 8px; overflow: hidden; }
+.meter-fill { background: #0d9488; height: 100%; border-radius: 999px; }
+.meter-fill.warning { background: #d97706; }
+.meter-fill.danger { background: #dc2626; }
+
+/* ---- Chart ------------------------------------------------------------- */
+
+.chart-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+.chart-plot {
+  position: relative;
+  height: var(--plot-height, 180px);
+  padding-left: 42px;
+}
+
+.chart-axis { position: absolute; inset: 0 0 0 0; width: 42px; }
+.chart-tick {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 0.6875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-grid { position: absolute; inset: 0 0 0 42px; }
+/* Solid hairline, one step off the surface. Dashed grid reads as a threshold. */
+.chart-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line);
+}
+
+.chart-bands {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.chart-band {
+  flex: 1 1 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 4px 4px 0 0;
+  cursor: default;
+}
+.chart-band:hover, .chart-band:focus-visible { background: rgba(15, 23, 42, 0.04); outline: none; }
+
+/* A 2px surface gap separates the two columns in a band — white doing the
+   separating, rather than a stroke drawn round each bar. */
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 100%;
+  width: 100%;
+  justify-content: center;
+  padding: 0 2px;
+}
+
+/* Capped rather than filling the band: the leftover space is the air that
+   keeps a dense chart readable. Square at the baseline, rounded at the cap. */
+.chart-bar {
+  flex: 1 1 0;
+  max-width: 24px;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  transition: opacity 0.12s ease;
+}
+.chart-band:hover .chart-bar { opacity: 0.85; }
+
+.chart-labels {
+  display: flex;
+  gap: 2px;
+  padding-left: 42px;
+  margin-top: 0.4rem;
+}
+.chart-label {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.chart-table { margin-top: 0.9rem; }
+.chart-table summary {
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+.chart-table summary:hover { color: var(--ink); }
+.chart-table .table-wrap { margin-top: 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; }
+
+/* Tooltip driven by `data-tip`; one element reused for every band. */
+.chart-tooltip {
+  position: fixed;
+  z-index: 1080;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  max-width: 260px;
+  box-shadow: 0 4px 14px rgba(2, 6, 23, 0.3);
+}
+.chart-tooltip.visible { opacity: 1; }
+
+/* ---- Breakdown rows (aging, mixes) ------------------------------------- */
+
+.breakdown { display: flex; flex-direction: column; gap: 0.7rem; }
+.breakdown-row { display: grid; grid-template-columns: 1fr auto; gap: 0.2rem 0.75rem; }
+.breakdown-label { font-size: 0.8125rem; color: var(--muted); }
+.breakdown-value { font-size: 0.8125rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+.breakdown-track {
+  grid-column: 1 / -1;
+  height: 6px;
+  background: #eef2f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+/* `display: block` is load-bearing: the fill is a <span>, and an inline box
+   ignores height, so every one of these tracks rendered empty. */
+.breakdown-fill { display: block; height: 100%; border-radius: 999px; background: #0d9488; }
+
+/* ---- Filter chips ------------------------------------------------------ */
+
+/* The counts double as the status filter: reading "12 suspended" and then
+   hunting for them in a dropdown was the old flow. */
+.filter-chips { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+.chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.6rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--ink);
+  min-width: 112px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.chip:hover { border-color: #cbd5e1; background: #fbfcfd; }
+
+.chip-value { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.02em; line-height: 1.1; }
+.chip-label { font-size: 0.75rem; color: var(--muted); }
+
+.chip-on { border-color: var(--brand); background: #f0fdfa; box-shadow: inset 0 0 0 1px var(--brand); }
+.chip-on .chip-value { color: var(--brand-dark); }
+.chip-success .chip-value { color: #047857; }
+.chip-warning .chip-value { color: #b45309; }
+.chip-muted .chip-value { color: var(--muted); }
+.chip-danger .chip-value { color: #b91c1c; }
+
+/* ---- Index toolbar ----------------------------------------------------- */
+
+.index-card { overflow: hidden; }
+
+.toolbar { border-bottom: 1px solid var(--line); background: #fbfcfd; }
+
+.toolbar-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  flex-wrap: wrap;
+}
+
+/* Search is the field people actually use, so it takes the room and the rest
+   sit beside it — rather than five equal boxes where nothing leads. */
+.toolbar-search { position: relative; flex: 1 1 320px; min-width: 220px; }
+.toolbar-search .form-control { padding-left: 2.15rem; height: 38px; }
+.toolbar-search-icon {
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.toolbar-field { display: flex; flex-direction: column; gap: 0.2rem; flex: 0 1 auto; min-width: 150px; }
+.toolbar-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.toolbar-field .form-select,
+.toolbar-field .form-control { height: 38px; }
+/* A date range is one control: two borderless inputs sharing a box, with an
+   arrow between them, so it reads as "from → to" rather than two unrelated
+   dates. The box takes the focus ring when either input has focus. */
+.toolbar-range { min-width: 300px; }
+.toolbar-range[hidden] { display: none; }
+.range-control {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.range-control:focus-within {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+.range-input {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0 0.6rem;
+  font-size: 0.875rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.range-input:focus { outline: none; }
+.range-sep { color: var(--muted); font-size: 0.8125rem; padding: 0 0.1rem; }
+
+/* A select that applies itself. Nothing to see; the class is for the script. */
+.toolbar-select { display: contents; }
+
+/* A revealed range arrives with a short fade instead of a jump. */
+@media (prefers-reduced-motion: no-preference) {
+  .toolbar-range:not([hidden]) { animation: toolbar-reveal 0.16s ease-out; }
+}
+@keyframes toolbar-reveal {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Apply and Reset are a pair and sit at the input height, so the row of
+   controls has one baseline instead of a button floating in it. */
+.toolbar-actions { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
+.toolbar-actions .btn { height: 38px; display: inline-flex; align-items: center; padding-inline: 1rem; font-weight: 600; }
+
+/* Reset was a bare text link, which read as a caption rather than a control.
+   It is now a real button, but a quiet one: neutral until you reach for it,
+   then red, because it throws the current search away. */
+.btn-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 38px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  background: var(--surface);
+  color: #475569;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+.btn-reset svg { transition: transform 0.25s ease; }
+.btn-reset:hover { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+.btn-reset:hover svg { transform: rotate(-120deg); }
+.btn-reset:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+/* Nothing to reset: kept in place rather than removed, so Apply does not jump
+   sideways the moment a filter is cleared. */
+.btn-reset.is-idle {
+  color: #a8b3c2;
+  background: #f8fafc;
+  border-color: #eef2f6;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) { .btn-reset svg { transition: none; } }
+
+/* What is applied, and how much came back. Without it a filtered list looks
+   identical to an unfiltered one until you read the form — which is how
+   people conclude that records have gone missing. */
+.toolbar-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1rem 0.7rem;
+  flex-wrap: wrap;
+  min-height: 0;
+}
+.toolbar-status:empty { display: none; }
+.toolbar-count { margin-left: auto; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+
+.active-filters { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.active-filters-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  border-radius: 999px;
+  padding: 0.15rem 0.3rem 0.15rem 0.55rem;
+  max-width: 260px;
+}
+.pill-key { color: #047857; opacity: 0.75; }
+.pill-key::after { content: ":"; margin-right: 0.15rem; }
+
+.pill-remove {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #065f46;
+  text-decoration: none;
+  line-height: 1;
+  font-size: 0.8125rem;
+}
+.pill-remove:hover { background: #a7f3d0; color: #064e3b; }
+
+/* ---- Index table ------------------------------------------------------- */
+
+/* One column vocabulary for every index page. Clients, packages and POPs show
+   different data, but a column of the same *kind* is the same width and the
+   same alignment on all three — that is what makes them feel related. */
+.index-table { --cell-gutter: 1rem; }
+.index-table .col-id { min-width: 230px; }
+.index-table .col-text { min-width: 180px; }
+.index-table .col-money { width: 132px; }
+.index-table .col-load { width: 168px; }
+.index-table .col-status { width: 116px; }
+.index-table .col-actions { width: 1%; white-space: nowrap; text-align: right; }
+
+/* Free text (an address, a note) gets one line and then truncates. Left to
+   itself it sets the width of the whole table. The clamp is per table rather
+   than global: a five-column table gives its text column more room than an
+   eight-column one, and a clamp that ignores that leaves a visible gap. */
+.index-table .col-text > * {
+  display: block;
+  max-width: 30ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.index-table .col-text-wide > * { max-width: 48ch; }
+
+.load-cell { display: flex; align-items: center; gap: 0.5rem; }
+.load-count { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 3ch; }
+.load-cell .breakdown-track { flex: 1 1 auto; }
+.load-sub { display: block; margin-top: 0.2rem; font-size: 0.6875rem; color: var(--muted); white-space: nowrap; }
+
+/* The left-hand anchor every index row starts with: initials for a person, an
+   icon for a thing. Same size and same optical weight either way, so the three
+   tables share one rhythm down the first column. */
+.cell-mark {
+  flex: 0 0 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #ccfbf1;
+  color: #0f766e;
+  display: grid;
+  place-items: center;
+}
+.row-muted .cell-mark { background: #f1f5f9; color: var(--muted); }
+
+/* ---- Sortable headers -------------------------------------------------- */
+
+.table > thead th.sortable { padding: 0; }
+.table > thead th.sortable > a {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.6rem 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+.table > thead th.sortable.numeric > a { justify-content: flex-end; }
+.table > thead th.sortable > a:hover { color: var(--ink); background: #f1f5f9; }
+.table > thead th.sorted > a { color: var(--ink); }
+
+.sort-arrow { font-size: 0.6875rem; opacity: 0.4; }
+.table > thead th.sorted .sort-arrow { opacity: 1; color: var(--brand); }
+
+/* ---- Table cells ------------------------------------------------------- */
+
+.cell-identity { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.cell-identity-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.cell-identity-name { font-weight: 600; color: var(--ink); text-decoration: none; }
+a.cell-identity-name:hover { color: var(--brand-dark); text-decoration: underline; }
+/* A link that is not the row's own record: readable as text, a link on hover. */
+.cell-link { color: var(--ink); text-decoration: none; }
+.cell-link:hover { color: var(--brand-dark); text-decoration: underline; }
+
+/* Only the inline form needs promoting to a block. Setting `display: block`
+   unconditionally also hit `<td class="cell-sub">`, which drops the cell out
+   of its row and collapses the rest of the table around it. */
+.cell-sub { font-size: 0.75rem; color: var(--muted); }
+span.cell-sub { display: block; }
+.unit { font-weight: 400; color: var(--muted); font-size: 0.75rem; }
+
+.avatar-sm { flex: 0 0 28px; height: 28px; font-size: 0.6875rem; background: #e2e8f0; color: #475569; }
+.avatar-lg { flex: 0 0 56px; height: 56px; font-size: 1.125rem; background: #ccfbf1; color: #0f766e; }
+
+/* Row actions stay quiet until the row is under the cursor, so a dense table
+   reads as data rather than as a wall of buttons. They are dimmed with colour
+   rather than opacity — a half-transparent label is a label nobody with
+   average eyesight can read, and the row is still the thing being scanned. */
+.row-actions { display: inline-flex; gap: 0.25rem; justify-content: flex-end; }
+
+.row-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+tr:hover .row-action { color: #334155; border-color: var(--line); background: var(--surface); }
+.row-action:hover { color: var(--brand-dark); border-color: #99f6e4; background: #f0fdfa; }
+/* The one action a row exists for (taking a payment) stays legible at rest;
+   the rest wait for the cursor. */
+.row-action-primary { color: var(--brand-dark); }
+tr:hover .row-action-primary { color: var(--brand-dark); border-color: #99f6e4; background: #f0fdfa; }
+.row-action-danger:hover { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+.row-action:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+  color: #334155;
+  border-color: var(--line);
+  background: var(--surface);
+}
+@media (hover: none) { .row-action { color: #334155; border-color: var(--line); background: var(--surface); } }
+
+.row-muted td { background: #fbfcfd; }
+.row-muted td:first-child { box-shadow: inset 3px 0 0 #e2e8f0; }
+
+/* ---- POP tree ---------------------------------------------------------- */
+
+/* Depth is expressed as an indent on the same identity cell the other two
+   tables use, so a POP row keeps the shared mark-plus-two-lines rhythm and
+   only its left edge moves. */
+.cell-identity.is-tree { padding-left: calc(var(--depth, 0) * 1.25rem); position: relative; }
+.tree-branch {
+  position: absolute;
+  left: calc((var(--depth, 0) - 1) * 1.25rem + 0.5rem);
+  top: 50%;
+  width: 0.6rem;
+  height: 1px;
+  background: #cbd5e1;
+}
+
+/* ---- Profile header ---------------------------------------------------- */
+
+.profile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  flex-wrap: wrap;
+}
+.profile-identity { flex: 1 1 260px; min-width: 0; }
+.profile-name { font-size: 1.35rem; font-weight: 650; letter-spacing: -0.02em; margin: 0 0 0.35rem; }
+.profile-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
+
+.tag {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.18rem 0.45rem;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+.tag-accent { background: #ccfbf1; color: #0f766e; }
+.tag-danger { background: #fee2e2; color: #b91c1c; }
+
+.profile-balance { text-align: right; margin-left: auto; }
+.profile-balance .statement-figure { margin: 0.2rem 0 0; }
+
+/* A strip of the facts a support call actually needs, rather than a
+   definition list you have to scroll. */
+.profile-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border-top: 1px solid var(--line);
+  background: #fbfcfd;
+}
+.fact { padding: 0.7rem 1.25rem; border-right: 1px solid var(--line); min-width: 0; }
+.fact:last-child { border-right: 0; }
+.fact-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.fact-value {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.875rem;
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Invoices ---------------------------------------------------------- */
+
+/* A document rather than a person, so the profile mark is a square with the
+   invoice glyph instead of a round set of initials. */
+.avatar-doc { border-radius: 0.75rem; }
+
+a.fact-link { color: var(--ink); text-decoration: none; }
+a.fact-link:hover { color: var(--brand-dark); text-decoration: underline; }
+
+.balance-meter { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; width: 220px; margin-left: auto; }
+.balance-meter .breakdown-track { width: 100%; }
+
+.breakdown-fill.upstream { background: #94a3b8; }
+.split-note {
+  margin: 1rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* What the rows below add up to: one bordered strip, not four tiles, so it
+   reads as a summary of the table rather than as a dashboard. */
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1.1rem;
+  border-right: 1px solid var(--line);
+  min-width: 0;
+}
+.summary-item:last-child { border-right: 0; }
+.summary-value {
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.summary-accent { color: var(--brand-dark); }
+.summary-meter { display: flex; align-items: center; gap: 0.5rem; }
+.summary-meter .breakdown-track { flex: 1 1 auto; }
+
+/* A short timeline in place of a four-column table squeezed into a sidebar. */
+.activity { list-style: none; margin: 0; padding: 0; }
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--line);
+}
+.activity-item:first-child { border-top: 0; }
+.activity-main { flex: 1 1 auto; min-width: 0; }
+.activity-title { font-weight: 650; color: #047857; font-variant-numeric: tabular-nums; }
+.activity-item .row-action { color: #334155; border-color: var(--line); }
+
+@media (max-width: 992px) {
+  .summary-item { border-bottom: 1px solid var(--line); }
+  .profile-balance { text-align: left; margin-left: 0; flex-basis: 100%; }
+  .balance-meter { align-items: flex-start; margin-left: 0; }
+}
+
+/* ---- Payments ---------------------------------------------------------- */
+
+/* A day's header in the payments table: the date, and the total the cash
+   drawer is counted against. Quieter than a row, louder than a divider. */
+.table > tbody > tr.day-row > td {
+  background: #f6f8fa;
+  border-top: 1px solid var(--line);
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: #334155;
+}
+.table-hover > tbody > tr.day-row:hover > * { --bs-table-bg-state: transparent; }
+.day-name { margin-right: 0.6rem; }
+.day-count { color: var(--muted); font-weight: 500; }
+
+/* Each channel keeps one colour everywhere it appears, close to the brand a
+   cashier already knows it by, so a column of them can be scanned by hue. */
+.method-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  padding: 0.18rem 0.5rem;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #475569;
+  white-space: nowrap;
+}
+.method-cash { background: #dcfce7; color: #166534; }
+.method-bkash { background: #fce7f3; color: #be185d; }
+.method-nagad { background: #ffedd5; color: #c2410c; }
+.method-rocket { background: #f3e8ff; color: #7e22ce; }
+.method-bank { background: #dbeafe; color: #1d4ed8; }
+.method-online { background: #e0f2fe; color: #0369a1; }
+
+.cell-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Upstream ---------------------------------------------------------- */
+
+/* The one answer the page is opened for, with the arrangement behind it on
+   the right. The left edge takes the colour of the answer. */
+.net-banner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid #cbd5e1;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+.net-banner.is-owing { border-left-color: #dc2626; }
+.net-banner.is-owed { border-left-color: #059669; }
+.net-main, .net-arrangement { display: flex; flex-direction: column; gap: 0.3rem; padding: 1.1rem 1.25rem; }
+.net-arrangement { border-left: 1px solid var(--line); background: #fbfcfd; }
+.net-value {
+  margin: 0.1rem 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.is-owing .net-value { color: #b91c1c; }
+.is-owed .net-value { color: #047857; }
+
+.split-bar { display: flex; height: 10px; border-radius: 999px; background: #94a3b8; overflow: hidden; margin: 0.35rem 0 0.1rem; }
+.split-seg { display: block; height: 100%; }
+.seg-you { background: #0f766e; }
+.dot-you { background: #0f766e; }
+.dot-up { background: #94a3b8; }
+
+.balance-card .statement-figure { margin-bottom: 0.75rem; }
+.balance-progress { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.balance-progress .breakdown-track { flex: 1 1 auto; }
+.balance-progress .stat-note { white-space: nowrap; }
+.balance-footer {
+  background: #fbfcfd;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 0.75rem 0.75rem;
+  padding: 0.65rem 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Two groups of three columns under one header row each. */
+.months-table > thead th.group-head {
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.3rem;
+}
+.months-table .group-start { border-left: 1px solid var(--line); }
+.settled-mark {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  color: #047857;
+  background: #dcfce7;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+}
+
+.direction-mark {
+  flex: 0 0 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  font-weight: 700;
+}
+.direction-mark.is-out { background: #fee2e2; color: #b91c1c; }
+.direction-mark.is-in { background: #dcfce7; color: #047857; }
+
+@media (max-width: 992px) {
+  .net-banner { grid-template-columns: minmax(0, 1fr); }
+  .net-arrangement { border-left: 0; border-top: 1px solid var(--line); }
+  .net-value { font-size: 1.6rem; }
+}
+
+/* ---- Expenses ---------------------------------------------------------- */
+
+/* One hue per category, used by the tag, the dot and the bar alike, so the
+   breakdown and the table can be read against each other. */
+.cat-bandwidth { --cat: #0891b2; --cat-bg: #cffafe; --cat-ink: #0e7490; }
+.cat-salary { --cat: #7c3aed; --cat-bg: #ede9fe; --cat-ink: #6d28d9; }
+.cat-equipment { --cat: #ea580c; --cat-bg: #ffedd5; --cat-ink: #c2410c; }
+.cat-maintenance { --cat: #ca8a04; --cat-bg: #fef9c3; --cat-ink: #a16207; }
+.cat-rent { --cat: #db2777; --cat-bg: #fce7f3; --cat-ink: #be185d; }
+.cat-other { --cat: #64748b; --cat-bg: #f1f5f9; --cat-ink: #475569; }
+/* Other income, by source. */
+.cat-installation { --cat: #0d9488; --cat-bg: #ccfbf1; --cat-ink: #0f766e; }
+.cat-hardware { --cat: #2563eb; --cat-bg: #dbeafe; --cat-ink: #1d4ed8; }
+.cat-service { --cat: #d97706; --cat-bg: #fef3c7; --cat-ink: #b45309; }
+
+/* Income figures read as money coming in. */
+.ledger-income .summary-total,
+.ledger-income .ledger-amount { color: #047857; }
+
+.dot[class*="cat-"] { background: var(--cat); }
+.breakdown-fill[class*="cat-"] { background: var(--cat); }
+
+.category-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  padding: 0.18rem 0.5rem;
+  border-radius: 5px;
+  background: var(--cat-bg, #f1f5f9);
+  color: var(--cat-ink, #475569);
+  white-space: nowrap;
+}
+
+.category-list { display: flex; flex-direction: column; gap: 0.25rem; }
+.category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.3rem 0.75rem;
+  padding: 0.5rem 0.6rem;
+  margin: 0 -0.6rem;
+  border-radius: 0.5rem;
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.12s ease;
+}
+.category-row:hover { background: #f6f8fa; }
+.category-row.is-on { background: #f0fdfa; box-shadow: inset 0 0 0 1px #99f6e4; }
+.category-row:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.category-name { display: flex; align-items: center; font-size: 0.8125rem; font-weight: 600; min-width: 0; }
+.category-figure { font-size: 0.8125rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.category-share { color: var(--muted); font-weight: 500; margin-left: 0.5rem; display: inline-block; min-width: 2.6rem; text-align: right; }
+
+/* ---- ONUs -------------------------------------------------------------- */
+
+/* Out of spares is the one state on this page that stops work, so it is
+   said above everything else rather than left for a zero to imply. */
+.stock-alert {
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  background: #fef2f2;
+  color: #7f1d1d;
+  border-radius: 0.6rem;
+  padding: 0.7rem 0.95rem;
+  font-size: 0.8125rem;
+}
+.stock-alert a { color: #b91c1c; font-weight: 650; margin-left: 0.35rem; }
+
+/* Where each model's units are: installed, spare, out of service. */
+.dot-installed, .seg-installed { background: #0f766e; }
+.dot-stock, .seg-stock { background: #5eead4; }
+.dot-out, .seg-out { background: #f87171; }
+
+.model-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.35rem 1.5rem; }
+.model-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem 0.75rem;
+  padding: 0.55rem 0.65rem;
+  margin: 0 -0.65rem;
+  border-radius: 0.5rem;
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.12s ease;
+}
+a.model-row:hover { background: #f6f8fa; }
+.model-row.is-on { background: #f0fdfa; box-shadow: inset 0 0 0 1px #99f6e4; }
+a.model-row:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.model-name { font-size: 0.875rem; font-weight: 650; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-counts { font-size: 0.75rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.model-counts b { color: var(--ink); }
+
+.fleet-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  background: #eef2f6;
+  overflow: hidden;
+}
+.fleet-seg { display: block; height: 100%; }
+
+/* The device's status, at a glance, before the badge is read. */
+.device-mark {
+  flex: 0 0 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+.device-mark.status-in_stock { background: #ccfbf1; color: #0f766e; }
+.device-mark.status-assigned { background: #e0f2fe; color: #0369a1; }
+.device-mark.status-faulty { background: #fee2e2; color: #b91c1c; }
+
+/* A serial is read character by character, so it gets fixed-width digits. */
+.cell-mono-strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+}
+
+/* ---- Stock ------------------------------------------------------------- */
+
+.stock-alert-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  border-color: #fde68a;
+  border-left-color: #d97706;
+  background: #fffbeb;
+  color: #78350f;
+}
+.stock-alert-warning a { color: #b45309; white-space: nowrap; }
+.reorder-item {
+  display: inline-block;
+  margin: 0.15rem 0 0 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  font-size: 0.75rem;
+}
+.reorder-item b { font-variant-numeric: tabular-nums; margin-left: 0.2rem; }
+.reorder-item.is-out { background: #fee2e2; color: #991b1b; }
+
+/* Items and categories are things, not people: square initials. */
+.avatar-square { border-radius: 7px; }
+.cell-mono-inline { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* On hand: the count, and a bar scaled so the reorder point is its middle. */
+.stock-cell { display: flex; align-items: center; gap: 0.6rem; }
+.stock-count { font-weight: 700; min-width: 2.5ch; font-variant-numeric: tabular-nums; }
+.stock-meter {
+  position: relative;
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: #eef2f6;
+  overflow: hidden;
+}
+.stock-meter-fill { display: block; height: 100%; max-width: 100%; border-radius: 999px; background: #0d9488; }
+.stock-meter-mark { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; }
+.stock-cell.is-low .stock-count { color: #b45309; }
+.stock-cell.is-low .stock-meter-fill { background: #f59e0b; }
+.stock-cell.is-out .stock-count { color: #b91c1c; }
+
+/* ---- Category form ----------------------------------------------------- */
+
+.category-holdings { margin-bottom: 1rem; }
+.category-holdings .profile-balance a { color: var(--brand-dark); font-weight: 600; }
+
+/* The typed name matches one already taken. */
+.form-control.is-clashing { border-color: #f59e0b; }
+.form-control.is-clashing:focus { border-color: #d97706; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18); }
+.name-clash { color: #b45309; }
+.name-clash[hidden] { display: none; }
+
+.existing-names { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-top: 0.6rem; }
+.existing-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+  margin-right: 0.2rem;
+}
+.existing-chip {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.existing-chip.is-match { background: #fef3c7; color: #92400e; box-shadow: inset 0 0 0 1px #f59e0b; }
+.existing-more { font-size: 0.75rem; color: var(--muted); }
+
+.char-count { margin-top: 0.3rem; text-align: right; font-size: 0.6875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.char-count.is-near { color: #b45309; font-weight: 600; }
+
+/* The row this category will be, drawn with the list's own cell styles. */
+.row-preview {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed #dbe3ec;
+  border-radius: 0.55rem;
+  background: #f8fafc;
+}
+.row-preview-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.row-preview .cell-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-preview .is-placeholder { color: #a8b3c2; }
+
+/* ---- Staff ------------------------------------------------------------- */
+
+/* One colour per role, on the tag, the avatar and the role card alike. */
+.role-owner { --role: #7c3aed; --role-bg: #ede9fe; --role-ink: #6d28d9; }
+.role-manager { --role: #0f766e; --role-bg: #ccfbf1; --role-ink: #0f766e; }
+.role-accountant { --role: #2563eb; --role-bg: #dbeafe; --role-ink: #1d4ed8; }
+.role-support { --role: #d97706; --role-bg: #fef3c7; --role-ink: #b45309; }
+
+.role-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  padding: 0.18rem 0.5rem;
+  border-radius: 5px;
+  background: var(--role-bg, #f1f5f9);
+  color: var(--role-ink, #475569);
+  white-space: nowrap;
+}
+.avatar.role-avatar { background: var(--role-bg); color: var(--role-ink); }
+
+.role-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.8rem 0.95rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--role);
+  border-radius: 0.6rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.role-card:hover { background: #fbfcfd; border-color: #cbd5e1; border-top-color: var(--role); }
+.role-card.is-on { background: var(--role-bg); border-color: var(--role); box-shadow: inset 0 0 0 1px var(--role); }
+.role-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.role-card-head { display: flex; align-items: center; justify-content: space-between; }
+.role-card-count { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.role-card-text { font-size: 0.75rem; color: var(--muted); line-height: 1.45; }
+
+.staff-card { margin-bottom: 1rem; }
+
+/* Under the role tiles: what each role means, the chosen one lit. */
+.role-guide { margin: 0.8rem 0 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.role-guide-row {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.45rem;
+  transition: background 0.12s ease;
+}
+.role-guide-row dt { margin: 0; }
+.role-guide-row dd { margin: 0; font-size: 0.8125rem; color: var(--muted); line-height: 1.45; }
+.role-guide-row.is-on { background: var(--role-bg); }
+.role-guide-row.is-on dd { color: var(--ink); }
+
+@media (max-width: 992px) {
+  .role-guide-row { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+}
+
+/* ---- Billing settings -------------------------------------------------- */
+
+.settings-reach { margin-bottom: 1rem; }
+.settings-reach .profile-name { margin-top: 0.15rem; }
+.collection-guide .role-guide-row { grid-template-columns: 7.5rem minmax(0, 1fr); }
+.collection-guide .role-guide-row.is-on { background: #f0fdfa; }
+
+/* What a typed value will do, shown before it is saved. */
+.settings-preview {
+  margin-top: 0.7rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px dashed #dbe3ec;
+  border-radius: 0.55rem;
+  background: #f8fafc;
+}
+.settings-preview.is-invalid { border-color: #fecaca; background: #fef2f2; }
+.settings-preview-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.settings-split { margin: 0.2rem 0 0; }
+.settings-split .split-seg { transition: width 0.2s ease; }
+.settings-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+.settings-preview-grid b { font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) { .settings-split .split-seg { transition: none; } }
+@media (max-width: 992px) {
+  .collection-guide .role-guide-row { grid-template-columns: minmax(0, 1fr); }
+  .settings-preview-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- Movements --------------------------------------------------------- */
+
+.direction-mark.is-adjust { background: #f1f5f9; color: #475569; }
+.qty { font-weight: 700; font-variant-numeric: tabular-nums; }
+.qty-in { color: #047857; }
+.qty-out { color: #b91c1c; }
+
+/* Before → after, under the quantity on the movement form. */
+.stock-preview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 0.7rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px dashed #dbe3ec;
+  border-radius: 0.55rem;
+  background: #f8fafc;
+}
+.stock-preview[hidden] { display: none; }
+.stock-preview-step { display: flex; flex-direction: column; }
+.stock-preview-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.stock-preview-step b { font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+.stock-preview-arrow { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.stock-preview-note { flex-basis: 100%; font-size: 0.8125rem; font-weight: 600; }
+.stock-preview-note:empty { display: none; }
+.stock-preview[data-tone="warn"] { border-color: #fde68a; background: #fffbeb; }
+.stock-preview[data-tone="warn"] .stock-preview-note { color: #b45309; }
+.stock-preview[data-tone="bad"] { border-color: #fecaca; background: #fef2f2; }
+.stock-preview[data-tone="bad"] .stock-preview-note { color: #b91c1c; }
+
+/* ---- Period stepper ---------------------------------------------------- */
+
+.period-nav { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+.period-step {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--surface);
+  text-decoration: none;
+}
+.period-step:hover { color: var(--ink); background: #f1f5f9; }
+.period-step.disabled { opacity: 0.35; pointer-events: none; }
+.icon.flip { transform: rotate(180deg); }
+
+/* ---- Statement --------------------------------------------------------- */
+
+.statement > tbody > tr > td { padding: 0.5rem 0.75rem; }
+.statement-note { font-size: 0.6875rem; color: var(--muted); margin-top: 0.1rem; }
+
+/* Context lines are the working, not the result: recessive, and the gross
+   figure they carry is deliberately quieter than the revenue below it. */
+.statement-context > td,
+.statement-context-sub > td { color: var(--muted); font-size: 0.8125rem; }
+.statement-context-sub > td:first-child { padding-left: 1.6rem; }
+
+.statement-line > td { color: var(--ink); }
+.statement-negative > td { color: var(--ink); }
+
+.statement-subtotal > td {
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+}
+.statement-total > td {
+  border-top: 2px solid var(--ink);
+  border-bottom: 0;
+  font-weight: 700;
+  font-size: 1rem;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+.statement-meta > td { color: var(--muted); font-size: 0.8125rem; border-top: 0; }
+.statement-prior { color: var(--muted); }
+
+.statement-delta { font-weight: 600; font-size: 0.8125rem; }
+.statement-delta.up { color: #047857; }
+.statement-delta.down { color: #b91c1c; }
+
+.statement-figure {
+  font-size: 1.375rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin: 0.3rem 0 0.15rem;
+}
+
+.breakdown-fill.expense { background: #ea580c; }
+
+/* ---- Print ------------------------------------------------------------- */
+
+@media print {
+  /* A financial report gets printed and filed. Strip the application chrome
+     and let the statement fall onto the page. */
+  .sidebar,
+  .sidebar-backdrop,
+  .app-header .page-actions,
+  .sidebar-toggle,
+  .chart-tooltip { display: none !important; }
+
+  body { background: #fff; font-size: 11pt; }
+  .app-shell { display: block; }
+  .app-header {
+    position: static;
+    background: #fff;
+    backdrop-filter: none;
+    padding: 0 0 0.5rem;
+    border-bottom: 1px solid #000;
+  }
+  .app-body { padding: 0; }
+  .app-body-inner { max-width: none; }
+
+  .hero {
+    background: #fff !important;
+    color: #000;
+    border: 1px solid #000;
+  }
+  .hero .stat-label, .hero .stat-note, .hero-part-label { color: #333 !important; }
+  .hero .delta { background: none !important; color: #000 !important; padding: 0; }
+
+  .card, .profile { border: 1px solid #999; box-shadow: none; break-inside: avoid; }
+  .row-actions, .filter-chips, .sort-arrow, .toolbar-form { display: none !important; }
+  .toolbar { background: #fff; }
+  .stat { break-inside: avoid; }
+  .row > [class*="col-"] { break-inside: avoid; }
+
+  /* The chart's table view is the printable form of it. */
+  .chart-plot, .chart-labels, .chart-legend { display: none; }
+  .chart-table { margin-top: 0; }
+  .chart-table summary { display: none; }
+  .chart-table[open] .table-wrap,
+  .chart-table .table-wrap { display: block !important; }
+
+  a[href]::after { content: ""; }
+}
+
+/* ---- Forms ------------------------------------------------------------- */
+
+.form-page { max-width: 720px; }
+.form-label { font-weight: 550; font-size: 0.8125rem; margin-bottom: 0.3rem; }
+.helptext { font-size: 0.8125rem; color: var(--muted); margin-top: 0.3rem; }
+.required-marker { color: #dc2626; }
+
+.field-error { font-size: 0.8125rem; color: #b91c1c; margin-top: 0.3rem; }
+
+.form-error-summary {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.8125rem;
+  color: #7f1d1d;
+}
+.form-error-summary-title { font-weight: 650; margin: 0 0 0.35rem; }
+.form-error-summary ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.form-error-summary a { color: #b91c1c; font-weight: 600; }
+.has-error .form-control,
+.has-error .form-select { border-color: #f1a9a9; }
+.has-error .form-control:focus,
+.has-error .form-select:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12); }
+
+.form-notice {
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  color: #075985;
+  border-radius: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.8125rem;
+  margin-bottom: 1rem;
+}
+
+/* ---- Sectioned form ---- */
+
+/* A long form is easier to answer as a few short questions than as one list
+   of seventeen. Each section states what it is for on the left and takes the
+   fields on the right, the way a settings screen does. */
+.form-page.is-sectioned { max-width: 1040px; }
+
+.is-sectioned .form-section {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 1.25rem 2.5rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.is-sectioned .form-section:first-of-type { padding-top: 0.25rem; }
+
+.form-section-head { padding-top: 0.1rem; }
+.form-section-title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.25rem;
+}
+.form-section-caption { font-size: 0.8125rem; color: var(--muted); margin: 0; line-height: 1.5; }
+
+.is-sectioned .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 1.25rem;
+  align-content: start;
+}
+.is-sectioned .form-field.is-wide { grid-column: 1 / -1; }
+
+/* A billing day is two digits. Giving it the same box as an address is what
+   makes a form look like it was generated rather than designed. */
+.is-sectioned .form-field.is-compact .form-control,
+.is-sectioned .form-field.is-compact .form-select { max-width: 11rem; }
+
+/* Without fieldsets it is the plain stack in a card, exactly as before. Such
+   a form has precisely one section, so styling that is the whole job. */
+.form-page:not(.is-sectioned) .form-grid { display: flex; flex-direction: column; gap: 1rem; }
+.form-page:not(.is-sectioned) .form-section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  padding: 1.25rem;
+}
+
+.form-check-row { display: flex; align-items: flex-start; gap: 0.6rem; }
+/* A checkbox sharing a row with a normal field has no label above it, so it
+   would sit level with the neighbour's label rather than its input. Drop it by
+   the height of one. The first field in a section is not indented, so a
+   section that is only a checkbox still lines up with its own heading. */
+.is-sectioned .form-field:not(:first-child) > .form-check-row { padding-top: 1.55rem; }
+.form-check-row .form-check-input { margin: 0.15rem 0 0; flex: 0 0 auto; }
+.form-check-row label { margin: 0; cursor: pointer; }
+.form-check-label-text { display: block; font-weight: 550; font-size: 0.8125rem; }
+.form-check-row .helptext { margin-top: 0.1rem; }
+
+/* ---- Choice tiles ---- */
+
+/* A radio group short enough to see at a glance: every option visible, one
+   click to pick, instead of a dropdown hiding six of seven. */
+.choice-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+}
+.choice-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+.choice-tile:hover { border-color: #cbd5e1; background: #fbfcfd; }
+.choice-tile-input { accent-color: var(--brand); margin: 0; flex: 0 0 auto; }
+.choice-tile:has(.choice-tile-input:checked) {
+  border-color: var(--brand);
+  background: #f0fdfa;
+  box-shadow: inset 0 0 0 1px var(--brand);
+  color: var(--brand-dark);
+}
+.choice-tile:has(.choice-tile-input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 1px; }
+fieldset > legend.form-label { float: none; width: auto; padding: 0; font-size: 0.8125rem; }
+
+/* ---- Payment ---- */
+
+.payment-bill { margin-bottom: 1.5rem; }
+
+/* A currency sign set inside the input, for money fields that declare one. */
+.input-prefixed { position: relative; }
+.input-prefix {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+.input-prefixed .form-control { padding-left: 2rem; }
+
+/* The one figure on the page that matters, so it is set like one. */
+.input-prefixed:has(#id_amount) { max-width: 18rem; }
+.input-prefixed:has(#id_amount) .input-prefix { font-size: 1.25rem; left: 0.95rem; }
+#id_amount {
+  height: 52px;
+  padding-left: 2.3rem;
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.payment-addon { margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.9rem; }
+
+.amount-shortcuts { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+.amount-shortcut {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* Round-note buttons carry no label; bottom-aligned, every value still
+     sits on one line across the row. */
+  justify-content: flex-end;
+  gap: 0.05rem;
+  min-width: 96px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  color: #334155;
+  text-align: left;
+  line-height: 1.25;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.amount-shortcut-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.amount-shortcut-value { font-size: 0.8125rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.amount-shortcut.is-primary .amount-shortcut-label { color: var(--brand-dark); }
+.amount-shortcut:hover { border-color: #99f6e4; background: #f0fdfa; }
+.amount-shortcut.is-on {
+  border-color: var(--brand);
+  background: #f0fdfa;
+  box-shadow: inset 0 0 0 1px var(--brand);
+  color: var(--brand-dark);
+}
+.amount-shortcut:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+/* What the typed amount does to the bill, before it is saved. */
+.payment-outcome {
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: #fbfcfd;
+  padding: 0.9rem 1rem 0.2rem;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.is-invalid .payment-outcome { border-color: #fecaca; background: #fffafa; }
+
+.outcome-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  background: #e8edf3;
+  overflow: hidden;
+}
+.outcome-seg { display: block; height: 100%; transition: width 0.2s ease; }
+.seg-before { background: #0f766e; }
+.seg-now {
+  background: repeating-linear-gradient(-45deg, #2dd4bf 0 6px, #5eead4 6px 12px);
+}
+
+.outcome-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.outcome-legend b { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.35rem; }
+.dot-before { background: #0f766e; }
+.dot-now { background: #2dd4bf; }
+.dot-left { background: #d5dde6; }
+
+.outcome-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0.85rem -1rem 0;
+  border-top: 1px solid var(--line);
+}
+.outcome-cell { padding: 0.65rem 1rem 0.75rem; border-right: 1px solid var(--line); min-width: 0; }
+.outcome-cell:last-child { border-right: 0; }
+.outcome-cell dt {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.outcome-cell dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.outcome-status {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: #f1f5f9;
+  color: #475569;
+}
+.outcome-status.is-paid { background: #dcfce7; color: #047857; }
+.outcome-status.is-partial { background: #fef3c7; color: #b45309; }
+
+.outcome-warning {
+  margin: 0 -1rem;
+  padding: 0.55rem 1rem;
+  border-top: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 0 0 0.65rem 0.65rem;
+}
+
+@media (prefers-reduced-motion: reduce) { .outcome-seg { transition: none; } }
+
+@media (max-width: 992px) {
+  .input-prefixed:has(#id_amount) { max-width: none; }
+  .outcome-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .outcome-cell:nth-child(2n) { border-right: 0; }
+  .outcome-cell:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+}
+
+/* ---- Form actions ---- */
+
+/* Stuck to the bottom of the viewport rather than the bottom of the document:
+   on a form this long, Save was a scroll away from wherever you were. */
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding: 0.85rem 0;
+  background: linear-gradient(to bottom, rgba(246, 248, 250, 0) 0%, var(--canvas) 45%);
+}
+.form-actions .btn { min-width: 108px; }
+.form-actions-note { margin-right: auto; font-size: 0.75rem; color: var(--muted); }
+
+@media (max-width: 992px) {
+  .is-sectioned .form-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+    padding: 1.25rem 0;
+  }
+  .is-sectioned .form-grid { grid-template-columns: minmax(0, 1fr); }
+  /* One column: nothing to line up with. */
+  .is-sectioned .form-field:not(:first-child) > .form-check-row { padding-top: 0; }
+  .is-sectioned .form-field.is-compact .form-control,
+  .is-sectioned .form-field.is-compact .form-select { max-width: none; }
+  .form-actions-note { display: none; }
+  .form-actions .btn { flex: 1 1 auto; }
+}
+
+/* ---- Login ------------------------------------------------------------- */
+
+.login-page {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--canvas);
+}
+
+/* Brand on the left, form on the right; one column on a phone. */
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+}
+
+.login-brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2.5rem 3rem;
+  color: #e2e8f0;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(45, 212, 191, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(14, 165, 164, 0.16), transparent 50%),
+    linear-gradient(160deg, var(--ink) 0%, #134e4a 100%);
+  overflow: hidden;
+}
+.login-brand-top { display: flex; align-items: center; gap: 0.7rem; }
+.login-mark { flex-basis: 40px; height: 40px; font-size: 0.9375rem; }
+.login-brand-name { font-size: 1.05rem; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+.login-headline {
+  max-width: 22ch;
+  margin: 0 0 1.5rem;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+.login-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.85rem; }
+.login-points li { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9375rem; color: #cbd5e1; }
+.login-points .icon {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #5eead4;
+}
+.login-brand-foot { margin: 0; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+
+.login-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 2rem 1.5rem;
+}
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 2.25rem 2rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px rgba(15, 23, 42, 0.06);
+}
+.login-title { margin: 0 0 0.3rem; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+.login-sub { margin: 0 0 1.5rem; font-size: 0.875rem; color: var(--muted); }
+
+.login-field { margin-bottom: 1.1rem; }
+.login-input { position: relative; }
+.login-input-icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.login-input .form-control { padding-left: 2.5rem; font-size: 0.9375rem; height: 48px; }
+.login-submit { margin-top: 0.6rem; height: 48px; font-size: 0.9375rem; font-weight: 650; }
+.login-submit[data-busy] { opacity: 0.75; cursor: progress; }
+
+.login-alert {
+  margin-bottom: 1.1rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #fecaca;
+  border-left: 3px solid #dc2626;
+  border-radius: 0.55rem;
+  background: #fef2f2;
+  color: #7f1d1d;
+  font-size: 0.8125rem;
+}
+.login-alert.is-locked { border-color: #fde68a; border-left-color: #d97706; background: #fffbeb; color: #78350f; }
+.login-attempts { margin-top: 0.35rem; font-weight: 650; }
+
+.login-help { margin: 1.25rem 0 0; text-align: center; font-size: 0.8125rem; color: var(--muted); }
+.login-legal { margin: 0; font-size: 0.75rem; color: #94a3b8; }
+
+@media (max-width: 860px) {
+  .login-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .login-brand { padding: 1.25rem 1.25rem; gap: 0; }
+  .login-brand-body, .login-brand-foot { display: none; }
+  .login-panel { justify-content: flex-start; padding-top: 1.5rem; }
+  .login-card { padding: 1.75rem 1.25rem; }
+}
+
+/* ---- Passwords --------------------------------------------------------- */
+
+/* Show/Hide sits inside the input's right edge (added by password-tools.js). */
+.password-field { position: relative; }
+.password-field .form-control { padding-right: 4.2rem; }
+.password-toggle {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  padding: 0.25rem 0.55rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--brand-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.password-toggle:hover { background: #f0fdfa; }
+.password-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.caps-warning { margin-top: 0.35rem; font-size: 0.75rem; font-weight: 650; color: #b45309; }
+.caps-warning[hidden] { display: none; }
+
+.password-account { margin-bottom: 1rem; }
+.password-since { margin: 0.25rem 0 0; font-weight: 650; }
+
+.strength { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.65rem; }
+.strength-bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; flex: 1 1 auto; max-width: 260px; }
+.strength-bars span { height: 6px; border-radius: 999px; background: #e8edf3; transition: background 0.15s ease; }
+.strength-label { font-size: 0.75rem; font-weight: 650; color: var(--muted); min-width: 5.5rem; }
+.strength[data-level="1"] .strength-bars span:nth-child(-n + 1) { background: #dc2626; }
+.strength[data-level="2"] .strength-bars span:nth-child(-n + 2) { background: #f59e0b; }
+.strength[data-level="3"] .strength-bars span:nth-child(-n + 3) { background: #14b8a6; }
+.strength[data-level="4"] .strength-bars span { background: #047857; }
+.strength[data-level="1"] .strength-label { color: #b91c1c; }
+.strength[data-level="2"] .strength-label { color: #b45309; }
+.strength[data-level="3"] .strength-label,
+.strength[data-level="4"] .strength-label { color: #047857; }
+
+.rule-list { list-style: none; margin: 0.6rem 0 0; padding: 0; display: grid; gap: 0.25rem; }
+.rule-list li { position: relative; padding-left: 1.35rem; font-size: 0.8125rem; color: var(--muted); }
+.rule-list li::before {
+  content: "";
+  position: absolute;
+  left: 0.2rem;
+  top: 0.42em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid #cbd5e1;
+}
+.rule-list li[data-state="pass"] { color: #047857; }
+.rule-list li[data-state="pass"]::before { content: "✓"; border: 0; width: auto; height: auto; top: 0; left: 0.1rem; font-weight: 700; }
+.rule-list li[data-state="fail"] { color: #b91c1c; }
+.rule-list li[data-state="fail"]::before { border-color: #f87171; background: #fee2e2; }
+
+.match-state { margin-top: 0.35rem; font-size: 0.75rem; font-weight: 650; min-height: 1em; }
+.match-state[data-state="pass"] { color: #047857; }
+.match-state[data-state="fail"] { color: #b91c1c; }
+
+@media (prefers-reduced-motion: reduce) { .strength-bars span { transition: none; } }
+
+/* ---- Confirmation ------------------------------------------------------ */
+
+.done-card {
+  max-width: 520px;
+  margin: 2rem auto;
+  padding: 2rem;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.done-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 1rem;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #047857;
+}
+.done-title { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.6rem; }
+.done-text { color: var(--muted); margin: 0 0 0.6rem; }
+.done-actions { margin-top: 1.25rem; }
+
+/* ---- Responsive -------------------------------------------------------- */
+
+@media (max-width: 992px) {
+  /* Below this width the sidebar becomes an off-canvas drawer. Previously it
+     was simply hidden with no way to open it, which left the whole
+     application unnavigable on a phone. */
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 272px;
+    flex: none;
+    transform: translateX(-100%);
+    box-shadow: 0 0 40px rgba(2, 6, 23, 0.4);
+  }
+  body.sidebar-open .sidebar { transform: translateX(0); }
+  body.sidebar-open .sidebar-backdrop { display: block; }
+
+  .sidebar-close { display: grid; }
+
+  /* The icon rail is a desktop affordance; on a drawer it just hides labels. */
+  body.sidebar-collapsed { --sidebar-width: 272px; }
+  body.sidebar-collapsed .brand-text,
+  body.sidebar-collapsed .nav-text,
+  body.sidebar-collapsed .user-meta { display: flex; }
+  body.sidebar-collapsed .nav-parent { display: flex; }
+  body.sidebar-collapsed .nav-children { grid-template-rows: 0fr; }
+  body.sidebar-collapsed .nav-group.open > .nav-children { grid-template-rows: 1fr; }
+  body.sidebar-collapsed .nav-children-inner { padding: 1px 0 2px 1.55rem; }
+  body.sidebar-collapsed .nav-children-inner::before { display: block; }
+  body.sidebar-collapsed .nav-group { border-top: 0; margin-top: 0; padding-top: 0; }
+  body.sidebar-collapsed .sidebar .nav-link { justify-content: flex-start; padding-inline: 0.65rem; }
+  body.sidebar-collapsed .nav-badge { position: static; min-width: 19px; height: auto; padding: 0.22rem 0.4rem; font-size: 0.6875rem; }
+  body.sidebar-collapsed .footer-actions { flex-direction: row; }
+
+  .app-body { padding: 1rem; }
+  .app-header { padding: 0.75rem 1rem; }
+  .hero { padding: 1.1rem; }
+  .hero-value { font-size: 2.25rem; }
+  .hero-trend { width: 100%; align-items: flex-start; }
+  .stat-value { font-size: 1.3rem; }
+  .chart-label { font-size: 0.625rem; }
+  .chart-plot, .chart-labels { padding-left: 34px; }
+  .chart-axis { width: 34px; }
+  .chart-grid { left: 34px; }
+  .chip { min-width: 96px; padding: 0.5rem 0.7rem; }
+  .chip-value { font-size: 1.05rem; }
+  .profile-balance { text-align: left; margin-left: 0; width: 100%; }
+  .fact { border-right: 0; border-bottom: 1px solid var(--line); }
+  .toolbar-form { padding: 0.7rem; gap: 0.5rem; }
+  .toolbar-search { flex-basis: 100%; }
+  .toolbar-field { flex: 1 1 140px; min-width: 0; }
+  .toolbar-range { flex-basis: 100%; min-width: 0; }
+  .toolbar-actions { margin-left: 0; width: 100%; }
+  .toolbar-status { padding: 0 0.7rem 0.6rem; }
+  .toolbar-count { margin-left: 0; width: 100%; }
+}
+
+@media (min-width: 993px) {
+  /* Nothing to open on desktop: the panel is always in the layout. */
+  .sidebar-backdrop { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .sidebar .nav-link, .footer-btn, .nav-children, .nav-caret { transition: none; }
+}
+
+.htmx-request .htmx-indicator { visibility: visible; }
+.htmx-indicator { visibility: hidden; }

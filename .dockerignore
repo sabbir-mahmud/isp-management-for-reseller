@@ -1,0 +1,33 @@
+# Kept out of the image. `COPY . .` would otherwise bake in secrets, the local
+# database and a virtualenv built for another platform.
+
+# Secrets — the container gets its settings from the environment.
+.env
+.env.*
+
+# Local state
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+*.log
+
+# Tooling and caches
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Not needed to run the app
+.git/
+.github/
+.vscode/
+.idea/
+.DS_Store
+images/
+docs/
+tests/

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load ui tables %}
+{% comment %}
+Index page skeleton, shared verbatim with packages and POPs:
+  chips → toolbar → table → pagination.
+{% endcomment %}
+
+{% block page_actions %}
+  {% if perms.accountants.export_data %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'export' 'clients' %}">Export CSV</a>
+  {% endif %}
+  {% if perms.accounts.add_client %}
+    <a class="btn btn-primary btn-sm" href="{% url 'client_add' %}">Add client</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  {% include "partials/index_chips.html" %}
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "name" "Client" %}
+            <th class="col-text">Contact</th>
+            <th>Package</th>
+            <th class="numeric col-money">Monthly fee</th>
+            {% sort_header "pop" "POP" %}
+            {% sort_header "status" "Status" %}
+            {% sort_header "owes" "Balance due" numeric=True %}
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>{% include "accounts/partials/client_rows.html" %}</tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
+</div>
+{% endblock %}

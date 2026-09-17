@@ -1,0 +1,69 @@
+{% load ui charts %}
+{% comment %}
+Grouped columns on a single shared axis.
+
+A legend is always present (two series), the values themselves are carried by
+the axis and the hover tooltip rather than a number on every column, and a
+table view sits underneath so the figures are reachable without colour.
+{% endcomment %}
+{% if has_data %}
+  <div class="chart" data-chart>
+    <div class="chart-legend">
+      {% for item in series %}
+        <span class="legend-item">
+          <span class="legend-swatch" style="background:{{ item.color }}"></span>{{ item.label }}
+        </span>
+      {% endfor %}
+    </div>
+
+    <div class="chart-plot" style="--plot-height:{{ height }}px">
+      <div class="chart-axis" aria-hidden="true">
+        {% for tick in scale %}
+          <span class="chart-tick" style="top:{{ tick.offset }}%"><span>{{ tick.label }}</span></span>
+        {% endfor %}
+      </div>
+      <div class="chart-grid" aria-hidden="true">
+        {% for tick in scale %}<span class="chart-gridline" style="top:{{ tick.offset }}%"></span>{% endfor %}
+      </div>
+      <div class="chart-bands">
+        {% for band in bands %}
+          <div class="chart-band" tabindex="0"
+               data-tip="{{ band.label }}{% for bar in band.bars %} · {{ bar.label }} {{ bar.value|money }}{% endfor %}">
+            <div class="chart-bars">
+              {% for bar in band.bars %}
+                <span class="chart-bar" style="height:{{ bar.height|floatformat:2 }}%;background:{{ bar.color }}"></span>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="chart-labels" aria-hidden="true">
+      {% for band in bands %}<span class="chart-label">{{ band.label }}</span>{% endfor %}
+    </div>
+
+    {% comment %} Open in print (see the print stylesheet): a collapsed
+    <details> prints as nothing, and the table is how the chart prints. {% endcomment %}
+    <details class="chart-table">
+      <summary>Show the figures</summary>
+      <div class="table-wrap">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr><th>Month</th>{% for item in series %}<th class="numeric">{{ item.label }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for band in bands %}
+              <tr>
+                <td>{{ band.label }}</td>
+                {% for bar in band.bars %}<td class="numeric">{{ bar.value|money }}</td>{% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+{% else %}
+  {% include "partials/empty.html" with title="Nothing to plot yet" hint="Figures appear here once money starts moving." %}
+{% endif %}

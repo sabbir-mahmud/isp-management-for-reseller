@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load ui tables %}
+{% comment %}
+Same skeleton as clients: chips → toolbar → table → pagination, with the money
+the filtered rows add up to sitting above it.
+{% endcomment %}
+
+{% block page_actions %}
+  {% if perms.accountants.export_data %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'export' 'invoices' %}">Export CSV</a>
+  {% endif %}
+  {% if perms.accountants.add_invoice %}
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'invoice_add' %}">New invoice</a>
+    <a class="btn btn-primary btn-sm" href="{% url 'invoice_generate' %}">Generate month</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  {% comment %}
+  These follow the search and the chips, so they always describe the rows
+  below them — not the whole ledger.
+  {% endcomment %}
+  <div class="summary-strip">
+    <div class="summary-item">
+      <span class="stat-label">Billed</span>
+      <span class="summary-value">{{ totals.billed|money }}</span>
+      <span class="stat-note">{{ totals.count }} invoice{{ totals.count|pluralize }}</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Received</span>
+      <span class="summary-value text-success">{{ totals.paid|money }}</span>
+      <div class="summary-meter" title="{{ totals.paid_percent }}% of the billed amount">
+        <span class="breakdown-track"><span class="breakdown-fill" style="width: {{ totals.paid_percent }}%"></span></span>
+        <span class="stat-note">{{ totals.paid_percent }}%</span>
+      </div>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Outstanding</span>
+      <span class="summary-value{% if totals.due %} text-danger{% endif %}">{{ totals.due|money }}</span>
+      <span class="stat-note">Still to collect</span>
+    </div>
+    <div class="summary-item">
+      <span class="stat-label">Your commission</span>
+      <span class="summary-value summary-accent">{{ totals.commission|money }}</span>
+      <span class="stat-note">On the billed total</span>
+    </div>
+  </div>
+
+  {% include "partials/index_chips.html" %}
+
+  <div class="card index-card">
+    {% include "partials/toolbar.html" %}
+    <div class="table-wrap">
+      <table class="table table-hover align-middle index-table">
+        <thead>
+          <tr>
+            {% sort_header "number" "Invoice" %}
+            {% sort_header "client" "Client" %}
+            {% sort_header "due" "Due" %}
+            {% sort_header "total" "Amount" numeric=True %}
+            <th class="numeric col-money">Paid</th>
+            {% sort_header "owing" "Balance due" numeric=True %}
+            <th class="col-status">Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>{% include "accountants/partials/invoice_rows.html" %}</tbody>
+      </table>
+    </div>
+    {% include "partials/pagination.html" %}
+  </div>
+</div>
+{% endblock %}

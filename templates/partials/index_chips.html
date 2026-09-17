@@ -1,0 +1,15 @@
+{% comment %}
+The summary strip. Every count is also a filter — reading "27 suspended" and
+then hunting for them in a dropdown was the old flow.
+{% endcomment %}
+{% if chips %}
+  <div class="filter-chips" role="group" aria-label="Filter by {{ chip_group|default:'status' }}">
+    {% for chip in chips %}
+      <a class="chip{% if chip.tone %} chip-{{ chip.tone }}{% endif %}{% if chip.is_active %} chip-on{% endif %}"
+         href="{{ chip.url }}"{% if chip.is_active %} aria-current="true"{% endif %}>
+        <span class="chip-value">{{ chip.value }}</span>
+        <span class="chip-label">{{ chip.label }}</span>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}

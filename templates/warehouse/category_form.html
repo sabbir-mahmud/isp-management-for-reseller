@@ -1,0 +1,109 @@
+{% extends "form.html" %}
+{% load ui %}
+{% comment %}
+The shared sectioned form, with what an existing category holds above it,
+a live duplicate check under the name, and a preview of the list row under
+the description.
+{% endcomment %}
+
+{% block form_intro %}
+  {% if object %}
+    <div class="profile category-holdings">
+      <div class="profile-head">
+        <span class="avatar avatar-lg avatar-square" aria-hidden="true">{{ object.name|initials }}</span>
+        <div class="profile-identity">
+          <h2 class="profile-name">{{ object.name }}</h2>
+          <div class="profile-tags">
+            {% if holdings.items %}
+              {% for name in holdings.sample %}<span class="tag">{{ name }}</span>{% endfor %}
+              {% if holdings.more %}<span class="tag">+{{ holdings.more }} more</span>{% endif %}
+            {% else %}
+              <span class="tag">Nothing filed here yet</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="profile-balance">
+          <span class="stat-label">Stock value</span>
+          <p class="statement-figure">{{ holdings.value|money }}</p>
+          <span class="stat-note">
+            {% if holdings.items %}<a href="{% url 'product_list' %}?category={{ object.pk }}">View its stock</a>{% endif %}
+          </span>
+        </div>
+      </div>
+      <div class="profile-facts">
+        <div class="fact">
+          <span class="fact-label">Items</span>
+          <span class="fact-value">{{ holdings.items }}</span>
+        </div>
+        <div class="fact">
+          <span class="fact-label">Units on hand</span>
+          <span class="fact-value">{{ holdings.units }}</span>
+        </div>
+        <div class="fact">
+          <span class="fact-label">To reorder</span>
+          <span class="fact-value{% if holdings.to_reorder %} text-danger{% endif %}">{{ holdings.to_reorder }}</span>
+        </div>
+      </div>
+    </div>
+    {% if holdings.items %}
+      <div class="form-notice">
+        Renaming moves all {{ holdings.items }} item{{ holdings.items|pluralize }} with it — nothing needs re-filing.
+      </div>
+    {% endif %}
+  {% endif %}
+{% endblock %}
+
+{% block form_actions_extra %}
+  {% if then_add_item %}
+    <button class="btn btn-outline-primary" type="submit" name="then" value="{{ then_add_item }}">
+      Create and add an item
+    </button>
+  {% endif %}
+{% endblock %}
+
+{% block form_scripts %}
+{{ form.other_names|json_script:"category-names" }}
+<script>
+  // The duplicate hint, the character count and the list-row preview. All
+  // three are conveniences: the server makes the same duplicate check.
+  (function () {
+    const name = document.getElementById('id_name');
+    const description = document.getElementById('id_description');
+    if (!name || !description) { return; }
+    const others = JSON.parse(document.getElementById('category-names').textContent);
+    const byKey = new Map(others.map((n) => [n.trim().toLowerCase(), n]));
+    const $ = (sel) => document.querySelector(sel);
+
+    const initials = (text) => text.split(/\s+/).filter(Boolean).slice(0, 2)
+      .map((w) => w[0]).join('').toUpperCase() || '?';
+
+    function update() {
+      const typed = name.value.replace(/\s+/g, ' ').trim();
+      const clash = typed && byKey.get(typed.toLowerCase());
+
+      const hint = $('[data-name-clash]');
+      hint.hidden = !clash;
+      if (clash) { hint.querySelector('b').textContent = clash; }
+      name.classList.toggle('is-clashing', Boolean(clash));
+      document.querySelectorAll('[data-existing]').forEach((chip) => {
+        chip.classList.toggle('is-match', Boolean(clash) && chip.dataset.existing === clash);
+      });
+
+      const max = parseInt(description.getAttribute('maxlength'), 10);
+      const used = description.value.length;
+      const counter = $('[data-count]');
+      counter.textContent = used + ' / ' + max;
+      counter.classList.toggle('is-near', used > max * 0.9);
+
+      $('[data-preview-mark]').textContent = initials(typed);
+      $('[data-preview-name]').textContent = typed || 'Category name';
+      $('[data-preview-name]').classList.toggle('is-placeholder', !typed);
+      $('[data-preview-sub]').textContent = description.value.trim() || 'No description';
+    }
+
+    name.addEventListener('input', update);
+    description.addEventListener('input', update);
+    update();
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,6 @@
+<th class="sortable{% if numeric %} numeric{% endif %}{% if is_active %} sorted{% endif %}"
+    {% if is_active %}aria-sort="{{ descending|yesno:'descending,ascending' }}"{% endif %}>
+  <a href="{{ url }}">
+    {{ label }}<span class="sort-arrow" aria-hidden="true">{% if is_active %}{{ descending|yesno:"↓,↑" }}{% else %}↕{% endif %}</span>
+  </a>
+</th>

@@ -1,0 +1,11 @@
+{% if pills %}
+  <div class="active-filters">
+    <span class="active-filters-label">Filtered by</span>
+    {% for pill in pills %}
+      <span class="pill">
+        <span class="pill-key">{{ pill.label }}</span>{{ pill.value }}
+        <a class="pill-remove" href="{{ pill.remove_url }}" aria-label="Remove {{ pill.label }} filter">×</a>
+      </span>
+    {% endfor %}
+  </div>
+{% endif %}

@@ -2,5 +2,6 @@ from django.apps import AppConfig
 
 
 class AccountantsConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.accountants'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.accountants"
+    verbose_name = "Billing & Finance"

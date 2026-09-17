@@ -1,0 +1,98 @@
+{% load static icons %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Sign in · {{ SITE_NAME }}</title>
+  <link rel="preload" href="{% static 'fonts/nunito-sans-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="login-page">
+  <main class="login-shell">
+    {% comment %}
+    Two panels on a wide screen: who this is for, and the form. On a phone
+    the brand panel shrinks to a header over the form.
+    {% endcomment %}
+    <section class="login-brand" aria-label="{{ SITE_NAME }}">
+      <div class="login-brand-top">
+        <span class="brand-mark login-mark" aria-hidden="true">{{ SITE_INITIALS }}</span>
+        <span class="login-brand-name">{{ SITE_NAME }}</span>
+      </div>
+      <div class="login-brand-body">
+        <h1 class="login-headline">The back office for your connections.</h1>
+        <ul class="login-points">
+          <li>{% icon "clients" 18 %}<span>Every client, their plan and what they owe</span></li>
+          <li>{% icon "invoices" 18 %}<span>Monthly billing, payments and the upstream split</span></li>
+          <li>{% icon "onu" 18 %}<span>ONUs and stock, from shelf to living room</span></li>
+        </ul>
+      </div>
+      <p class="login-brand-foot">Reseller back office</p>
+    </section>
+
+    <section class="login-panel">
+      <div class="login-card">
+        <h2 class="login-title">Sign in</h2>
+        <p class="login-sub">Use the username and password your owner gave you.</p>
+
+        <form method="post" novalidate data-once>
+          {% csrf_token %}
+
+          {% if locked %}
+            <div class="login-alert is-locked" role="alert">
+              <strong>Sign-in paused.</strong>
+              Too many failed attempts. Wait about {{ lockout_minutes }} minute{{ lockout_minutes|pluralize }} and try again.
+            </div>
+          {% elif form.non_field_errors %}
+            <div class="login-alert" role="alert">
+              {% for error in form.non_field_errors %}
+                {% if "correct username and password" in error %}
+                  <strong>That did not match.</strong> Check the username and password — both are case-sensitive.
+                {% else %}
+                  {{ error }}
+                {% endif %}
+              {% endfor %}
+              {% if attempts_left %}
+                <div class="login-attempts">
+                  {{ attempts_left }} attempt{{ attempts_left|pluralize }} left before sign-in pauses for {{ lockout_minutes }} minutes.
+                </div>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <div class="login-field">
+            <label class="form-label" for="{{ form.username.id_for_label }}">Username</label>
+            <div class="login-input">
+              <span class="login-input-icon" aria-hidden="true">{% icon "clients" 16 %}</span>
+              {{ form.username }}
+            </div>
+            {% for error in form.username.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="login-field">
+            <label class="form-label" for="{{ form.password.id_for_label }}">Password</label>
+            <div class="login-input">
+              <span class="login-input-icon" aria-hidden="true">{% icon "key" 16 %}</span>
+              {{ form.password }}
+            </div>
+            {% for error in form.password.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+
+          {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+          <button class="btn btn-primary btn-lg w-100 login-submit" type="submit" data-busy-label="Signing in…">
+            Sign in
+          </button>
+        </form>
+
+        <p class="login-help">
+          Forgot your password? Ask an owner to reset it for you.
+        </p>
+      </div>
+      <p class="login-legal">&copy; {% now "Y" %} {{ SITE_NAME }}</p>
+    </section>
+  </main>
+  <script src="{% static 'js/password-tools.js' %}" defer></script>
+</body>
+</html>

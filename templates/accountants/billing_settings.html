@@ -1,0 +1,123 @@
+{% extends "form.html" %}
+{% load ui %}
+{% comment %}
+The shared sectioned form, headed by how far these defaults reach, with
+live previews of the split, the next invoice number and the due date.
+{% endcomment %}
+
+{% block form_intro %}
+<div class="profile settings-reach">
+  <div class="profile-head">
+    <div class="profile-identity">
+      <span class="stat-label">In force now</span>
+      <h2 class="profile-name">{{ object.get_collection_mode_display }} at {{ object.commission_percent|floatformat:"-2" }}%</h2>
+      <div class="profile-tags">
+        {% if object.upstream_name %}<span class="tag">Upstream: {{ object.upstream_name }}</span>{% endif %}
+        <span class="tag">Numbers {{ object.invoice_prefix }}-…</span>
+        <span class="tag">Due in {{ object.due_days }} day{{ object.due_days|pluralize }}</span>
+        {% if object.auto_generate %}
+          <span class="tag tag-accent">Bills on the 1st</span>
+        {% else %}
+          <span class="tag tag-danger">Automatic billing off</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="profile-facts">
+    <div class="fact">
+      <span class="fact-label">Clients on the default</span>
+      <span class="fact-value">{{ reach.clients.following }} of {{ reach.clients.total }}</span>
+    </div>
+    <div class="fact">
+      <span class="fact-label">Own arrangement</span>
+      <span class="fact-value">{{ reach.clients.overridden }} client{{ reach.clients.overridden|pluralize }}</span>
+    </div>
+    <div class="fact">
+      <span class="fact-label">Own commission rate</span>
+      <span class="fact-value">
+        {{ reach.packages_with_rate }} package{{ reach.packages_with_rate|pluralize }},
+        {{ reach.clients_with_rate }} client{{ reach.clients_with_rate|pluralize }}
+      </span>
+    </div>
+    <div class="fact">
+      <span class="fact-label">Invoices already raised</span>
+      <span class="fact-value">{{ reach.invoices }}, unchanged by this page</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block form_scripts %}
+<script>
+  // Live previews. Each reads the inputs as typed; nothing is saved until
+  // the form is, and the server re-validates every value.
+  (function () {
+    const form = document.querySelector('.form-page form');
+    if (!form) { return; }
+    const field = (name) => form.querySelector('[name=' + name + ']');
+    const $ = (name) => form.querySelector('[data-' + name + ']');
+    const money = (n) => '৳ ' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Collection: light the chosen arrangement's description, and say the
+    // operator's name is needed when customers pay them.
+    function collection() {
+      const mode = (form.querySelector('[name=collection_mode]:checked') || {}).value;
+      form.querySelectorAll('[data-collection-guide]').forEach((row) => {
+        row.classList.toggle('is-on', row.dataset.collectionGuide === mode);
+      });
+      field('upstream_name').required = mode === 'upstream';
+    }
+
+    // Commission: a sample bill split the way `split_commission` does it,
+    // in whole paisa, rounding the commission half-up.
+    function split() {
+      const box = $('split-preview');
+      const bill = parseFloat(box.dataset.bill) * 100;
+      const rate = parseFloat(field('commission_percent').value);
+      const valid = rate >= 0 && rate <= 100;
+      box.classList.toggle('is-invalid', !valid);
+      if (!valid) {
+        $('split-you').textContent = '—';
+        $('split-up').textContent = '—';
+        $('split-bar').style.width = '0%';
+        return;
+      }
+      const yours = Math.round(bill * rate / 100);
+      $('split-you').textContent = money(yours / 100);
+      $('split-up').textContent = money((bill - yours) / 100);
+      $('split-bar').style.width = rate + '%';
+    }
+
+    // Invoices: the next number under the typed prefix, and a due date.
+    function invoices() {
+      const box = $('invoice-preview');
+      const typed = field('invoice_prefix').value.trim().toUpperCase();
+      const valid = /^[A-Z0-9]+$/.test(typed);
+      const sequence = typed === box.dataset.savedPrefix ? parseInt(box.dataset.nextSequence, 10) : 1;
+      $('next-number').textContent = valid
+        ? typed + '-' + box.dataset.stamp + '-' + String(sequence).padStart(4, '0')
+        : 'Letters and digits only';
+      $('next-number').classList.toggle('text-danger', !valid);
+
+      const days = parseInt(field('due_days').value, 10);
+      const issued = new Date(box.dataset.today + 'T00:00:00');
+      // By hand, to match the server's "16 Sep 2026" in every browser.
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const fmt = (d) => String(d.getDate()).padStart(2, '0') + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+      if (Number.isNaN(days) || days < 0) {
+        $('due-example').textContent = '—';
+      } else {
+        const due = new Date(issued);
+        due.setDate(due.getDate() + days);
+        $('due-example').textContent = fmt(issued) + ' → ' + fmt(due);
+      }
+    }
+
+    form.querySelectorAll('[name=collection_mode]').forEach((el) => el.addEventListener('change', collection));
+    field('commission_percent').addEventListener('input', split);
+    field('invoice_prefix').addEventListener('input', invoices);
+    field('due_days').addEventListener('input', invoices);
+    collection(); split(); invoices();
+  })();
+</script>
+{% endblock %}

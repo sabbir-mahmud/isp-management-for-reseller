@@ -1,0 +1,32 @@
+{% load ui icons %}
+{% comment %}
+Stat tile: label · value · optional delta · optional meta.
+
+`metric` is a `reports.metrics.Money`, which carries the prior period. `invert`
+flips the delta's colour for measures where up is bad (expenses, arrears) — the
+direction of the arrow still follows the number, only the meaning changes.
+{% endcomment %}
+<div class="stat{% if tone %} stat-{{ tone }}{% endif %}">
+  <div class="stat-head">
+    <span class="stat-label">{{ label }}</span>
+    {% if icon %}<span class="stat-icon">{% icon icon 16 %}</span>{% endif %}
+  </div>
+
+  <p class="stat-value">{{ value }}</p>
+
+  {% if metric %}
+    <div class="stat-meta">
+      {% if metric.direction == 'flat' %}
+        <span class="delta delta-flat">No change</span>
+      {% else %}
+        <span class="delta {% if invert %}{% if metric.direction == 'up' %}delta-bad{% else %}delta-good{% endif %}{% else %}{% if metric.direction == 'up' %}delta-good{% else %}delta-bad{% endif %}{% endif %}">
+          {% if metric.direction == 'up' %}↑{% else %}↓{% endif %}
+          {{ metric.delta_percent|floatformat:0 }}%
+        </span>
+      {% endif %}
+      <span class="stat-note">vs {{ metric.previous|money }} last month</span>
+    </div>
+  {% elif meta %}
+    <div class="stat-meta"><span class="stat-note">{{ meta }}</span></div>
+  {% endif %}
+</div>

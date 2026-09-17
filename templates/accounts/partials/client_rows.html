@@ -1,0 +1,50 @@
+{% load ui %}
+{% for client in clients %}
+  <tr>
+    <td class="col-id">
+      <div class="cell-identity">
+        <span class="avatar avatar-sm" aria-hidden="true">{{ client.name|initials }}</span>
+        <span class="cell-identity-text">
+          <a class="cell-identity-name" href="{% url 'client_detail' client.pk %}">{{ client.name }}</a>
+          <span class="cell-sub">{{ client.client_code }} · {{ client.username }}</span>
+        </span>
+      </div>
+    </td>
+    <td class="col-text">
+      <span>{{ client.phone }}</span>
+      <span class="cell-sub">{{ client.address|default:"—" }}</span>
+    </td>
+    <td>
+      {% if client.package %}
+        {{ client.package.name }}
+        <span class="cell-sub">
+          {% if client.pays_upstream_directly %}Pays upstream{% else %}You collect{% endif %}
+        </span>
+      {% else %}
+        <span class="text-muted">No plan</span>
+      {% endif %}
+    </td>
+    <td class="numeric col-money">{% if client.monthly_price %}{{ client.monthly_price|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+    <td>{{ client.pop.name|default:"—" }}</td>
+    <td class="col-status">{{ client.status|status_badge }}</td>
+    <td class="numeric col-money">
+      {% if client.balance_due %}
+        <span class="text-danger fw-semibold">{{ client.balance_due|money }}</span>
+      {% else %}<span class="text-muted">—</span>{% endif %}
+    </td>
+    <td class="col-actions">
+      <div class="row-actions">
+        {% if perms.accounts.change_client %}
+          <a class="row-action" href="{% url 'client_edit' client.pk %}">Edit</a>
+        {% endif %}
+        {% if perms.accounts.delete_client %}
+          <a class="row-action row-action-danger" href="{% url 'client_delete' client.pk %}">Archive</a>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+{% empty %}
+  <tr><td colspan="8">
+    {% include "partials/empty.html" with title="No clients match" hint="Adjust the search, or add your first client." %}
+  </td></tr>
+{% endfor %}

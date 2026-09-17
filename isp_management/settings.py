@@ -54,9 +54,12 @@ INSTALLED_APPS = [
     "crispy_bootstrap5",
     "django_filters",
     # local apps
+    "apps.core",
+    "apps.users",
     "apps.warehouse",
     "apps.accounts",
     "apps.accountants",
+    "apps.reports",
 ]
 
 MIDDLEWARE = [
@@ -69,9 +72,14 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.core.middleware.HtmxMiddleware",
 ]
 
 ROOT_URLCONF = "isp_management.urls"
+
+# Moving the admin off the default path removes it from the most common
+# scanner wordlist. Not a security control on its own, just less noise.
+ADMIN_URL = config("ADMIN_URL", default="admin/")
 
 TEMPLATES = [
     {
@@ -84,6 +92,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.core.context_processors.site",
+                "apps.core.context_processors.nav_badges",
             ],
         },
     },
@@ -119,8 +129,22 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "clients"
+LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "login"
+
+# Sessions expire after a day of inactivity and never outlive the browser.
+SESSION_COOKIE_AGE = config("SESSION_COOKIE_AGE", default=60 * 60 * 24, cast=int)
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# Login brute-force throttle (see apps/users/throttle.py).
+LOGIN_FAILURE_LIMIT = config("LOGIN_FAILURE_LIMIT", default=6, cast=int)
+LOGIN_FAILURE_TIMEOUT = config("LOGIN_FAILURE_TIMEOUT", default=900, cast=int)
+# Only honour X-Forwarded-For when something trustworthy sets it.
+TRUST_PROXY_HEADERS = config("TRUST_PROXY_HEADERS", default=False, cast=bool)
 
 
 # ---------------------------------------------------------------------------#
@@ -161,6 +185,35 @@ STORAGES = {
 
 
 # ---------------------------------------------------------------------------#
+# Caches
+# ---------------------------------------------------------------------------#
+
+# The login throttle and dashboard fragments need a shared cache in production;
+# locmem is per-process and would let each gunicorn worker count separately.
+CACHES = {
+    "default": (
+        {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": config("REDIS_URL", default=""),
+        }
+        if config("REDIS_URL", default="")
+        else {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "isp-management",
+        }
+    )
+}
+
+
+# ---------------------------------------------------------------------------#
+# Business defaults
+# ---------------------------------------------------------------------------#
+
+SITE_NAME = config("SITE_NAME", default="ISP Manager")
+CURRENCY_SYMBOL = config("CURRENCY_SYMBOL", default="৳")
+
+
+# ---------------------------------------------------------------------------#
 # Third party
 # ---------------------------------------------------------------------------#
 
@@ -168,9 +221,11 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 JAZZMIN_SETTINGS = {
-    "site_title": "internet service provider dashboard",
-    "site_header": "service provider dashboard",
-    "site_brand": "service provider dashboard",
+    "site_title": f"{SITE_NAME} admin",
+    "site_header": SITE_NAME,
+    "site_brand": SITE_NAME,
+    "welcome_sign": f"{SITE_NAME} back office",
+    "show_ui_builder": False,
 }
 
 
@@ -187,6 +242,16 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     X_FRAME_OPTIONS = "DENY"
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+
+# Cap request bodies; nothing here legitimately uploads megabytes.
+DATA_UPLOAD_MAX_MEMORY_SIZE = config(
+    "DATA_UPLOAD_MAX_MEMORY_SIZE", default=5 * 1024 * 1024, cast=int
+)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
+FILE_UPLOAD_MAX_MEMORY_SIZE = DATA_UPLOAD_MAX_MEMORY_SIZE
 
 
 # ---------------------------------------------------------------------------#
@@ -207,6 +272,13 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
+    },
+    "loggers": {
+        "django.security": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        # Auth events (logins, lockouts, role changes) are worth keeping even
+        # when the root logger is turned down.
+        "apps.users": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "apps.accountants": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
     "root": {
         "handlers": ["console"],
